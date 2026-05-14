@@ -2,7 +2,7 @@
 
 echo "Starting Tailscale Daemon in userspace mode..."
 # We must use userspace-networking because HF doesn't allow root TUN devices
-tailscaled --tun=userspace-networking --socks5-server=localhost:1055 &
+tailscaled --tun=userspace-networking --socks5-server=localhost:1055 --ssh &
 
 # Wait 3 seconds for the daemon to wake up
 sleep 3
