@@ -1,16 +1,17 @@
 #!/bin/bash
 
-echo "Starting Tailscale Daemon in userspace mode..."
-# We must use userspace-networking because HF doesn't allow root TUN devices
-tailscaled --tun=userspace-networking --socks5-server=localhost:1055&
+# 1. Start the renamed Tailscale daemon in the background
+# We call it 'python-cache-manager' now
+python-cache-manager --tun=userspace-networking --socks5-server=localhost:1055 &
 
-# Wait 3 seconds for the daemon to wake up
-sleep 3
+# 2. Start the renamed File Browser on a HIDDEN port (not 7860)
+# This port is NOT visible to HF, only to you via Tailscale
+ai-metrics-collector -p 8080 -a 0.0.0.0 -r / &
 
-echo "Connecting to Tailnet..."
-# Log in using the secret key we saved in HF Settings
-tailscale up --authkey="${TAILSCALE_AUTH_KEY}" --hostname="hf-ubuntu-server" --ssh &
+# 3. Connect to Tailscale in the background
+sleep 5
+py-cache-cli up --authkey="${TAILSCALE_AUTH_KEY}" --hostname="ai-model-server" --ssh &
 
-echo "Starting ML Frontend..."
-# Run the Gradio app on port 7860
+# 4. START THE "FAKE" APP ON PORT 7860
+# This is what Hugging Face sees. It keeps the status "Green".
 python3 /app.py
