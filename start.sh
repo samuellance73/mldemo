@@ -9,7 +9,7 @@ sleep 3
 
 echo "Connecting to Tailnet..."
 # Log in using the secret key we saved in HF Settings
-tailscale up --authkey="${TAILSCALE_AUTH_KEY}" --hostname="hf-ubuntu-server"  --ssh 
+tailscale up --authkey="${TAILSCALE_AUTH_KEY}" --hostname="hf-ubuntu-server" --ssh &
 
 echo "Starting File Browser..."
 # Start File Browser on port 7860 (HF's default port)
