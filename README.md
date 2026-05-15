@@ -3,7 +3,7 @@ title: ML
 emoji: 🐢
 colorFrom: green
 colorTo: green
-sdk: docker
+sdk: static
 pinned: false 
 ---
 
