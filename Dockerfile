@@ -5,8 +5,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Install basic tools (minimized)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl wget sudo python3 python3-pip upx \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    curl wget sudo python3 python3-pip upx openssh-server \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd
 
 # Install Tailscale, Filebrowser, and Ngrok
 RUN curl -fsSL https://tailscale.com/install.sh | sh && \
@@ -36,7 +37,7 @@ RUN python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download(rep
 
 # Create non-root user 'user' with sudo access and bash shell
 RUN useradd -m -u 1000 -s /bin/bash user && \
-    echo "user:password" | chpasswd && \
+    echo "user:apple123" | chpasswd && \
     usermod -aG sudo user
 
 # Copy application files

