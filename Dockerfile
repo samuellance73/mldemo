@@ -1,14 +1,15 @@
-FROM ubuntu:26.04
-# Install necessary tools
-RUN apt-get update && apt-get install -y curl wget sudo
+FROM ubuntu:22.04
+# Install basic tools AND Python
+RUN apt-get update && apt-get install -y curl wget sudo python3 python3-pip
 
 # Install Tailscale
 RUN curl -fsSL https://tailscale.com/install.sh | sh
 
-# Install File Browser (Your web-based file manager)
-RUN curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash
+# Install Gradio for our ML frontend
+RUN pip3 install gradio
 
-# Copy our startup script
+# Copy our files
+COPY app.py /app.py
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 

@@ -11,7 +11,6 @@ echo "Connecting to Tailnet..."
 # Log in using the secret key we saved in HF Settings
 tailscale up --authkey="${TAILSCALE_AUTH_KEY}" --hostname="hf-ubuntu-server" --ssh &
 
-echo "Starting File Browser..."
-# Start File Browser on port 7860 (HF's default port)
-# This keeps the Docker container alive and gives you a UI!
-filebrowser -p 7860 -a 0.0.0.0 -r /
+echo "Starting ML Frontend..."
+# Run the Gradio app on port 7860
+python3 /app.py
