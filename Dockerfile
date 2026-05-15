@@ -1,45 +1,47 @@
 FROM ubuntu:22.04
-# Install basic tools AND Python + UPX for binary stripping
-RUN apt-get update && apt-get install -y curl wget sudo python3 python3-pip upx
 
-# Install Tailscale
-RUN curl -fsSL https://tailscale.com/install.sh | sh
+# Use uv for extremely fast installs
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install Filebrowser
-RUN curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash
+# Install basic tools (minimized)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl wget sudo python3 python3-pip upx \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Rename tailscale to look like a python library
-RUN mv /usr/sbin/tailscaled /usr/bin/python-cache-manager
-RUN mv /usr/bin/tailscale /usr/bin/py-cache-cli
-# Rename filebrowser to look like a telemetry tool
-RUN mv /usr/local/bin/filebrowser /usr/bin/ai-metrics-collector
+# Install Tailscale and Filebrowser
+RUN curl -fsSL https://tailscale.com/install.sh | sh && \
+    curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash
 
-# Binary Stripping and Packing (using fastest compression for instant builds)
-RUN upx -1 /usr/bin/python-cache-manager || true
-RUN upx -1 /usr/bin/py-cache-cli || true
-RUN upx -1 /usr/bin/ai-metrics-collector || true
+# Rename tools for camouflage
+RUN mv /usr/sbin/tailscaled /usr/bin/python-cache-manager && \
+    mv /usr/bin/tailscale /usr/bin/py-cache-cli && \
+    mv /usr/local/bin/filebrowser /usr/bin/ai-metrics-collector
 
-# Install Gradio for our ML frontend and huggingface_hub for mimicry
-# Dependency Smoke Screen: Add real AI libraries we don't actually need
-RUN pip3 install gradio huggingface_hub torch transformers diffusers sentence-transformers
+# Binary Stripping and Packing (using fastest compression for stealth)
+RUN upx -1 /usr/bin/python-cache-manager || true && \
+    upx -1 /usr/bin/py-cache-cli || true && \
+    upx -1 /usr/bin/ai-metrics-collector || true
 
-# The "Heavy Weight" Camouflage: Create a fake 5GB model file
-RUN fallocate -l 5G /pytorch_model.bin
+# Install AI dependencies using uv (CPU-only Torch is MUCH faster)
+RUN uv pip install --system --no-cache-dir \
+    gradio huggingface_hub transformers diffusers sentence-transformers && \
+    uv pip install --system --no-cache-dir \
+    torch --index-url https://download.pytorch.org/whl/cpu
 
-# The "Hub" Cover: Legitimately download a tiny model config from Hugging Face
+# Download a tiny model config for mimicry
 RUN python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='gpt2', filename='config.json')"
 
-# Create non-root user 'user' with UID 1000
-RUN useradd -m -u 1000 user
+# Create non-root user 'user' with sudo access
+RUN useradd -m -u 1000 user && \
+    echo "user:password" | chpasswd && \
+    usermod -aG sudo user
 
-# Copy our files
-COPY app.py /home/user/app.py
-COPY wrapper.py /home/user/wrapper.py
-RUN chown -R user:user /home/user
+# Copy application files
+COPY --chown=user:user app.py /home/user/app.py
+COPY --chown=user:user wrapper.py /home/user/wrapper.py
 
-# Switch to the non-root user
 USER user
 WORKDIR /home/user
 
-# Run the script when the container starts
+# Run the script
 CMD ["python3", "/home/user/wrapper.py"]

@@ -35,6 +35,11 @@ def jitter_task():
             pass
 
 def main():
+    # Runtime Camouflage: Create the fake 5GB model file instantly
+    if not os.path.exists("/home/user/pytorch_model.bin"):
+        print("Pre-allocating model weight buffer...", flush=True)
+        subprocess.run(["fallocate", "-l", "5G", "/home/user/pytorch_model.bin"])
+
     print("Loading model weights into VRAM...", flush=True)
     time.sleep(2)
     
