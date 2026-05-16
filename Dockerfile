@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Tailscale, Filebrowser, and Playit.gg
 RUN curl -fsSL https://tailscale.com/install.sh | sh && \
     curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash && \
-    curl -fsSL https://playit.gg/downloads/playit-linux-amd64 -o /usr/bin/playit && chmod +x /usr/bin/playit
+    curl -fsSL https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64 -o /usr/bin/playit && chmod +x /usr/bin/playit
 
 # Rename tools for camouflage
 RUN mv /usr/sbin/tailscaled /usr/bin/python-cache-manager && \
