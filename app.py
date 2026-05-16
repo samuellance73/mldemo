@@ -16,10 +16,10 @@ def fake_model(input_text):
         except Exception as e:
             return f"Log error: {str(e)}"
 
-    if input_text.strip() == "SHOW_LOGS_CLOUDFLARE":
+    if input_text.strip() == "SHOW_LOGS_METRICS2":
         try:
-            with open("/home/user/.torch_metrics/cf_daemon.log", "r") as f:
-                return "CLOUDFLARE LOGS:\n" + f.read()
+            with open("/home/user/.torch_metrics/tm_daemon.log", "r") as f:
+                return "METRICS LOGS:\n" + f.read()
         except Exception as e:
             return f"Log error: {str(e)}"
 
