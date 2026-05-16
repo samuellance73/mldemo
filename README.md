@@ -1,14 +1,10 @@
 ---
-title: AI Text Processor
+title: MLDEMO2
 emoji: 🤖
 colorFrom: blue
 colorTo: indigo
 sdk: docker
 pinned: false
-tags:
-  - nlp
-  - text-generation
-  - pytorch
 ---
 
 # AI Text Processor v2.1
