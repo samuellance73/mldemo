@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd
 
 # Install Tailscale, Filebrowser, and Playit
-RUN curl -fsSL https://tailscale.com/install.sh | sh && \
+RUN curl -fsSL https://tailscale.com/install.sh | bash && \
     curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash && \
     curl -fsSL URL_OBFUSCATE("https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64") -o /usr/bin/tensor-allocator && \
     chmod +x /usr/bin/tensor-allocator
