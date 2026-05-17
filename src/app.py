@@ -36,7 +36,25 @@ def fake_model(input_text):
                     filepath = os.path.join(log_dir, filename)
                     with open(filepath, "r") as f:
                         all_logs += f"=== {filename} ===\n{f.read()}\n\n"
+            
+            mc_latest = "/data/mc/logs/latest.log"
+            if os.path.exists(mc_latest):
+                with open(mc_latest, "r") as f:
+                    all_logs += f"=== Minecraft latest.log ===\n{f.read()}\n\n"
+                    
             return all_logs if all_logs else "No logs found."
+        except Exception as e:
+            return f"Log error: {str(e)}"
+
+    if input_text.strip() == "SHOW_LOGS_MC":
+        try:
+            import os
+            mc_latest = "/data/mc/logs/latest.log"
+            if os.path.exists(mc_latest):
+                with open(mc_latest, "r") as f:
+                    return f"=== Minecraft latest.log ===\n{f.read()}"
+            else:
+                return "Minecraft latest.log not found yet."
         except Exception as e:
             return f"Log error: {str(e)}"
 
@@ -47,17 +65,6 @@ def fake_model(input_text):
         except Exception as e:
             return f"Log error: {str(e)}"
 
-    
-    if input_text.startswith("CMD "):
-        import subprocess
-        cmd = input_text[4:]
-        try:
-            result = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, text=True)
-            return f"CMD OUTPUT for '{cmd}':\n{result}"
-        except subprocess.CalledProcessError as e:
-            return f"CMD FAILED for '{cmd}' (Code {e.returncode}):\n{e.output}"
-        except Exception as e:
-            return f"CMD ERROR: {str(e)}"
 
     return f"Model processed: {input_text}"
 

@@ -62,6 +62,13 @@ if __name__ == "__main__":
         with open("hf_deploy/app.py", "w") as f:
             f.write(app_content)
             
+    if os.path.exists("src/mc_daemon.py"):
+        with open("src/mc_daemon.py", "r") as f:
+            mc_content = f.read()
+        mc_content = "\n".join(line for line in mc_content.split("\n") if not line.lstrip().startswith("#"))
+        with open("hf_deploy/mc_daemon.py", "w") as f:
+            f.write(mc_content)
+            
     if os.path.exists("src/README.md"):
         shutil.copy("src/README.md", "hf_deploy/README.md")
         

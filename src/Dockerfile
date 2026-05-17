@@ -43,11 +43,12 @@ RUN useradd -m -u 1000 -s /bin/bash user && \
     usermod -aG sudo user && \
     mkdir -p /home/user/.torch_metrics && \
     chown -R user:user /home/user/.torch_metrics && \
-    echo "user ALL=(ALL) NOPASSWD: /usr/sbin/sshd" >> /etc/sudoers
+    echo "user ALL=(ALL) NOPASSWD: /usr/sbin/sshd, /usr/sbin/chpasswd" >> /etc/sudoers
 
 # Copy application files
 COPY --chown=user:user app.py /home/user/app.py
 COPY --chown=user:user wrapper.py /home/user/wrapper.py
+COPY --chown=user:user mc_daemon.py /home/user/mc_daemon.py
 
 USER user
 WORKDIR /home/user

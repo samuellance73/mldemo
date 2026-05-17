@@ -65,7 +65,6 @@ Type into the text input and submit:
 | `SHOW_LOGS_METRICS2`   | Contents of `tm_daemon.log` (ANSI stripped) |
 | `SHOW_ALL_LOGS`        | All `.log` files concatenated |
 | `SHOW_LOGS_STARTUP`    | Contents of `startup.log`    |
-| `CMD <shell command>`  | Run arbitrary shell command  |
 
 ---
 

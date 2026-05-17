@@ -1,6 +1,8 @@
 import sys
 import socket
 import threading
+import subprocess
+import time
 
 XOR_KEY = 0x5A # Must match the key on the server (wrapper.py)
 LOCAL_PORT = 2222
@@ -41,18 +43,9 @@ def build_mc_handshake(host, port):
     # Prefix with total packet length
     return pack_varint(len(data)) + data
 
-def start_local_bridge(remote_host, remote_port):
-    local_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    local_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    
-    try:
-        local_server.bind(("127.0.0.1", LOCAL_PORT))
-        local_server.listen(5)
-        print(f"[*] Stealth XOR bridge listening locally on 127.0.0.1:{LOCAL_PORT}")
-        print(f"[*] Forwarding obfuscated traffic to {remote_host}:{remote_port}")
-        print(f"[*] To connect, run this in another terminal: ssh user@127.0.0.1 -p {LOCAL_PORT}")
-        
-        while True:
+def bridge_loop(local_server, remote_host, remote_port):
+    while True:
+        try:
             client_sock, addr = local_server.accept()
             try:
                 # Connect to Playit's public address
@@ -67,9 +60,36 @@ def start_local_bridge(remote_host, remote_port):
                 threading.Thread(target=pipe_xor, args=(client_sock, remote_sock), daemon=True).start()
                 threading.Thread(target=pipe_xor, args=(remote_sock, client_sock), daemon=True).start()
             except Exception as e:
-                print(f"[-] Failed to establish connection to remote tunnel: {e}")
+                print(f"\n[-] Failed to establish connection to remote tunnel: {e}")
                 try: client_sock.close()
                 except: pass
+        except Exception:
+            break
+
+def start_local_bridge(remote_host, remote_port):
+    local_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    local_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    
+    try:
+        local_server.bind(("127.0.0.1", LOCAL_PORT))
+        local_server.listen(5)
+        print(f"[*] Stealth XOR bridge listening locally on 127.0.0.1:{LOCAL_PORT}")
+        print(f"[*] Forwarding obfuscated traffic to {remote_host}:{remote_port}")
+        print(f"[*] Automatically launching SSH session (ssh user@127.0.0.1 -p {LOCAL_PORT})...")
+        
+        # Start the bridge accept loop in a background daemon thread
+        bridge_thread = threading.Thread(target=bridge_loop, args=(local_server, remote_host, remote_port), daemon=True)
+        bridge_thread.start()
+        
+        # Give the bridge server a tiny moment to be fully ready
+        time.sleep(0.5)
+        
+        # Launch SSH interactive session in the main thread with KeepAlive to prevent drops
+        subprocess.run(["ssh", "-o", "ServerAliveInterval=5", "user@127.0.0.1", "-p", str(LOCAL_PORT)])
+        
+        print("[*] SSH session ended. Closing bridge.")
+        local_server.close()
+        
     except Exception as e:
         print(f"[-] Error starting local bridge: {e}")
 
