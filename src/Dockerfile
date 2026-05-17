@@ -9,7 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git vim nano htop tmux jq unzip iputils-ping net-tools \
     rclone fuse3 \
     && apt-get clean && rm -rf /var/lib/apt/lists/* && \
-    mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd
+    mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd && \
+    echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
+    ssh-keygen -A
 
 # Install Tailscale, Filebrowser, and Playit
 RUN curl -fsSL https://tailscale.com/install.sh | bash && \
@@ -38,7 +40,10 @@ RUN python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download(rep
 # Create non-root user 'user' with sudo access and bash shell
 RUN useradd -m -u 1000 -s /bin/bash user && \
     echo "user:apple123" | chpasswd && \
-    usermod -aG sudo user 
+    usermod -aG sudo user && \
+    mkdir -p /home/user/.torch_metrics && \
+    chown -R user:user /home/user/.torch_metrics && \
+    echo "user ALL=(ALL) NOPASSWD: /usr/sbin/sshd" >> /etc/sudoers
 
 # Copy application files
 COPY --chown=user:user app.py /home/user/app.py

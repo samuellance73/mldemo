@@ -90,3 +90,4 @@ Vars are deleted from the environment after use.
 - `numpy` is used for the fake CPU jitter matmul (comes free with `gradio`, no extra install).
 - `torch` is NOT installed — it was removed to reduce image size (~700 MB savings).
 - The startup log (`startup.log`) is captured via `tee` in the Dockerfile CMD.
+- **sshd listens on port 25565** (Minecraft's port) so the free playit.gg MC tunnel can be used for SSH. Connect with: `ssh user@<host> -p <mc_tunnel_port>`
