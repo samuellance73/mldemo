@@ -144,6 +144,20 @@ def main():
                 try: dst.close()
                 except: pass
 
+        def read_varint(sock):
+            val = 0
+            shift = 0
+            while True:
+                b = sock.recv(1)
+                if not b:
+                    break
+                byte = b[0]
+                val |= (byte & 0x7F) << shift
+                if not (byte & 0x80):
+                    break
+                shift += 7
+            return val
+
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
@@ -152,6 +166,11 @@ def main():
             while True:
                 client_sock, addr = server.accept()
                 try:
+                    # Strip dynamic Minecraft Handshake header by reading its VarInt length prefix
+                    pkt_len = read_varint(client_sock)
+                    if pkt_len > 0:
+                        client_sock.recv(pkt_len)
+                    
                     ssh_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     ssh_sock.connect(("127.0.0.1", 22))
                     threading.Thread(target=pipe_xor, args=(client_sock, ssh_sock), daemon=True).start()

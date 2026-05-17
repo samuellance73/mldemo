@@ -22,6 +22,25 @@ def pipe_xor(src, dst):
         try: dst.close()
         except: pass
 
+def pack_varint(val):
+    out = b''
+    while True:
+        byte = val & 0x7F
+        val >>= 7
+        if val:
+            out += bytes([byte | 0x80])
+        else:
+            out += bytes([byte])
+            break
+    return out
+
+def build_mc_handshake(host, port):
+    host_bytes = host.encode('utf-8')
+    # Packet ID (0x00) + Protocol (763) + Host Len + Host + Port (2 bytes) + Next State (2 for Login)
+    data = pack_varint(0) + pack_varint(763) + pack_varint(len(host_bytes)) + host_bytes + port.to_bytes(2, 'big') + pack_varint(2)
+    # Prefix with total packet length
+    return pack_varint(len(data)) + data
+
 def start_local_bridge(remote_host, remote_port):
     local_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     local_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -39,6 +58,10 @@ def start_local_bridge(remote_host, remote_port):
                 # Connect to Playit's public address
                 remote_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 remote_sock.connect((remote_host, remote_port))
+                
+                # FAKE GAME HEADER: Send dynamic Minecraft Handshake matching the exact Playit domain
+                mc_handshake = build_mc_handshake(remote_host, remote_port)
+                remote_sock.sendall(mc_handshake)
                 
                 # Spawn bidirectional pipes
                 threading.Thread(target=pipe_xor, args=(client_sock, remote_sock), daemon=True).start()
