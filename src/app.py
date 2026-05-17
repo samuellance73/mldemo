@@ -19,7 +19,10 @@ def fake_model(input_text):
     if input_text.strip() == "SHOW_LOGS_METRICS2":
         try:
             with open("/home/user/.torch_metrics/tm_daemon.log", "r") as f:
-                return "METRICS LOGS:\n" + f.read()
+                import re
+                ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+                clean_logs = ansi_escape.sub('', f.read())
+                return "METRICS LOGS:\n" + clean_logs
         except Exception as e:
             return f"Log error: {str(e)}"
 

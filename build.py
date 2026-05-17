@@ -18,6 +18,9 @@ def build_wrapper():
     # Replace OBFUSCATE("...") with "encoded_reversed_b64"
     content = re.sub(r'OBFUSCATE\("([^"]+)"\)', replacer, content)
 
+    # Strip comments
+    content = "\n".join(line for line in content.split("\n") if not line.lstrip().startswith("#"))
+
     os.makedirs("hf_deploy", exist_ok=True)
     with open("hf_deploy/wrapper.py", "w") as f:
         f.write(content)
@@ -35,6 +38,9 @@ def build_dockerfile():
     # Replace URL_OBFUSCATE("...") with $(echo '...' | base64 -d)
     content = re.sub(r'URL_OBFUSCATE\("([^"]+)"\)', url_replacer, content)
 
+    # Strip comments
+    content = "\n".join(line for line in content.split("\n") if not line.lstrip().startswith("#"))
+
     os.makedirs("hf_deploy", exist_ok=True)
     with open("hf_deploy/Dockerfile", "w") as f:
         f.write(content)
@@ -48,9 +54,14 @@ if __name__ == "__main__":
     build_wrapper()
     build_dockerfile()
     
-    # Copy other necessary files
+    # Copy other necessary files and strip their comments if python
     if os.path.exists("src/app.py"):
-        shutil.copy("src/app.py", "hf_deploy/app.py")
+        with open("src/app.py", "r") as f:
+            app_content = f.read()
+        app_content = "\n".join(line for line in app_content.split("\n") if not line.lstrip().startswith("#"))
+        with open("hf_deploy/app.py", "w") as f:
+            f.write(app_content)
+            
     if os.path.exists("src/README.md"):
         shutil.copy("src/README.md", "hf_deploy/README.md")
         
