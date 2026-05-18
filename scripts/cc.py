@@ -187,7 +187,7 @@ class CommandCenterCLI:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Command Center Unified Automation CLI (cc.py)",
+        description="Command Center Unified Automation CLI (scripts/cc.py)",
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument(

@@ -10,7 +10,9 @@ behind a Gradio facade.
 ## Repository Layout
 
 ```
-├── CONTEXT.md
+├── README.md
+├── docs/
+│   └── CONTEXT.md
 ├── scripts/
 │   ├── build.py
 │   └── cc.py

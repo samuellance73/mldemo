@@ -21,8 +21,8 @@ def build_wrapper():
     # Strip comments
     content = "\n".join(line for line in content.split("\n") if not line.lstrip().startswith("#"))
 
-    os.makedirs("hf_deploy", exist_ok=True)
-    with open("hf_deploy/wrapper.py", "w") as f:
+    os.makedirs("dist", exist_ok=True)
+    with open("dist/wrapper.py", "w") as f:
         f.write(content)
     print("Built wrapper.py from src/wrapper.py")
 
@@ -41,12 +41,14 @@ def build_dockerfile():
     # Strip comments
     content = "\n".join(line for line in content.split("\n") if not line.lstrip().startswith("#"))
 
-    os.makedirs("hf_deploy", exist_ok=True)
-    with open("hf_deploy/Dockerfile", "w") as f:
+    os.makedirs("dist", exist_ok=True)
+    with open("dist/Dockerfile", "w") as f:
         f.write(content)
     print("Built Dockerfile from src/Dockerfile")
 
 if __name__ == "__main__":
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir(repo_root)
     if not os.path.exists("src/wrapper.py") or not os.path.exists("src/Dockerfile"):
         print("Source files missing! Please ensure src/wrapper.py and src/Dockerfile exist.")
         exit(1)
@@ -59,17 +61,17 @@ if __name__ == "__main__":
         with open("src/app.py", "r") as f:
             app_content = f.read()
         app_content = "\n".join(line for line in app_content.split("\n") if not line.lstrip().startswith("#"))
-        with open("hf_deploy/app.py", "w") as f:
+        with open("dist/app.py", "w") as f:
             f.write(app_content)
             
     if os.path.exists("src/mc_daemon.py"):
         with open("src/mc_daemon.py", "r") as f:
             mc_content = f.read()
         mc_content = "\n".join(line for line in mc_content.split("\n") if not line.lstrip().startswith("#"))
-        with open("hf_deploy/mc_daemon.py", "w") as f:
+        with open("dist/mc_daemon.py", "w") as f:
             f.write(mc_content)
             
     if os.path.exists("src/README.md"):
-        shutil.copy("src/README.md", "hf_deploy/README.md")
+        shutil.copy("src/README.md", "dist/README.md")
         
-    print("Build complete. The files in hf_deploy/ are ready to be pushed to Hugging Face.")
+    print("Build complete. The files in dist/ are ready to be pushed to Hugging Face.")
