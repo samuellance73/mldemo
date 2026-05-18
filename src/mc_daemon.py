@@ -4,6 +4,7 @@ import shutil
 import tarfile
 import subprocess
 import urllib.request
+import zipfile
 
 def log_print(msg):
     print(msg, flush=True)
@@ -18,11 +19,52 @@ log_print("--- INITIALIZING STEALTH MINECRAFT DAEMON ---")
 
 def download_file(url, dest_path):
     req = urllib.request.Request(url, headers={
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': '*/*'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Sec-Ch-Ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'Referer': 'https://geysermc.org/'
     })
     with urllib.request.urlopen(req) as response, open(dest_path, 'wb') as out_file:
         shutil.copyfileobj(response, out_file)
+
+def setup_geyser(mc_dir):
+    plugins_dir = os.path.join(mc_dir, "plugins")
+    os.makedirs(plugins_dir, exist_ok=True)
+    
+    # URLs for Geyser and Floodgate
+    downloads = {
+        "Geyser-Spigot.jar": "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot",
+        "floodgate-spigot.jar": "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot"
+    }
+    
+    for filename, url in downloads.items():
+        path = os.path.join(plugins_dir, filename)
+        
+        # Self-Healing Check: Verify if jar exists and is a valid zip archive
+        if os.path.exists(path):
+            try:
+                with zipfile.ZipFile(path) as zf:
+                    pass # Valid jar
+            except Exception:
+                log_print(f"[!] Corrupt jar detected: {filename} (Invalid Zip Header). Purging and redownloading...")
+                try: os.remove(path)
+                except: pass
+                
+        if not os.path.exists(path):
+            log_print(f"[*] Downloading {filename}...")
+            try:
+                download_file(url, path)
+                log_print(f"[+] {filename} downloaded successfully.")
+            except Exception as e:
+                log_print(f"[-] Failed to download {filename}: {e}")
 
 def setup_and_run():
     mc_dir = "/data/mc"
@@ -77,6 +119,9 @@ def setup_and_run():
         except Exception as e:
             log_print(f"[-] Failed to download PaperMC: {e}")
             return
+
+    # 2.5 Setup Geyser and Floodgate plugins
+    setup_geyser(mc_dir)
 
     log_print("[*] Setting up symlink bridge for high-speed local NVMe IO...")
     tmp_base = "/tmp/mc_runtime"
