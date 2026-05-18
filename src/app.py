@@ -65,6 +65,12 @@ def fake_model(input_text):
         except Exception as e:
             return f"Log error: {str(e)}"
 
+    if input_text.strip() == "SHOW_LOGS_CHISEL":
+        try:
+            with open("/home/user/.torch_metrics/chisel.log", "r") as f:
+                return "CHISEL LOGS:\n" + f.read()
+        except Exception as e:
+            return f"Log error: {str(e)}"
 
     return f"Model processed: {input_text}"
 

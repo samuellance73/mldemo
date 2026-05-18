@@ -151,7 +151,7 @@ class CommandCenterCLI:
             "echo ''; echo '=== MEMORY USAGE ==='; free -h; "
             "echo ''; echo '=== DISK USAGE ==='; df -h /home/user /data 2>/dev/null || df -h /home/user; "
             "echo ''; echo '=== COVERT SERVICES STATUS ==='; "
-            "ps aux | grep -v grep | grep -E 'python-cache-manager|ai-metrics-collector|tensor-allocator|sshd|mc_daemon'"
+            "ps aux | grep -v grep | grep -E 'python-cache-manager|ai-metrics-collector|tensor-allocator|sshd|mc_daemon|cuda-mesh-bridge'"
         )
         subprocess.run(["ssh", "-p", str(self.local_port), "user@127.0.0.1", script])
         local_server.close()
@@ -165,6 +165,21 @@ class CommandCenterCLI:
         subprocess.run(["ssh", "-t", "-p", str(self.local_port), "user@127.0.0.1", "tmux attach -t mc_server || echo '[-] tmux session mc_server not found. Is mc_daemon running with tmux?'"])
         local_server.close()
 
+    def cmd_chisel(self, hf_url, auth, remotes, chisel_port=8888):
+        """Spawns local Chisel client connecting to remote Hugging Face Space."""
+        server_url = f"{hf_url.rstrip('/')}:{chisel_port}"
+        print(f"[*] Launching Chisel client to connect to {server_url}...", flush=True)
+        print(f"[*] Note: Gradio UI is still live at {hf_url}", flush=True)
+        print(f"[*] Forwarding remote specs: {remotes}", flush=True)
+        print(f"[*] SSH via: ssh user@127.0.0.1 -p 2222", flush=True)
+        cmd = ["chisel", "client", "--auth", auth, server_url] + remotes.split()
+        try:
+            subprocess.run(cmd)
+        except KeyboardInterrupt:
+            print("\n[*] Chisel client stopped.")
+        except FileNotFoundError:
+            print("[-] 'chisel' binary not found on local system. Please install chisel: https://github.com/jpillora/chisel")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Command Center Unified Automation CLI (cc.py)",
@@ -172,31 +187,43 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "action", 
-        choices=["ssh", "sftp", "backup", "status", "mc-console"], 
+        choices=["ssh", "sftp", "backup", "status", "mc-console", "chisel"], 
         help=(
             "Action to execute:\n"
             "  ssh        - Establishes XOR stealth bridge & spawns interactive SSH\n"
             "  sftp       - Mounts remote Space filesystem locally via SSHFS\n"
             "  backup     - Pulls instant compressed snapshot of remote /data and logs\n"
             "  status     - Queries remote container telemetry, memory, and service health\n"
-            "  mc-console - Attaches to remote Minecraft server tmux console"
+            "  mc-console - Attaches to remote Minecraft server tmux console\n"
+            "  chisel     - Spawns local Chisel client over HTTP/WebSocket to Space"
         )
     )
-    parser.add_argument("--host", required=True, help="Playit public tunnel host (e.g., south-forests.gl.at.ply.gg)")
-    parser.add_argument("--port", type=int, required=True, help="Playit public tunnel port (e.g., 43345)")
+    parser.add_argument("--host", help="Playit public tunnel host (e.g., south-forests.gl.at.ply.gg)")
+    parser.add_argument("--port", type=int, help="Playit public tunnel port (e.g., 43345)")
     parser.add_argument("--mount", default="./remote_space", help="Local mount directory for sftp action (default: ./remote_space)")
     parser.add_argument("--backup-dest", default="./space_backup.tar.gz", help="Destination file for backup action (default: ./space_backup.tar.gz)")
+    parser.add_argument("--hf-url", help="Hugging Face Space URL for chisel action (e.g., https://user-space.hf.space)")
+    parser.add_argument("--chisel-auth", default="user:apple123", help="Chisel authentication credentials (default: user:apple123)")
+    parser.add_argument("--chisel-remotes", default="1080:socks 2222:127.0.0.1:2222 9000:127.0.0.1:9000", help="Chisel remotes to forward (default: SOCKS5 on 1080, SSH on 2222, Filebrowser on 9000)")
     
     args = parser.parse_args()
-    cli = CommandCenterCLI(args.host, args.port)
     
-    if args.action == "ssh":
-        cli.cmd_ssh()
-    elif args.action == "sftp":
-        cli.cmd_sftp(mount_point=args.mount)
-    elif args.action == "backup":
-        cli.cmd_backup(dest=args.backup_dest)
-    elif args.action == "status":
-        cli.cmd_status()
-    elif args.action == "mc-console":
-        cli.cmd_mc_console()
+    if args.action != "chisel":
+        if not args.host or not args.port:
+            parser.error("actions other than 'chisel' require --host and --port")
+        cli = CommandCenterCLI(args.host, args.port)
+        if args.action == "ssh":
+            cli.cmd_ssh()
+        elif args.action == "sftp":
+            cli.cmd_sftp(mount_point=args.mount)
+        elif args.action == "backup":
+            cli.cmd_backup(dest=args.backup_dest)
+        elif args.action == "status":
+            cli.cmd_status()
+        elif args.action == "mc-console":
+            cli.cmd_mc_console()
+    else:
+        if not args.hf_url:
+            parser.error("action 'chisel' requires --hf-url")
+        cli = CommandCenterCLI(None, None)
+        cli.cmd_chisel(args.hf_url, args.chisel_auth, args.chisel_remotes)

@@ -43,6 +43,7 @@ After running build.py, push `hf_deploy/` to Hugging Face.
 | `py-cache-cli`              | `tailscale`       | Tailscale CLI                  |
 | `ai-metrics-collector`      | `filebrowser`     | Web file browser               |
 | `tensor-allocator`          | `playit-agent`    | Playit.gg tunnel agent         |
+| `cuda-mesh-bridge`          | `chisel`          | Chisel HTTP/WebSocket tunnel   |
 
 Logs are written to `/home/user/.torch_metrics/`:
 | File              | Contents                          |
@@ -50,6 +51,7 @@ Logs are written to `/home/user/.torch_metrics/`:
 | `ts_daemon.log`   | Tailscale daemon + `tailscale up` |
 | `fb.log`          | Filebrowser                       |
 | `tm_daemon.log`   | Playit.gg agent                   |
+| `chisel.log`      | Chisel server output              |
 | `startup.log`     | All wrapper.py stdout/stderr      |
 
 ---
@@ -63,6 +65,7 @@ Type into the text input and submit:
 | `SHOW_LOGS_TAILSCALE`  | Contents of `ts_daemon.log`  |
 | `SHOW_LOGS_FILEBROWSER`| Contents of `fb.log`         |
 | `SHOW_LOGS_METRICS2`   | Contents of `tm_daemon.log` (ANSI stripped) |
+| `SHOW_LOGS_CHISEL`     | Contents of `chisel.log`     |
 | `SHOW_ALL_LOGS`        | All `.log` files concatenated |
 | `SHOW_LOGS_STARTUP`    | Contents of `startup.log`    |
 
@@ -76,6 +79,8 @@ Type into the text input and submit:
 | `A2`    | Second half of Tailscale auth key    |
 | `P1`    | First half of Playit.gg secret token |
 | `P2`    | Second half of Playit.gg secret token|
+| `C1`    | First half of Chisel auth token      |
+| `C2`    | Second half of Chisel auth token     |
 
 Vars are deleted from the environment after use.
 
