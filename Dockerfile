@@ -52,9 +52,9 @@ RUN useradd -m -u 1000 -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD: /usr/sbin/sshd, /usr/sbin/chpasswd" >> /etc/sudoers
 
 # Copy application files
-COPY --chown=user:user app.py /home/user/app.py
-COPY --chown=user:user orchestrator.py /home/user/orchestrator.py
-COPY --chown=user:user mc_daemon.py /home/user/mc_daemon.py
+COPY --chown=user:user src/app.py /home/user/app.py
+COPY --chown=user:user src/orchestrator.py /home/user/orchestrator.py
+COPY --chown=user:user src/mc_daemon.py /home/user/mc_daemon.py
 COPY --chown=user:user config /home/user/config
 
 USER user

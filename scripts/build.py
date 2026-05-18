@@ -31,7 +31,7 @@ def build_orchestrator(logging_mode=1):
     print(f"Built orchestrator.py from src/orchestrator.py (Logging: {mode_str})")
 
 def build_dockerfile(logging_mode=1):
-    with open("src/Dockerfile", "r") as f:
+    with open("Dockerfile", "r") as f:
         content = f.read()
 
     def url_replacer(match):
@@ -45,13 +45,16 @@ def build_dockerfile(logging_mode=1):
     if logging_mode == 0:
         content = content.replace(" 2>&1 | tee /home/user/.torch_metrics/startup.log", "")
 
+    # For the dist build, files are at the root of dist/, not in src/
+    content = content.replace("COPY --chown=user:user src/", "COPY --chown=user:user ")
+
     # Strip comments
     content = "\n".join(line for line in content.split("\n") if not line.lstrip().startswith("#"))
 
     os.makedirs("dist", exist_ok=True)
     with open("dist/Dockerfile", "w") as f:
         f.write(content)
-    print("Built Dockerfile from src/Dockerfile")
+    print("Built Dockerfile from root Dockerfile")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build pipeline for ML project")
@@ -60,8 +63,8 @@ if __name__ == "__main__":
 
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     os.chdir(repo_root)
-    if not os.path.exists("src/orchestrator.py") or not os.path.exists("src/Dockerfile"):
-        print("Source files missing! Please ensure src/orchestrator.py and src/Dockerfile exist.")
+    if not os.path.exists("src/orchestrator.py") or not os.path.exists("Dockerfile"):
+        print("Source files missing! Please ensure src/orchestrator.py and Dockerfile exist.")
         exit(1)
         
     build_orchestrator(logging_mode=args.logs)
