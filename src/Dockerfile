@@ -6,7 +6,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Install basic tools and common QoL utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl wget sudo python3 python3-pip upx openssh-server nginx \
-    git vim nano htop tmux jq unzip iputils-ping net-tools \
+    git vim nano htop tmux jq unzip iputils-ping net-tools tree \
     rclone fuse3 \
     && apt-get clean && rm -rf /var/lib/apt/lists/* && \
     mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd && \

