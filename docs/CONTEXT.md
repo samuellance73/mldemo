@@ -29,7 +29,7 @@ behind a Gradio facade.
 
 ## Build Pipeline (`scripts/build.py`)
 
-Run `python3 scripts/build.py` from the repo root. It does:
+Run `make build LOGS=1` (default) from the repo root to log to files. Use `make build LOGS=2` to output logs to both console and files simultaneously. Use `make build LOGS=0` for a zero-footprint stealth build with all logging disabled. It does:
 
 1. **`src/orchestrator.py`** → `dist/orchestrator.py`
    - Replaces `OBFUSCATE("some shell command")` with a reversed-base64 encoded string

