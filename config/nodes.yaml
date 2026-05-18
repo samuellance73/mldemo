@@ -1,0 +1,5 @@
+nodes: 
+  server-01:
+    hf-repo: "samuellance73/mldemo"
+  server-02:
+    hf-repo: "samuellance73/Bananas"
