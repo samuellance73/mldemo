@@ -99,7 +99,7 @@ class CommandCenterCLI:
         local_server = self.start_xor_bridge()
         time.sleep(0.5)
         print("[*] Launching resilient SSH session...", flush=True)
-        subprocess.run(["ssh", "-o", "ServerAliveInterval=5", "user@127.0.0.1", "-p", str(self.local_port)])
+        subprocess.run(["ssh", "-o", "ServerAliveInterval=3", "user@127.0.0.1", "-p", str(self.local_port)])
         print("[*] SSH session ended. Closing bridge.")
         local_server.close()
 
