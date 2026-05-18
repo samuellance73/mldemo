@@ -99,7 +99,11 @@ class CommandCenterCLI:
         local_server = self.start_xor_bridge()
         time.sleep(0.5)
         print("[*] Launching resilient SSH session...", flush=True)
-        subprocess.run(["ssh", "-o", "ServerAliveInterval=3", "user@127.0.0.1", "-p", str(self.local_port)])
+        subprocess.run(["ssh",
+            "-o", "ServerAliveInterval=3",
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null",
+            "user@127.0.0.1", "-p", str(self.local_port)])
         print("[*] SSH session ended. Closing bridge.")
         local_server.close()
 
@@ -165,20 +169,21 @@ class CommandCenterCLI:
         subprocess.run(["ssh", "-t", "-p", str(self.local_port), "user@127.0.0.1", "tmux attach -t mc_server || echo '[-] tmux session mc_server not found. Is mc_daemon running with tmux?'"])
         local_server.close()
 
-    def cmd_chisel(self, hf_url, auth, remotes, chisel_port=8888):
+    def cmd_chisel(self, hf_url, auth, remotes):
         """Spawns local Chisel client connecting to remote Hugging Face Space."""
-        server_url = f"{hf_url.rstrip('/')}:{chisel_port}"
-        print(f"[*] Launching Chisel client to connect to {server_url}...", flush=True)
-        print(f"[*] Note: Gradio UI is still live at {hf_url}", flush=True)
-        print(f"[*] Forwarding remote specs: {remotes}", flush=True)
-        print(f"[*] SSH via: ssh user@127.0.0.1 -p 2222", flush=True)
+        # Append /chisel-tunnel - nginx on the server routes this to the internal Chisel daemon
+        server_url = hf_url.rstrip('/') + '/chisel-tunnel'
+        print(f"[*] Launching Chisel client -> {server_url}", flush=True)
+        print(f"[*] Gradio UI also available at {hf_url}", flush=True)
+        print(f"[*] Forwarding: {remotes}", flush=True)
+        print(f"[*] SSH: ssh -o StrictHostKeyChecking=no user@127.0.0.1 -p 2222", flush=True)
         cmd = ["chisel", "client", "--auth", auth, server_url] + remotes.split()
         try:
             subprocess.run(cmd)
         except KeyboardInterrupt:
             print("\n[*] Chisel client stopped.")
         except FileNotFoundError:
-            print("[-] 'chisel' binary not found on local system. Please install chisel: https://github.com/jpillora/chisel")
+            print("[-] 'chisel' not found. Install: https://github.com/jpillora/chisel")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

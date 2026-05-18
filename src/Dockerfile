@@ -5,7 +5,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Install basic tools and common QoL utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl wget sudo python3 python3-pip upx openssh-server \
+    curl wget sudo python3 python3-pip upx openssh-server nginx \
     git vim nano htop tmux jq unzip iputils-ping net-tools \
     rclone fuse3 \
     && apt-get clean && rm -rf /var/lib/apt/lists/* && \
@@ -49,7 +49,7 @@ RUN useradd -m -u 1000 -s /bin/bash user && \
     usermod -aG sudo user && \
     mkdir -p /home/user/.torch_metrics && \
     chown -R user:user /home/user/.torch_metrics && \
-    echo "user ALL=(ALL) NOPASSWD: /usr/sbin/chpasswd" >> /etc/sudoers
+    echo "user ALL=(ALL) NOPASSWD: /usr/sbin/sshd, /usr/sbin/chpasswd" >> /etc/sudoers
 
 # Copy application files
 COPY --chown=user:user app.py /home/user/app.py
