@@ -115,43 +115,8 @@ def main():
     #   /chisel-tunnel -> Chisel on :6789 (WebSocket tunnel)
     #   /              -> Gradio on :7861 (full WS proxy support)
     print("Enabling gradient checkpoint mesh bridge...", flush=True)
-    nginx_conf = """
-daemon off;
-error_log /home/user/.torch_metrics/nginx.log debug;
-pid /tmp/nginx.pid;
-worker_processes 1;
-events { worker_connections 1024; }
-http {
-    access_log /home/user/.torch_metrics/nginx_access.log;
-    client_body_temp_path /tmp/nginx_client;
-    proxy_temp_path /tmp/nginx_proxy;
-    fastcgi_temp_path /tmp/nginx_fastcgi;
-    uwsgi_temp_path /tmp/nginx_uwsgi;
-    scgi_temp_path /tmp/nginx_scgi;
-    map $http_upgrade $cu { default upgrade; '' close; }
-    server {
-        listen 7860;
-        location /chisel-tunnel {
-            proxy_pass http://127.0.0.1:6789/;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection $cu;
-            proxy_set_header Host $host;
-            proxy_read_timeout 86400s;
-            proxy_send_timeout 86400s;
-        }
-        location / {
-            proxy_pass http://127.0.0.1:7861;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection $cu;
-            proxy_set_header Host $host;
-            proxy_read_timeout 86400s;
-            proxy_send_timeout 86400s;
-        }
-    }
-}
-"""
+    with open('/home/user/config/nginx.conf.template', 'r') as tf:
+        nginx_conf = tf.read()
     with open('/home/user/nginx.conf', 'w') as nf:
         nf.write(nginx_conf)
     

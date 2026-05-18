@@ -6,7 +6,7 @@ import time
 import argparse
 import os
 
-XOR_KEY = 0x5A  # Must match the key on the server (wrapper.py)
+XOR_KEY = 0x5A  # Must match the key on the server (orchestrator.py)
 LOCAL_PORT = 2222
 
 def pipe_xor(src, dst):

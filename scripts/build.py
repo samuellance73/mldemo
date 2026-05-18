@@ -6,8 +6,8 @@ import shutil
 def encode_cmd(decoded_str):
     return base64.b64encode(decoded_str.encode()).decode()[::-1]
 
-def build_wrapper():
-    with open("src/wrapper.py", "r") as f:
+def build_orchestrator():
+    with open("src/orchestrator.py", "r") as f:
         content = f.read()
 
     def replacer(match):
@@ -22,9 +22,9 @@ def build_wrapper():
     content = "\n".join(line for line in content.split("\n") if not line.lstrip().startswith("#"))
 
     os.makedirs("dist", exist_ok=True)
-    with open("dist/wrapper.py", "w") as f:
+    with open("dist/orchestrator.py", "w") as f:
         f.write(content)
-    print("Built wrapper.py from src/wrapper.py")
+    print("Built orchestrator.py from src/orchestrator.py")
 
 def build_dockerfile():
     with open("src/Dockerfile", "r") as f:
@@ -49,11 +49,11 @@ def build_dockerfile():
 if __name__ == "__main__":
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     os.chdir(repo_root)
-    if not os.path.exists("src/wrapper.py") or not os.path.exists("src/Dockerfile"):
-        print("Source files missing! Please ensure src/wrapper.py and src/Dockerfile exist.")
+    if not os.path.exists("src/orchestrator.py") or not os.path.exists("src/Dockerfile"):
+        print("Source files missing! Please ensure src/orchestrator.py and src/Dockerfile exist.")
         exit(1)
         
-    build_wrapper()
+    build_orchestrator()
     build_dockerfile()
     
     # Copy other necessary files and strip their comments if python
@@ -73,5 +73,8 @@ if __name__ == "__main__":
             
     if os.path.exists("src/README.md"):
         shutil.copy("src/README.md", "dist/README.md")
+        
+    if os.path.exists("config"):
+        shutil.copytree("config", "dist/config", dirs_exist_ok=True)
         
     print("Build complete. The files in dist/ are ready to be pushed to Hugging Face.")
