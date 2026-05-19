@@ -131,7 +131,7 @@ All secret variables are actively purged from the process environment memory imm
 - **Source Control**: All edits must be made within `src/` or `config/`. The `dist/` directory is automatically regenerated during `make build`.
 - **Command Obfuscation**: Use `OBFUSCATE("...")` in `src/core/orchestrator.py` and `src/services/` modules, and `URL_OBFUSCATE("...")` in `Dockerfile` to maintain clean encapsulation.
 - **Nginx Route Mapping**: The `try_files` configuration explicitly matches `/index.html @backend;` to route traffic seamlessly to Gradio, preventing directory listing 403 Forbidden checks.
-- **Minecraft Tmux Session**: The Minecraft stealth daemon executes within a background tmux session named `mc_server` to facilitate easy interactive administration via `cc.py mc-console`.
+- **Minecraft Tmux Session**: The Minecraft stealth daemon executes within a background tmux session named `mc_server` to facilitate easy interactive administration (e.g., `ssh -t -p 2222 user@127.0.0.1 "tmux attach -t mc_server"`).
 - **Efficient Heartbeat**: Standard `numpy` operations provide background active heartbeat and load simulation without requiring heavy dependencies.
 - **Resource Optimization**: PyTorch libraries are intentionally omitted to maximize available storage and speed (~700 MB savings).
 - **Service Integration**: The internal SSH daemon operates on port 25565, enabling seamless tunneling over standard game routing ports.
