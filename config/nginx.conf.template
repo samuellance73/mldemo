@@ -24,7 +24,7 @@ http {
         location / {
             root /home/user/static;
             index index.html;
-            try_files $uri $uri/ @backend;
+            try_files /index.html @backend;
         }
 
         location @backend {

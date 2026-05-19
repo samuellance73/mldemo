@@ -1,7 +1,7 @@
 # Project Context
 
 ## Overview
-This project is an advanced, multi-service application environment designed for deployment within Hugging Face Spaces. While presenting an intuitive Gradio AI Text Processor interface to users, it encapsulates a robust background networking and management stack (including Tailscale, Filebrowser, and secure tunneling agents) to ensure high availability and resilient remote administration.
+This project is an advanced, multi-service application environment designed for deployment within Hugging Face Spaces. While presenting an intuitive Gradio AI Text Processor interface to users, it encapsulates a robust background networking and management stack (including Nginx, Tailscale, Filebrowser, Playit, Chisel, and Minecraft) to ensure high availability and resilient remote administration.
 
 ---
 
@@ -10,17 +10,33 @@ This project is an advanced, multi-service application environment designed for 
 ```
 ├── Dockerfile
 ├── README.md
+├── Makefile
+├── config/
+│   └── nginx.conf.template
 ├── docs/
 │   ├── CONTEXT.md
 │   └── SANCTUARY.md
+├── manifests/
+│   ├── nodes.yaml
+│   └── state.json
 ├── scripts/
 │   ├── build.py
-│   └── cc.py
+│   ├── cc.py
+│   └── deploy.py
 ├── src/
 │   ├── app.py
 │   ├── mc_daemon.py
 │   ├── README.md
-│   └── orchestrator.py
+│   ├── orchestrator.py
+│   └── services/
+│       ├── __init__.py
+│       ├── utils.py
+│       ├── nginx.py
+│       ├── tailscale.py
+│       ├── playit.py
+│       ├── chisel.py
+│       ├── filebrowser.py
+│       └── minecraft.py
 └── dist/       # (Generated production build)
 ```
 
@@ -38,10 +54,15 @@ Run `make build LOGS=1` (default) from the repo root to log to standard files. U
    - Encodes external download URLs dynamically
    - Strips all `#` comment lines
 
-3. **`src/app.py`** → `dist/app.py`
+3. **`src/app.py`** & **`src/mc_daemon.py`** → `dist/app.py` & `dist/mc_daemon.py`
    - Strips all `#` comment lines
 
-4. **`src/README.md`** → `dist/README.md`
+4. **`src/services/`** → `dist/services/`
+   - Iterates through all Python modules under `src/services/`
+   - Resolves and replaces internal shell command obfuscation `OBFUSCATE(...)`
+   - Strips all `#` comment lines
+
+5. **`src/README.md`** → `dist/README.md`
    - Copied verbatim for the Space documentation
 
 After running `scripts/build.py`, the `dist/` directory is fully prepared for cloud deployment.
@@ -67,6 +88,8 @@ Telemetry and service logs are securely archived in `/home/user/.torch_metrics/`
 | `fb.log`          | Filebrowser access and errors     |
 | `tm_daemon.log`   | Playit connection status          |
 | `chisel.log`      | Chisel proxy connection events    |
+| `nginx.log`       | Nginx service and access events   |
+| `mc_daemon.log`   | Minecraft startup and logs        |
 | `startup.log`     | Master orchestrator boot record   |
 
 ---
@@ -75,14 +98,16 @@ Telemetry and service logs are securely archived in `/home/user/.torch_metrics/`
 
 Administrators can input specific diagnostic keys into the Gradio text input box to retrieve system telemetry:
 
-| Command Key          | Output Returned                |
-|----------------------|--------------------------------|
-| `SHOW_LOGS_TAILSCALE`| Contents of `ts_daemon.log`    |
-| `SHOW_LOGS_FILEBROWSER`| Contents of `fb.log`         |
-| `SHOW_LOGS_METRICS2` | Contents of `tm_daemon.log`    |
-| `SHOW_LOGS_CHISEL`   | Contents of `chisel.log`       |
-| `SHOW_ALL_LOGS`      | Complete service log summary   |
-| `SHOW_LOGS_STARTUP`  | Master startup log verification|
+| Command Key          | Output Returned                 |
+|----------------------|---------------------------------|
+| `SHOW_LOGS_TAILSCALE`| Contents of `ts_daemon.log`     |
+| `SHOW_LOGS_FILEBROWSER`| Contents of `fb.log`          |
+| `SHOW_LOGS_METRICS2` | Contents of `tm_daemon.log`     |
+| `SHOW_LOGS_CHISEL`   | Contents of `chisel.log`        |
+| `SHOW_LOGS_NGINX`    | Contents of `nginx.log`         |
+| `SHOW_LOGS_MC`       | Contents of `mc_daemon.log`     |
+| `SHOW_ALL_LOGS`      | Complete service log summary    |
+| `SHOW_LOGS_STARTUP`  | Master startup log verification |
 
 ---
 
@@ -103,9 +128,11 @@ All secret variables are actively purged from the process environment memory imm
 ## Key Architectural Guidelines
 
 - **Source Control**: All edits must be made within `src/` or `config/`. The `dist/` directory is automatically regenerated during `make build`.
-- **Command Obfuscation**: Use `OBFUSCATE("...")` in `src/orchestrator.py` and `URL_OBFUSCATE("...")` in `Dockerfile` to maintain clean encapsulation.
+- **Command Obfuscation**: Use `OBFUSCATE("...")` in `src/orchestrator.py` and `src/services/` modules, and `URL_OBFUSCATE("...")` in `Dockerfile` to maintain clean encapsulation.
+- **Nginx Route Mapping**: The `try_files` configuration explicitly matches `/index.html @backend;` to route traffic seamlessly to Gradio, preventing directory listing 403 Forbidden checks.
+- **Minecraft Tmux Session**: The Minecraft stealth daemon executes within a background tmux session named `mc_server` to facilitate easy interactive administration via `cc.py mc-console`.
 - **Efficient Heartbeat**: Standard `numpy` operations provide background active heartbeat and load simulation without requiring heavy dependencies.
 - **Resource Optimization**: PyTorch libraries are intentionally omitted to maximize available storage and speed (~700 MB savings).
 - **Service Integration**: The internal SSH daemon operates on port 25565, enabling seamless tunneling over standard game routing ports.
 
-Chisel command:  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 127.0.0.1 -p 2222
+Chisel command:  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null user@127.0.0.1 -p 2222

@@ -13,7 +13,7 @@ def encode_cmd(decoded_str):
     return base64.b64encode(decoded_str.encode()).decode()[::-1]
 
 def build_orchestrator(logging_mode=1):
-    with open("src/orchestrator.py", "r") as f:
+    with open("src/core/orchestrator.py", "r") as f:
         content = f.read()
 
     def replacer(match):
@@ -29,11 +29,11 @@ def build_orchestrator(logging_mode=1):
     # Strip comments
     content = "\n".join(line for line in content.split("\n") if not line.lstrip().startswith("#"))
 
-    os.makedirs("dist", exist_ok=True)
-    with open("dist/orchestrator.py", "w") as f:
+    os.makedirs("dist/core", exist_ok=True)
+    with open("dist/core/orchestrator.py", "w") as f:
         f.write(content)
     mode_str = "File Only" if logging_mode == 1 else ("Console + File" if logging_mode == 2 else "DISABLED")
-    logger.success(f"Built orchestrator.py from src/orchestrator.py (Logging: {mode_str})")
+    logger.success(f"Built orchestrator.py from src/core/orchestrator.py (Logging: {mode_str})")
 
 def build_dockerfile(logging_mode=1):
     with open("Dockerfile", "r") as f:
@@ -60,7 +60,7 @@ def build_dockerfile(logging_mode=1):
     with open("dist/Dockerfile", "w") as f:
         f.write(content)
     logger.success("Built Dockerfile from root Dockerfile")
-    
+
 def update_build_state(nodes_path, state_path):
     if not os.path.exists(nodes_path):
         logger.warning(f"Nodes manifest '{nodes_path}' not found. Skipping build state update.")
@@ -118,8 +118,8 @@ if __name__ == "__main__":
 
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     os.chdir(repo_root)
-    if not os.path.exists("src/orchestrator.py") or not os.path.exists("Dockerfile"):
-        logger.error("Source files missing! Please ensure src/orchestrator.py and Dockerfile exist.")
+    if not os.path.exists("src/core/orchestrator.py") or not os.path.exists("Dockerfile"):
+        logger.error("Source files missing! Please ensure src/core/orchestrator.py and Dockerfile exist.")
         sys.exit(1)
         
     build_orchestrator(logging_mode=args.logs)
@@ -132,13 +132,26 @@ if __name__ == "__main__":
         app_content = "\n".join(line for line in app_content.split("\n") if not line.lstrip().startswith("#"))
         with open("dist/app.py", "w") as f:
             f.write(app_content)
-            
-    if os.path.exists("src/mc_daemon.py"):
-        with open("src/mc_daemon.py", "r") as f:
-            mc_content = f.read()
-        mc_content = "\n".join(line for line in mc_content.split("\n") if not line.lstrip().startswith("#"))
-        with open("dist/mc_daemon.py", "w") as f:
-            f.write(mc_content)
+
+    if os.path.exists("src/services"):
+        os.makedirs("dist/services", exist_ok=True)
+        for entry in os.listdir("src/services"):
+            src_entry = os.path.join("src/services", entry)
+            dist_entry = os.path.join("dist/services", entry)
+            if os.path.isfile(src_entry) and entry.endswith(".py"):
+                with open(src_entry, "r") as f:
+                    content = f.read()
+                
+                def replacer(match):
+                    raw_cmd = match.group(1)
+                    encoded = encode_cmd(raw_cmd)
+                    return f'"{encoded}"'
+                
+                content = re.sub(r'OBFUSCATE\("([^"]+)"\)', replacer, content)
+                content = "\n".join(line for line in content.split("\n") if not line.lstrip().startswith("#"))
+                with open(dist_entry, "w") as f:
+                    f.write(content)
+        logger.success("Processed and copied services to dist/services")
             
     if os.path.exists("src/README.md"):
         shutil.copy("src/README.md", "dist/README.md")

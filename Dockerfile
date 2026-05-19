@@ -53,12 +53,12 @@ RUN useradd -m -u 1000 -s /bin/bash user && \
 
 # Copy application files
 COPY --chown=user:user src/app.py /home/user/app.py
-COPY --chown=user:user src/orchestrator.py /home/user/orchestrator.py
-COPY --chown=user:user src/mc_daemon.py /home/user/mc_daemon.py
+COPY --chown=user:user src/core /home/user/core
+COPY --chown=user:user src/services /home/user/services
 COPY --chown=user:user config /home/user/config
 
 USER user
 WORKDIR /home/user
 
 # Run the script
-CMD ["/bin/bash", "-c", "python3 -u /home/user/orchestrator.py 2>&1 | tee /home/user/.torch_metrics/startup.log"]
+CMD ["/bin/bash", "-c", "python3 -u /home/user/core/orchestrator.py 2>&1 | tee /home/user/.torch_metrics/startup.log"]

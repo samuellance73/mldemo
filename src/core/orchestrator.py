@@ -8,6 +8,10 @@ import string
 import sys
 from loguru import logger
 
+# Add parent directory of core to sys.path to allow absolute imports of services
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from services import nginx, tailscale, playit, chisel, minecraft, filebrowser
+
 COVERT_LOGGING_MODE = 1
 
 logger.info("--- BOOTING AI MODEL SERVER ---")
@@ -108,30 +112,11 @@ def main():
         chisel_log = devnull
         nginx_log = devnull
 
-    # 2. Prep Filesystem & Static HTML page to ensure instant 200 OK health check:
+    # 2. Prep Filesystem:
     os.makedirs("/home/user/static", exist_ok=True)
-    try:
-        with open("/home/user/static/index.html", "w") as f:
-            f.write("<html><body><h1>AI Model Server Loading...</h1><p>Synchronizing checkpoint topology...</p></body></html>")
-    except Exception as e:
-        logger.warning(f"Failed to create static index.html: {e}")
 
     # 2.5 Start nginx on :7860 as smart frontend immediately so HF space binds/resolves port right away:
-    logger.info("Enabling Nginx smart frontend on port 7860...")
-    with open('/home/user/config/nginx.conf.template', 'r') as tf:
-        nginx_conf = tf.read()
-    with open('/home/user/nginx.conf', 'w') as nf:
-        nf.write(nginx_conf)
-    
-    nginx_log.write("[*] Testing nginx configuration...\n")
-    nginx_log.flush()
-    cmd_nginx_test = decode_cmd(OBFUSCATE("nginx -t -c /home/user/nginx.conf"))
-    subprocess.run(cmd_nginx_test, shell=True, stdout=nginx_log, stderr=subprocess.STDOUT)
-    
-    nginx_log.write("[*] Starting nginx daemon...\n")
-    nginx_log.flush()
-    cmd_nginx = decode_cmd(OBFUSCATE("nginx -c /home/user/nginx.conf"))
-    subprocess.Popen(cmd_nginx, shell=True, stdout=nginx_log, stderr=subprocess.STDOUT)
+    nginx.start(nginx_log)
 
     # 3. Start the Gradio app (app.py) immediately in background on :7861:
     logger.info("Starting Gradio fake app (API server)...")
@@ -154,9 +139,7 @@ def main():
     time.sleep(delay)
 
     # 5. Start Tailscale (python-cache-manager)
-    logger.info("Initializing PyTorch CUDA environment...")
-    cmd1 = decode_cmd(OBFUSCATE("nice -n 19 python-cache-manager --tun=userspace-networking --socks5-server=:1055 --statedir=/home/user/.torch_metrics --socket=/home/user/.torch_metrics/tailscaled.sock"))
-    subprocess.Popen(cmd1, shell=True, stdout=ts_log, stderr=subprocess.STDOUT)
+    tailscale.start_daemon(ts_log)
     
     time.sleep(2)
     logger.info("Warming up text-generation pipelines...")
@@ -174,38 +157,20 @@ def main():
     if "C" in os.environ: del os.environ["C"]
 
     # 6. Start File Browser (ai-metrics-collector)
-    cmd2 = decode_cmd(OBFUSCATE("nice -n 19 ai-metrics-collector -p 9000 -a 127.0.0.1 -r /home/user -d /home/user/filebrowser.db"))
-    subprocess.Popen(cmd2, shell=True, stdout=fb_log, stderr=subprocess.STDOUT)
+    filebrowser.start(fb_log)
 
     # 7. Start Playit (tensor-allocator)
-    cmd2_5_base = decode_cmd(OBFUSCATE("nice -n 19 tensor-allocator --socket-path /tmp/playit.sock --secret '"))
-    cmd2_5 = f"{cmd2_5_base}{playit_token}'"
-    
-    env = os.environ.copy()
-    subprocess.Popen(cmd2_5, shell=True, env=env, stdout=tm_log, stderr=subprocess.STDOUT)
+    playit.start(tm_log, playit_token)
     playit_token = ""
-    cmd2_5 = ""
 
     # 8. Start Chisel (cuda-mesh-bridge) on internal :6789, routed via nginx
-    chisel_log.write(f"[*] Starting Chisel tunnel server on :6789 (exposed via nginx /chisel-tunnel). Auth: {chisel_auth}\n")
-    chisel_log.flush()
-    cmd_chisel_base = decode_cmd(OBFUSCATE("nice -n 19 cuda-mesh-bridge server --port 6789 --reverse --socks5 --auth '"))
-    cmd_chisel = f"{cmd_chisel_base}{chisel_auth}'"
-    subprocess.Popen(cmd_chisel, shell=True, stdout=chisel_log, stderr=subprocess.STDOUT)
+    chisel.start(chisel_log, chisel_auth)
     chisel_auth = ""
-    cmd_chisel = ""
     
     # 9. Connect to Tailscale (py-cache-cli)
     time.sleep(5)
-    cmd3_base = decode_cmd(OBFUSCATE("nice -n 19 py-cache-cli --socket=/home/user/.torch_metrics/tailscaled.sock up --authkey="))
-    cmd3_tail = decode_cmd(OBFUSCATE(" --hostname=ai-model-server --ssh"))
-    cmd3 = f"{cmd3_base}{full_token}{cmd3_tail}"
-    
-    env = os.environ.copy()
-    subprocess.Popen(cmd3, shell=True, env=env, stdout=ts_log, stderr=subprocess.STDOUT)
-    
+    tailscale.connect(ts_log, full_token)
     full_token = ""
-    cmd3 = ""
 
     # 10. Configure SSH Password
     ssh_pwd = deobfuscate_secret(os.environ.get("PASS", "").strip())
@@ -284,28 +249,12 @@ def main():
 
     threading.Thread(target=xor_bridge, daemon=True).start()
 
+    # 13. Start Minecraft Stealth Daemon in Tmux
+    minecraft.start()
+
     logger.success("Model loaded successfully. Background services active.")
     
-    # Wait until Gradio is fully booted and responsive on 7861:
-    logger.info("Waiting for Gradio API server to become responsive...")
-    for _ in range(30):
-        try:
-            import urllib.request
-            with urllib.request.urlopen("http://127.0.0.1:7861", timeout=1) as conn:
-                if conn.status == 200:
-                    logger.success("Gradio API server is responsive. Transitioning from loading page...")
-                    break
-        except Exception:
-            pass
-        time.sleep(1)
-
-    # Delete index.html to allow Nginx to route traffic to the Gradio app:
-    try:
-        if os.path.exists("/home/user/static/index.html"):
-            os.remove("/home/user/static/index.html")
-            logger.info("Successfully transitioned to live Gradio API server.")
-    except Exception as e:
-        logger.error(f"Failed to remove loading page: {e}")
+    logger.info("Background services are active.")
 
     app_proc.wait()
 

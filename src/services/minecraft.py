@@ -16,8 +16,6 @@ def log_print(msg):
     except Exception:
         pass
 
-log_print("--- INITIALIZING STEALTH MINECRAFT DAEMON ---")
-
 def download_file(url, dest_path):
     req = urllib.request.Request(url, headers={
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -66,6 +64,7 @@ def setup_geyser(mc_dir):
                 log_print(f"[-] Failed to download {filename}: {e}")
 
 def setup_and_run():
+    log_print("--- INITIALIZING STEALTH MINECRAFT DAEMON ---")
     mc_dir = "/data/mc"
     jre_dir = os.path.join(mc_dir, "jre")
     metrics_dir = "/home/user/.torch_metrics"
@@ -183,6 +182,23 @@ def setup_and_run():
             
         log_print(f"[*] Minecraft server exited with code {process.returncode}. Restarting in 10 seconds to allow network sync...")
         time.sleep(10)
+
+def start():
+    logger.info("Launching Stealth Minecraft Daemon in tmux session 'mc_server'...")
+    try:
+        res = subprocess.run(["tmux", "has-session", "-t", "mc_server"], capture_output=True)
+        if res.returncode == 0:
+            logger.warning("tmux session 'mc_server' already exists. Killing it to restart...")
+            subprocess.run(["tmux", "kill-session", "-t", "mc_server"])
+        
+        # Start the new tmux session running minecraft.py as a module
+        subprocess.Popen([
+            "tmux", "new-session", "-d", "-s", "mc_server",
+            "python3 -u -m services.minecraft"
+        ])
+        logger.success("Stealth Minecraft Daemon started successfully in tmux.")
+    except Exception as e:
+        logger.error(f"Failed to start Minecraft daemon in tmux: {e}")
 
 if __name__ == "__main__":
     setup_and_run()
