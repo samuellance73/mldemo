@@ -24,7 +24,7 @@ def build_orchestrator(logging_mode=1):
         return f'"{encoded}"'
 
     # Replace OBFUSCATE("...") with "encoded_reversed_b64"
-    content = re.sub(r'OBFUSCATE\("([^"]+)"\)', replacer, content)
+    content = re.sub(r'OBFUSCATE\(\s*"([^"]+)"\s*\)', replacer, content)
 
     content = content.replace(
         "COVERT_LOGGING_MODE = 1", f"COVERT_LOGGING_MODE = {logging_mode}"
@@ -67,6 +67,10 @@ def build_dockerfile(logging_mode=1):
 
     # For the dist build, files are at the root of dist/, not in src/
     content = content.replace("COPY --chown=user:user src/", "COPY --chown=user:user ")
+    
+    # Inject copying of the whoami files right before USER user
+    injection = "COPY --chown=user:user whoami.txt /home/user/whoami.txt\n\nUSER user"
+    content = content.replace("USER user", injection)
 
     # Strip comments
     content = "\n".join(
@@ -188,7 +192,7 @@ if __name__ == "__main__":
                     encoded = encode_cmd(raw_cmd)
                     return f'"{encoded}"'
 
-                content = re.sub(r'OBFUSCATE\("([^"]+)"\)', replacer, content)
+                content = re.sub(r'OBFUSCATE\(\s*"([^"]+)"\s*\)', replacer, content)
                 content = "\n".join(
                     line
                     for line in content.split("\n")
@@ -204,19 +208,7 @@ if __name__ == "__main__":
     if os.path.exists("config"):
         shutil.copytree("config", "dist/config", dirs_exist_ok=True)
 
-    # Write nodes.txt and whoami.sh so the server can identify itself
-    if os.path.exists(args.nodes):
-        with open(args.nodes, "r") as f:
-            nc = yaml.safe_load(f)
-        node_lines = [
-            f"{name}: {info.get('hf-repo', '')}"
-            for name, info in nc.get("nodes", {}).items()
-        ]
-        with open("dist/nodes.txt", "w") as f:
-            f.write("\n".join(node_lines) + "\n")
-        with open("dist/whoami.sh", "w") as f:
-            f.write('#!/bin/sh\nawk -v id="${SPACE_ID:-}" -F\': \' \'$2==id{print $1}\' "$(dirname "$0")/nodes.txt"\n')
-        logger.success("Generated dist/nodes.txt and dist/whoami.sh")
+        pass
 
     state_path = os.path.join(
         os.path.dirname(os.path.abspath(args.nodes)), "state.json"

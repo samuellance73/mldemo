@@ -17,6 +17,10 @@ nodes:
   server-04:
     hf-repo: "samuellance73/gemma4"
     token-env: "HF1"
+
+  server-05:
+    hf-repo: "samuelfanglance/test"
+    token-env: "HF2"
     create-repo: true
     space-sdk: docker
     repo-type: space

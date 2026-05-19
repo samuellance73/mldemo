@@ -267,6 +267,14 @@ def main():
             subdomain = repo_id.lower().replace("/", "-").replace("_", "-")
             direct_url = f"https://{subdomain}.hf.space"
 
+        # Dynamically inject the exact server identity into dist/whoami.txt right before pushing
+        whoami_path = os.path.join(args.dist, "whoami.txt")
+        try:
+            with open(whoami_path, "w") as f:
+                f.write(node_name + "\n")
+        except Exception as e:
+            logger.warning(f"Failed to write whoami.txt: {e}")
+
         try:
             commit_info = node_api.upload_folder(
                 folder_path=args.dist,

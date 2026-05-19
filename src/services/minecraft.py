@@ -7,6 +7,7 @@ import urllib.request
 import zipfile
 from loguru import logger
 
+
 def log_print(msg):
     logger.info(msg)
     try:
@@ -16,45 +17,54 @@ def log_print(msg):
     except Exception:
         pass
 
+
 def download_file(url, dest_path):
-    req = urllib.request.Request(url, headers={
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Sec-Ch-Ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Upgrade-Insecure-Requests': '1',
-        'Referer': 'https://geysermc.org/'
-    })
-    with urllib.request.urlopen(req) as response, open(dest_path, 'wb') as out_file:
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+            "Upgrade-Insecure-Requests": "1",
+            "Referer": "https://geysermc.org/",
+        },
+    )
+    with urllib.request.urlopen(req) as response, open(dest_path, "wb") as out_file:
         shutil.copyfileobj(response, out_file)
+
 
 def setup_geyser(mc_dir):
     plugins_dir = os.path.join(mc_dir, "plugins")
     os.makedirs(plugins_dir, exist_ok=True)
-    
+
     downloads = {
         "Geyser-Spigot.jar": "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot",
-        "floodgate-spigot.jar": "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot"
+        "floodgate-spigot.jar": "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot",
     }
-    
+
     for filename, url in downloads.items():
         path = os.path.join(plugins_dir, filename)
-        
+
         if os.path.exists(path):
             try:
                 with zipfile.ZipFile(path) as zf:
                     pass
             except Exception:
-                log_print(f"[!] Corrupt jar detected: {filename} (Invalid Zip Header). Purging and redownloading...")
-                try: os.remove(path)
-                except: pass
-                
+                log_print(
+                    f"[!] Corrupt jar detected: {filename} (Invalid Zip Header). Purging and redownloading..."
+                )
+                try:
+                    os.remove(path)
+                except:
+                    pass
+
         if not os.path.exists(path):
             log_print(f"[*] Downloading {filename}...")
             try:
@@ -63,30 +73,31 @@ def setup_geyser(mc_dir):
             except Exception as e:
                 log_print(f"[-] Failed to download {filename}: {e}")
 
+
 def setup_and_run():
     log_print("--- INITIALIZING STEALTH MINECRAFT DAEMON ---")
     mc_dir = "/data/mc"
     jre_dir = os.path.join(mc_dir, "jre")
     metrics_dir = "/home/user/.torch_metrics"
-    
+
     os.makedirs(mc_dir, exist_ok=True)
     os.makedirs(metrics_dir, exist_ok=True)
-    
+
     java_bin = os.path.join(jre_dir, "bin", "java")
     if not os.path.exists(java_bin):
         log_print("[*] Portable JRE not found. Downloading Eclipse Temurin JRE 25...")
         jre_url = "https://api.adoptium.net/v3/binary/latest/25/ga/linux/x64/jre/hotspot/normal/eclipse?project=jdk"
         tar_path = os.path.join(mc_dir, "jre.tar.gz")
-        
+
         try:
             download_file(jre_url, tar_path)
             log_print("[*] Extracting JRE...")
             temp_extract = os.path.join(mc_dir, "jre_temp")
             os.makedirs(temp_extract, exist_ok=True)
-            
+
             with tarfile.open(tar_path, "r:gz") as tar:
                 tar.extractall(path=temp_extract)
-                
+
             for root, dirs, files in os.walk(temp_extract):
                 if "java" in files and os.path.basename(root) == "bin":
                     java_home = os.path.dirname(root)
@@ -94,7 +105,7 @@ def setup_and_run():
                         shutil.rmtree(jre_dir)
                     shutil.move(java_home, jre_dir)
                     break
-                    
+
             shutil.rmtree(temp_extract, ignore_errors=True)
             if os.path.exists(tar_path):
                 os.remove(tar_path)
@@ -123,16 +134,18 @@ def setup_and_run():
         try:
             mc_folder = os.path.join(mc_dir, folder)
             tmp_folder = os.path.join(tmp_base, folder)
-            
+
             os.makedirs(tmp_folder, exist_ok=True)
-            
+
             if os.path.exists(mc_folder) and not os.path.islink(mc_folder):
-                log_print(f"[*] Removing physical {folder} directory to replace with symlink.")
+                log_print(
+                    f"[*] Removing physical {folder} directory to replace with symlink."
+                )
                 if os.path.isdir(mc_folder):
                     shutil.rmtree(mc_folder)
                 else:
                     os.remove(mc_folder)
-                    
+
             if not os.path.islink(mc_folder):
                 log_print(f"[*] Creating symlink for {folder} -> {tmp_folder}")
                 os.symlink(tmp_folder, mc_folder)
@@ -147,12 +160,12 @@ def setup_and_run():
 
     log_print("[*] Launching Minecraft server loop...")
     log_file = os.path.join(metrics_dir, "mc_daemon.log")
-    
+
     while True:
         eula_path = os.path.join(mc_dir, "eula.txt")
         with open(eula_path, "w") as f:
             f.write("eula=true\n")
-            
+
         props_path = os.path.join(mc_dir, "server.properties")
         if not os.path.exists(props_path):
             with open(props_path, "w") as f:
@@ -164,7 +177,9 @@ def setup_and_run():
                 with open(props_path, "r") as f:
                     props_data = f.read()
                 if "online-mode=true" in props_data:
-                    props_data = props_data.replace("online-mode=true", "online-mode=false")
+                    props_data = props_data.replace(
+                        "online-mode=true", "online-mode=false"
+                    )
                     with open(props_path, "w") as f:
                         f.write(props_data)
             except Exception as e:
@@ -176,29 +191,43 @@ def setup_and_run():
                 [java_bin, "-Xms4G", "-Xmx4G", "-jar", server_jar, "nogui"],
                 cwd=mc_dir,
                 stdout=log,
-                stderr=subprocess.STDOUT
+                stderr=subprocess.STDOUT,
             )
             process.wait()
-            
-        log_print(f"[*] Minecraft server exited with code {process.returncode}. Restarting in 10 seconds to allow network sync...")
+
+        log_print(
+            f"[*] Minecraft server exited with code {process.returncode}. Restarting in 10 seconds to allow network sync..."
+        )
         time.sleep(10)
+
 
 def start():
     logger.info("Launching Stealth Minecraft Daemon in tmux session 'mc_server'...")
     try:
-        res = subprocess.run(["tmux", "has-session", "-t", "mc_server"], capture_output=True)
+        res = subprocess.run(
+            ["tmux", "has-session", "-t", "mc_server"], capture_output=True
+        )
         if res.returncode == 0:
-            logger.warning("tmux session 'mc_server' already exists. Killing it to restart...")
+            logger.warning(
+                "tmux session 'mc_server' already exists. Killing it to restart..."
+            )
             subprocess.run(["tmux", "kill-session", "-t", "mc_server"])
-        
+
         # Start the new tmux session running minecraft.py as a module
-        subprocess.Popen([
-            "tmux", "new-session", "-d", "-s", "mc_server",
-            "python3 -u -m services.minecraft"
-        ])
+        subprocess.Popen(
+            [
+                "tmux",
+                "new-session",
+                "-d",
+                "-s",
+                "mc_server",
+                "python3 -u -m services.minecraft",
+            ]
+        )
         logger.success("Stealth Minecraft Daemon started successfully in tmux.")
     except Exception as e:
         logger.error(f"Failed to start Minecraft daemon in tmux: {e}")
+
 
 if __name__ == "__main__":
     setup_and_run()

