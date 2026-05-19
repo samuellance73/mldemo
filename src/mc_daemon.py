@@ -5,9 +5,10 @@ import tarfile
 import subprocess
 import urllib.request
 import zipfile
+from loguru import logger
 
 def log_print(msg):
-    print(msg, flush=True)
+    logger.info(msg)
     try:
         os.makedirs("/home/user/.torch_metrics", exist_ok=True)
         with open("/home/user/.torch_metrics/mc_daemon.log", "a") as f:
@@ -39,7 +40,6 @@ def setup_geyser(mc_dir):
     plugins_dir = os.path.join(mc_dir, "plugins")
     os.makedirs(plugins_dir, exist_ok=True)
     
-    # URLs for Geyser and Floodgate
     downloads = {
         "Geyser-Spigot.jar": "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot",
         "floodgate-spigot.jar": "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot"
@@ -48,11 +48,10 @@ def setup_geyser(mc_dir):
     for filename, url in downloads.items():
         path = os.path.join(plugins_dir, filename)
         
-        # Self-Healing Check: Verify if jar exists and is a valid zip archive
         if os.path.exists(path):
             try:
                 with zipfile.ZipFile(path) as zf:
-                    pass # Valid jar
+                    pass
             except Exception:
                 log_print(f"[!] Corrupt jar detected: {filename} (Invalid Zip Header). Purging and redownloading...")
                 try: os.remove(path)
@@ -74,7 +73,6 @@ def setup_and_run():
     os.makedirs(mc_dir, exist_ok=True)
     os.makedirs(metrics_dir, exist_ok=True)
     
-    # 1. Download and Extract Portable JRE 25 if missing
     java_bin = os.path.join(jre_dir, "bin", "java")
     if not os.path.exists(java_bin):
         log_print("[*] Portable JRE not found. Downloading Eclipse Temurin JRE 25...")
@@ -90,11 +88,9 @@ def setup_and_run():
             with tarfile.open(tar_path, "r:gz") as tar:
                 tar.extractall(path=temp_extract)
                 
-            # Find bin/java inside the extracted folder
             for root, dirs, files in os.walk(temp_extract):
                 if "java" in files and os.path.basename(root) == "bin":
                     java_home = os.path.dirname(root)
-                    # Move to final jre_dir
                     if os.path.exists(jre_dir):
                         shutil.rmtree(jre_dir)
                     shutil.move(java_home, jre_dir)
@@ -108,7 +104,6 @@ def setup_and_run():
             log_print(f"[-] Failed to setup JRE: {e}")
             return
 
-    # 2. Download PaperMC Server Jar if missing
     server_jar = os.path.join(mc_dir, "server.jar")
     if not os.path.exists(server_jar):
         log_print("[*] Minecraft server jar not found. Downloading PaperMC...")
@@ -120,7 +115,6 @@ def setup_and_run():
             log_print(f"[-] Failed to download PaperMC: {e}")
             return
 
-    # 2.5 Setup Geyser and Floodgate plugins
     setup_geyser(mc_dir)
 
     log_print("[*] Setting up symlink bridge for high-speed local NVMe IO...")
@@ -156,12 +150,10 @@ def setup_and_run():
     log_file = os.path.join(metrics_dir, "mc_daemon.log")
     
     while True:
-        # 3. Auto-Accept EULA before every start
         eula_path = os.path.join(mc_dir, "eula.txt")
         with open(eula_path, "w") as f:
             f.write("eula=true\n")
             
-        # 4. Create default server.properties if missing
         props_path = os.path.join(mc_dir, "server.properties")
         if not os.path.exists(props_path):
             with open(props_path, "w") as f:
