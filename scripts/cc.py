@@ -207,7 +207,7 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, help="Playit public tunnel port (e.g., 43345)")
     parser.add_argument("--mount", default="./remote_space", help="Local mount directory for sftp action (default: ./remote_space)")
     parser.add_argument("--backup-dest", default="./space_backup.tar.gz", help="Destination file for backup action (default: ./space_backup.tar.gz)")
-    parser.add_argument("--hf-url", help="Hugging Face Space URL for chisel action (e.g., https://user-space.hf.space)")
+    parser.add_argument("--node", help="Name of the node to connect to (e.g., server-04)")
     parser.add_argument("--chisel-auth", default="user:apple123", help="Chisel authentication credentials (default: user:apple123)")
     parser.add_argument("--chisel-remotes", default="1080:socks 2222:127.0.0.1:2222 9000:127.0.0.1:9000", help="Chisel remotes to forward (default: SOCKS5 on 1080, SSH on 2222, Filebrowser on 9000)")
     
@@ -228,7 +228,28 @@ if __name__ == "__main__":
         elif args.action == "mc-console":
             cli.cmd_mc_console()
     else:
-        if not args.hf_url:
-            parser.error("action 'chisel' requires --hf-url")
+        if not args.node:
+            parser.error("action 'chisel' requires --node")
+            
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        state_path = os.path.join(repo_root, "manifests", "state.json")
+        if not os.path.exists(state_path):
+            parser.error(f"State file '{state_path}' not found. Please build or deploy the project first.")
+            
+        import json
+        try:
+            with open(state_path, "r") as f:
+                state = json.load(f)
+        except Exception as e:
+            parser.error(f"Failed to read state file '{state_path}': {e}")
+            
+        node_info = state.get(args.node)
+        if not node_info:
+            parser.error(f"Node '{args.node}' not found in state file. Available nodes: {', '.join(state.keys())}")
+            
+        hf_url = node_info.get("url")
+        if not hf_url:
+            parser.error(f"Node '{args.node}' does not have a URL configured/deployed.")
+            
         cli = CommandCenterCLI(None, None)
-        cli.cmd_chisel(args.hf_url, args.chisel_auth, args.chisel_remotes)
+        cli.cmd_chisel(hf_url, args.chisel_auth, args.chisel_remotes)
