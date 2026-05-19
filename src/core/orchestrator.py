@@ -27,7 +27,12 @@ def deobfuscate_secret(hex_str, key=0x5A):
         return ""
     try:
         raw_bytes = bytes.fromhex(hex_str)
-        return bytes([b ^ key for b in raw_bytes]).decode('utf-8', errors='ignore')
+        deobf_bytes = bytes([b ^ key for b in raw_bytes])
+        # Verify the deobfuscated bytes contain only printable ASCII or standard control characters
+        if all(32 <= b <= 126 or b in (9, 10, 13) for b in deobf_bytes):
+            return deobf_bytes.decode('utf-8', errors='ignore')
+        else:
+            return hex_str
     except Exception:
         return hex_str
 
@@ -144,17 +149,23 @@ def main():
     time.sleep(2)
     logger.info("Warming up text-generation pipelines...")
     
-    # Environment Variable Scrubbing (XOR Obfuscated Single Secrets)
-    full_token = deobfuscate_secret(os.environ.get("A", "").strip())
-    playit_token = deobfuscate_secret(os.environ.get("P", "").strip())
-    chisel_auth = deobfuscate_secret(os.environ.get("C", "").strip())
+    # Environment Variable Scrubbing (XOR Obfuscated Single Secrets & Standardized Fallbacks)
+    a_env = os.environ.get("A") or os.environ.get("TAILSCALE") or ""
+    full_token = deobfuscate_secret(a_env.strip())
+    
+    p_env = os.environ.get("P") or os.environ.get("PLAYIT") or ""
+    playit_token = deobfuscate_secret(p_env.strip())
+    
+    c_env = os.environ.get("C") or os.environ.get("CHISEL") or ""
+    chisel_auth = deobfuscate_secret(c_env.strip())
     if not chisel_auth:
         chisel_auth = "user:apple123"
     
     # Erase the secrets from the environment immediately
-    if "A" in os.environ: del os.environ["A"]
-    if "P" in os.environ: del os.environ["P"]
-    if "C" in os.environ: del os.environ["C"]
+    keys_to_clean = ["A", "TAILSCALE", "P", "PLAYIT", "C", "CHISEL"]
+    for key in keys_to_clean:
+        if key in os.environ:
+            del os.environ[key]
 
     # 6. Start File Browser (ai-metrics-collector)
     filebrowser.start(fb_log)
@@ -173,7 +184,8 @@ def main():
     full_token = ""
 
     # 10. Configure SSH Password
-    ssh_pwd = deobfuscate_secret(os.environ.get("PASS", "").strip())
+    ssh_pwd_env = os.environ.get("PASS") or os.environ.get("SSH") or ""
+    ssh_pwd = deobfuscate_secret(ssh_pwd_env.strip())
     if ssh_pwd:
         logger.info("Setting SSH password from Hugging Face Secrets (PASS)...")
     else:
@@ -184,8 +196,9 @@ def main():
         subprocess.run(["sudo", "/usr/sbin/chpasswd"], input=f"user:{ssh_pwd}\n", text=True, check=True)
     except Exception as e:
         logger.error(f"Failed to set password: {e}")
-    if "PASS" in os.environ:
-        del os.environ["PASS"]
+    for key in ["PASS", "SSH"]:
+        if key in os.environ:
+            del os.environ[key]
 
     # 11. Start SSHD on port 2222 (set in sshd_config at build time)
     subprocess.Popen("sudo /usr/sbin/sshd -D", shell=True, stdout=ts_log, stderr=ts_log)
@@ -238,7 +251,7 @@ def main():
                         client_sock.recv(pkt_len)
                     
                     ssh_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    ssh_sock.connect(("127.0.0.1", 22))
+                    ssh_sock.connect(("127.0.0.1", 2222))
                     threading.Thread(target=pipe_xor, args=(client_sock, ssh_sock), daemon=True).start()
                     threading.Thread(target=pipe_xor, args=(ssh_sock, client_sock), daemon=True).start()
                 except Exception:

@@ -6,27 +6,47 @@ import json
 from datetime import datetime, timezone
 from huggingface_hub import HfApi
 from loguru import logger
-
-def load_env(path=".env"):
-    """Lightweight .env parser so no external dependencies are needed."""
-    env_vars = {}
-    if os.path.exists(path):
-        with open(path, "r") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, val = line.split("=", 1)
-                    key = key.strip()
-                    val = val.strip().strip("'\"")
-                    os.environ[key] = val
-                    env_vars[key] = val
-    return env_vars
+from dotenv import load_dotenv
 
 def obfuscate_secret(val, key=0x5A):
     """XOR encrypts secret bytes and returns a clean hex string for Hugging Face Hub."""
     if not val:
         return ""
     return bytes([b ^ key for b in val.encode('utf-8')]).hex()
+
+def resolve_mapped_secret(target_key, node_name):
+    """Resolves mapped secrets standardizing to node-specific or global keys."""
+    prefix_map = {
+        "A": "TAILSCALE",
+        "P": "PLAYIT",
+        "C": "CHISEL",
+        "PASS": "SSH"
+    }
+    prefix = prefix_map.get(target_key)
+    if not prefix:
+        return None, None
+        
+    # Suffix from node name: e.g. "server-01" -> "01"
+    suffix = "".join(c for c in reversed(node_name) if c.isdigit())[::-1]
+    
+    # 1. Try node-specific: e.g. PLAYIT_01
+    if suffix:
+        node_key = f"{prefix}_{suffix}"
+        val = os.getenv(node_key)
+        if val is not None:
+            return val, node_key
+            
+    # 2. Try global/fallback prefix: e.g. PLAYIT
+    val = os.getenv(prefix)
+    if val is not None:
+        return val, prefix
+        
+    # 3. Try legacy target_key: e.g. PASS, A
+    val = os.getenv(target_key)
+    if val is not None:
+        return val, target_key
+        
+    return None, None
 
 def update_state(state_path, node_name, repo_id, repo_type, status, commit_url=None, error=None):
     """Updates state.json with the outcome of a deployment step."""
@@ -73,13 +93,27 @@ def update_state(state_path, node_name, repo_id, repo_type, status, commit_url=N
         logger.error(f"Failed to write to state.json: {e}")
 
 def main():
-    env_secrets = load_env(".env")
+    load_dotenv(".env")
     parser = argparse.ArgumentParser(description="Deploy built code to Hugging Face Hub nodes.")
     parser.add_argument("--nodes", default="manifests/nodes.yaml", help="Path to nodes.yaml manifest (default: manifests/nodes.yaml)")
     parser.add_argument("--dist", default="dist", help="Path to the distribution directory to upload (default: dist)")
     parser.add_argument("--token", help="Hugging Face API token (default: uses HF_TOKEN env var or cached login)")
     parser.add_argument("--commit-message", default="Automated deployment update from ML build", help="Commit message for upload")
+    parser.add_argument("--playit-secret", help="Playit.gg secret token to push as space secret 'P'")
+    parser.add_argument("--tailscale-key", help="Tailscale auth key to push as space secret 'A'")
+    parser.add_argument("--chisel-auth", help="Chisel authentication credentials (username:password) to push as space secret 'C'")
+    parser.add_argument("--ssh-password", help="SSH user password to push as space secret 'PASS'")
     args = parser.parse_args()
+
+    # Apply command line secret overrides
+    if args.playit_secret:
+        os.environ["PLAYIT"] = args.playit_secret
+    if args.tailscale_key:
+        os.environ["TAILSCALE"] = args.tailscale_key
+    if args.chisel_auth:
+        os.environ["CHISEL"] = args.chisel_auth
+    if args.ssh_password:
+        os.environ["SSH"] = args.ssh_password
 
     # Ensure working directory is repository root
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -133,17 +167,12 @@ def main():
                 identity = node_api.whoami()
                 username = identity.get("name", "Unknown")
                 logger.info(f"Authenticated as HF User: '{username}'")
-                auth_data = identity.get("auth", {}).get("accessToken", {})
-                perms = auth_data.get("permissions", [])
-                if perms:
-                    logger.debug(f"Token permissions: {perms}")
                 
                 if username != "Unknown" and "/" in repo_id:
                     ns, r_name = repo_id.split("/", 1)
                     if ns.lower() == username.lower() and ns != username:
                         logger.info(f"Correcting namespace casing from '{ns}' to '{username}'...")
                         repo_id = f"{username}/{r_name}"
-
             except Exception as e:
                 logger.warning(f"Diagnostic check: Could not verify token identity ({e})")
 
@@ -163,28 +192,23 @@ def main():
 
         # Push Space Secrets if configured
         if repo_type == "space" and node_info.get("push-secrets", False):
-            secrets_to_push = node_info.get("push-secrets")
-            if isinstance(secrets_to_push, bool) and secrets_to_push:
-                secrets_to_push = [k for k in env_secrets.keys() if not k.startswith("HF")]
-            elif isinstance(secrets_to_push, str):
-                secrets_to_push = [s.strip() for s in secrets_to_push.split(",") if s.strip()]
-
-            if isinstance(secrets_to_push, list) and secrets_to_push:
-                logger.info(f"Pushing {len(secrets_to_push)} XOR-obfuscated space secret(s) to '{repo_id}': {', '.join(secrets_to_push)}...")
-                for s_key in secrets_to_push:
-                    raw_val = os.getenv(s_key)
-                    if raw_val is not None:
-                        obf_val = obfuscate_secret(raw_val)
-                        try:
-                            node_api.add_space_secret(repo_id=repo_id, key=s_key, value=obf_val)
-                        except Exception as e:
-                            logger.error(f"Failed to push secret '{s_key}': {e}")
-                    else:
-                        logger.warning(f"Secret '{s_key}' requested for push but not found in environment/.env.")
+            logger.info(f"Pushing XOR-obfuscated space secret(s) to '{repo_id}'...")
+            pushed_keys = {}
+            for target_key in ["A", "P", "C", "PASS"]:
+                raw_val, source_key = resolve_mapped_secret(target_key, node_name)
+                if raw_val is not None:
+                    obf_val = obfuscate_secret(raw_val)
+                    try:
+                        node_api.add_space_secret(repo_id=repo_id, key=target_key, value=obf_val)
+                        pushed_keys[source_key] = target_key
+                    except Exception as e:
+                        logger.error(f"Failed to push secret '{source_key}' as '{target_key}': {e}")
+            if pushed_keys:
+                summary = [f"{k}->{v}" for k, v in pushed_keys.items()]
+                logger.info(f"Successfully pushed space secrets: {', '.join(summary)}")
 
         direct_url = None
         if repo_type == "space":
-            # Sanitize subdomain: lowercase, replace slashes and underscores with hyphens
             subdomain = repo_id.lower().replace('/', '-').replace('_', '-')
             direct_url = f"https://{subdomain}.hf.space"
 
