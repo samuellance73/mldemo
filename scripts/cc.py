@@ -5,6 +5,7 @@ import subprocess
 import time
 import argparse
 import os
+from loguru import logger
 
 XOR_KEY = 0x5A  # Must match the key on the server (orchestrator.py)
 LOCAL_PORT = 2222
@@ -69,7 +70,7 @@ class CommandCenterCLI:
                     threading.Thread(target=pipe_xor, args=(client_sock, remote_sock), daemon=True).start()
                     threading.Thread(target=pipe_xor, args=(remote_sock, client_sock), daemon=True).start()
                 except Exception as e:
-                    print(f"\n[-] Failed to establish connection to remote tunnel: {e}")
+                    logger.error(f"Failed to establish connection to remote tunnel: {e}")
                     try: client_sock.close()
                     except: pass
             except Exception:
@@ -82,74 +83,74 @@ class CommandCenterCLI:
         try:
             local_server.bind(("127.0.0.1", self.local_port))
             local_server.listen(5)
-            print(f"[*] Stealth XOR bridge listening locally on 127.0.0.1:{self.local_port}")
-            print(f"[*] Forwarding obfuscated traffic to {self.host}:{self.port}")
+            logger.info(f"Stealth XOR bridge listening locally on 127.0.0.1:{self.local_port}")
+            logger.info(f"Forwarding obfuscated traffic to {self.host}:{self.port}")
             
             # Start the bridge accept loop in a background daemon thread
             bridge_thread = threading.Thread(target=self.bridge_loop, args=(local_server,), daemon=True)
             bridge_thread.start()
             return local_server
         except Exception as e:
-            print(f"[-] Error starting local bridge: {e}")
+            logger.error(f"Error starting local bridge: {e}")
             sys.exit(1)
 
     def cmd_ssh(self):
         """Automates stealth bridge and interactive SSH session."""
-        print("[*] Initializing encrypted XOR bridge...", flush=True)
+        logger.info("Initializing encrypted XOR bridge...")
         local_server = self.start_xor_bridge()
         time.sleep(0.5)
-        print("[*] Launching resilient SSH session...", flush=True)
+        logger.info("Launching resilient SSH session...")
         subprocess.run(["ssh",
             "-o", "ServerAliveInterval=3",
             "-o", "StrictHostKeyChecking=no",
             "-o", "UserKnownHostsFile=/dev/null",
             "user@127.0.0.1", "-p", str(self.local_port)])
-        print("[*] SSH session ended. Closing bridge.")
+        logger.info("SSH session ended. Closing bridge.")
         local_server.close()
 
     def cmd_sftp(self, mount_point="./remote_space"):
         """Mounts remote Space filesystem locally via SSHFS."""
-        print("[*] Initializing encrypted XOR bridge...", flush=True)
+        logger.info("Initializing encrypted XOR bridge...")
         local_server = self.start_xor_bridge()
         time.sleep(0.5)
-        print(f"[*] Mounting remote container filesystem to {mount_point}...", flush=True)
+        logger.info(f"Mounting remote container filesystem to {mount_point}...")
         subprocess.run(["mkdir", "-p", mount_point])
         res = subprocess.run(["sshfs", "user@127.0.0.1:/home/user", mount_point, "-p", str(self.local_port)])
         if res.returncode == 0:
-            print(f"[+] Filesystem mounted successfully at '{mount_point}'.")
-            print("[*] The XOR bridge will remain open in the background to service filesystem requests.")
-            print("[*] Press Ctrl+C to unmount and exit.")
+            logger.success(f"Filesystem mounted successfully at '{mount_point}'.")
+            logger.info("The XOR bridge will remain open in the background to service filesystem requests.")
+            logger.info("Press Ctrl+C to unmount and exit.")
             try:
                 while True:
                     time.sleep(1)
             except KeyboardInterrupt:
-                print(f"\n[*] Unmounting {mount_point} and closing bridge...")
+                logger.info(f"Unmounting {mount_point} and closing bridge...")
                 subprocess.run(["fusermount", "-u", mount_point])
                 local_server.close()
         else:
-            print("[-] Failed to mount filesystem.")
+            logger.error("Failed to mount filesystem.")
             local_server.close()
 
     def cmd_backup(self, dest="./space_backup.tar.gz"):
         """Pulls instantaneous compressed snapshot of remote persistent data."""
-        print("[*] Initializing encrypted XOR bridge...", flush=True)
+        logger.info("Initializing encrypted XOR bridge...")
         local_server = self.start_xor_bridge()
         time.sleep(0.5)
-        print("[*] Initiating zero-downtime remote data snapshot...", flush=True)
+        logger.info("Initiating zero-downtime remote data snapshot...")
         cmd = f"ssh -p {self.local_port} user@127.0.0.1 'tar -czf - /data/mc /home/user/.torch_metrics 2>/dev/null' > {dest}"
         res = subprocess.run(cmd, shell=True)
         if res.returncode == 0:
-            print(f"[+] Backup successfully downloaded to {dest}")
+            logger.success(f"Backup successfully downloaded to {dest}")
         else:
-            print(f"[-] Backup encountered an error (code {res.returncode})")
+            logger.error(f"Backup encountered an error (code {res.returncode})")
         local_server.close()
 
     def cmd_status(self):
         """Queries Space Telemetry & container health."""
-        print("[*] Initializing encrypted XOR bridge...", flush=True)
+        logger.info("Initializing encrypted XOR bridge...")
         local_server = self.start_xor_bridge()
         time.sleep(0.5)
-        print("[*] Querying remote container telemetry...", flush=True)
+        logger.info("Querying remote container telemetry...")
         script = (
             "echo '=== CONTAINER UPTIME & LOAD ==='; uptime; "
             "echo ''; echo '=== MEMORY USAGE ==='; free -h; "
@@ -162,28 +163,27 @@ class CommandCenterCLI:
 
     def cmd_mc_console(self):
         """Opens Local Interactive Minecraft Server Console via SSH/tmux."""
-        print("[*] Initializing encrypted XOR bridge...", flush=True)
+        logger.info("Initializing encrypted XOR bridge...")
         local_server = self.start_xor_bridge()
         time.sleep(0.5)
-        print("[*] Attaching to remote Minecraft tmux console...", flush=True)
+        logger.info("Attaching to remote Minecraft tmux console...")
         subprocess.run(["ssh", "-t", "-p", str(self.local_port), "user@127.0.0.1", "tmux attach -t mc_server || echo '[-] tmux session mc_server not found. Is mc_daemon running with tmux?'"])
         local_server.close()
 
     def cmd_chisel(self, hf_url, auth, remotes):
         """Spawns local Chisel client connecting to remote Hugging Face Space."""
-        # Append /chisel-tunnel - nginx on the server routes this to the internal Chisel daemon
         server_url = hf_url.rstrip('/') + '/chisel-tunnel'
-        print(f"[*] Launching Chisel client -> {server_url}", flush=True)
-        print(f"[*] Gradio UI also available at {hf_url}", flush=True)
-        print(f"[*] Forwarding: {remotes}", flush=True)
-        print(f"[*] SSH: ssh -o StrictHostKeyChecking=no user@127.0.0.1 -p 2222", flush=True)
+        logger.info(f"Launching Chisel client -> {server_url}")
+        logger.info(f"Gradio UI also available at {hf_url}")
+        logger.info(f"Forwarding: {remotes}")
+        logger.info("SSH: ssh -o StrictHostKeyChecking=no user@127.0.0.1 -p 2222")
         cmd = ["chisel", "client", "--auth", auth, server_url] + remotes.split()
         try:
             subprocess.run(cmd)
         except KeyboardInterrupt:
-            print("\n[*] Chisel client stopped.")
+            logger.info("Chisel client stopped.")
         except FileNotFoundError:
-            print("[-] 'chisel' not found. Install: https://github.com/jpillora/chisel")
+            logger.error("'chisel' not found. Install: https://github.com/jpillora/chisel")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

@@ -1,8 +1,10 @@
 import re
 import base64
 import os
+import sys
 import shutil
 import argparse
+from loguru import logger
 
 def encode_cmd(decoded_str):
     return base64.b64encode(decoded_str.encode()).decode()[::-1]
@@ -28,7 +30,7 @@ def build_orchestrator(logging_mode=1):
     with open("dist/orchestrator.py", "w") as f:
         f.write(content)
     mode_str = "File Only" if logging_mode == 1 else ("Console + File" if logging_mode == 2 else "DISABLED")
-    print(f"Built orchestrator.py from src/orchestrator.py (Logging: {mode_str})")
+    logger.success(f"Built orchestrator.py from src/orchestrator.py (Logging: {mode_str})")
 
 def build_dockerfile(logging_mode=1):
     with open("Dockerfile", "r") as f:
@@ -54,7 +56,7 @@ def build_dockerfile(logging_mode=1):
     os.makedirs("dist", exist_ok=True)
     with open("dist/Dockerfile", "w") as f:
         f.write(content)
-    print("Built Dockerfile from root Dockerfile")
+    logger.success("Built Dockerfile from root Dockerfile")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build pipeline for ML project")
@@ -64,8 +66,8 @@ if __name__ == "__main__":
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     os.chdir(repo_root)
     if not os.path.exists("src/orchestrator.py") or not os.path.exists("Dockerfile"):
-        print("Source files missing! Please ensure src/orchestrator.py and Dockerfile exist.")
-        exit(1)
+        logger.error("Source files missing! Please ensure src/orchestrator.py and Dockerfile exist.")
+        sys.exit(1)
         
     build_orchestrator(logging_mode=args.logs)
     build_dockerfile(logging_mode=args.logs)
@@ -91,4 +93,4 @@ if __name__ == "__main__":
     if os.path.exists("config"):
         shutil.copytree("config", "dist/config", dirs_exist_ok=True)
         
-    print("Build complete. The files in dist/ are ready to be pushed to Hugging Face.")
+    logger.success("Build complete. The files in dist/ are ready to be pushed to Hugging Face.")

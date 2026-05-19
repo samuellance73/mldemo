@@ -38,7 +38,7 @@ RUN upx -1 /usr/bin/python-cache-manager || true && \
 
 # Install AI dependencies using uv
 RUN uv pip install --system --no-cache-dir \
-    gradio huggingface_hub
+    gradio huggingface_hub loguru
 
 # Download a tiny model config for mimicry
 RUN python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='gpt2', filename='config.json')"
