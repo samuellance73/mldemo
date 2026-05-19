@@ -75,6 +75,25 @@ def main():
         print(f"\n[*] Deploying node '{node_name}' -> {repo_type} '{repo_id}'...")
         if not node_token:
             print(f"[-] Warning: No Hugging Face token provided for '{node_name}'. If the repository is private, this will fail with a 401 error.")
+        else:
+            try:
+                identity = node_api.whoami()
+                username = identity.get("name", "Unknown")
+                print(f"[*] Authenticated as HF User: '{username}'")
+                auth_data = identity.get("auth", {}).get("accessToken", {})
+                perms = auth_data.get("permissions", [])
+                if perms:
+                    print(f"[*] Token permissions: {perms}")
+                
+                # Correct case-sensitivity mismatch: Hugging Face backend strictly checks exact case for create_repo
+                if username != "Unknown" and "/" in repo_id:
+                    ns, r_name = repo_id.split("/", 1)
+                    if ns.lower() == username.lower() and ns != username:
+                        print(f"[*] Correcting namespace casing from '{ns}' to '{username}'...")
+                        repo_id = f"{username}/{r_name}"
+
+            except Exception as e:
+                print(f"[-] Diagnostic check: Could not verify token identity ({e})")
 
         # Optionally auto-create the repository if configured
         if node_info.get("create-repo", False):
