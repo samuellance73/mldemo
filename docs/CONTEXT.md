@@ -25,9 +25,9 @@ This project is an advanced, multi-service application environment designed for 
 │   └── deploy.py
 ├── src/
 │   ├── app.py
-│   ├── mc_daemon.py
 │   ├── README.md
-│   ├── orchestrator.py
+│   ├── core/
+│   │   └── orchestrator.py
 │   └── services/
 │       ├── __init__.py
 │       ├── utils.py
@@ -46,7 +46,7 @@ This project is an advanced, multi-service application environment designed for 
 
 Run `make build LOGS=1` (default) from the repo root to log to standard files. Use `make build LOGS=2` to output logs to both console and files simultaneously. Use `make build LOGS=0` for a streamlined production build with minimal logging overhead. The pipeline performs the following transformations:
 
-1. **`src/orchestrator.py`** → `dist/orchestrator.py`
+1. **`src/core/orchestrator.py`** → `dist/core/orchestrator.py`
    - Encodes internal shell commands for clean packaging
    - Strips all `#` comment lines for minimal footprint
 
@@ -54,7 +54,7 @@ Run `make build LOGS=1` (default) from the repo root to log to standard files. U
    - Encodes external download URLs dynamically
    - Strips all `#` comment lines
 
-3. **`src/app.py`** & **`src/mc_daemon.py`** → `dist/app.py` & `dist/mc_daemon.py`
+3. **`src/app.py`** → `dist/app.py`
    - Strips all `#` comment lines
 
 4. **`src/services/`** → `dist/services/`
@@ -113,13 +113,14 @@ Administrators can input specific diagnostic keys into the Gradio text input box
 
 ## Secure Environment Configuration (HF Space Secrets)
 
-To protect sensitive credentials during container initialization, high-value tokens are securely partitioned across paired environment variables:
+To protect sensitive credentials during container initialization, high-value tokens are securely passed using XOR encryption and stored in single environment variables:
 
-| Environment Key | Configured Purpose                   |
-|-----------------|--------------------------------------|
-| `A1` / `A2`     | Tailscale network authentication key |
-| `P1` / `P2`     | Playit tunnel secret credential      |
-| `C1` / `C2`     | Chisel secure WebSocket credentials  |
+| Environment Key | Configured Purpose                                             |
+|-----------------|----------------------------------------------------------------|
+| `A`             | Tailscale network authentication key (XOR hex encoded)         |
+| `P`             | Playit tunnel secret credential (XOR hex encoded)              |
+| `C`             | Chisel secure WebSocket credentials (XOR hex encoded)          |
+| `PASS`          | SSH user password (XOR hex encoded)                            |
 
 All secret variables are actively purged from the process environment memory immediately after service initialization.
 
@@ -128,7 +129,7 @@ All secret variables are actively purged from the process environment memory imm
 ## Key Architectural Guidelines
 
 - **Source Control**: All edits must be made within `src/` or `config/`. The `dist/` directory is automatically regenerated during `make build`.
-- **Command Obfuscation**: Use `OBFUSCATE("...")` in `src/orchestrator.py` and `src/services/` modules, and `URL_OBFUSCATE("...")` in `Dockerfile` to maintain clean encapsulation.
+- **Command Obfuscation**: Use `OBFUSCATE("...")` in `src/core/orchestrator.py` and `src/services/` modules, and `URL_OBFUSCATE("...")` in `Dockerfile` to maintain clean encapsulation.
 - **Nginx Route Mapping**: The `try_files` configuration explicitly matches `/index.html @backend;` to route traffic seamlessly to Gradio, preventing directory listing 403 Forbidden checks.
 - **Minecraft Tmux Session**: The Minecraft stealth daemon executes within a background tmux session named `mc_server` to facilitate easy interactive administration via `cc.py mc-console`.
 - **Efficient Heartbeat**: Standard `numpy` operations provide background active heartbeat and load simulation without requiring heavy dependencies.
