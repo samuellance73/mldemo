@@ -1,0 +1,8 @@
+nodes: 
+  server-01:
+    hf-repo: "samuellance73/mldemo"
+    token-env: "HF1"
+
+  server-02:
+    hf-repo: "samuellance73/Banana"
+    token-env: "HF1"

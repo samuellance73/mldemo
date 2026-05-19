@@ -1,4 +1,4 @@
-.PHONY: all build clean
+.PHONY: all build deploy clean
 
 # 0 = Disabled, 1 = File Only (default), 2 = Console + File
 LOGS ?= 1
@@ -8,7 +8,11 @@ all: build
 
 # Run the build script to generate the dist/ directory
 build:
-	python3 scripts/build.py --logs $(LOGS)
+	uv run python scripts/build.py --logs $(LOGS)
+
+# Deploy the dist/ directory to configured Hugging Face nodes
+deploy: build
+	uv run python scripts/deploy.py
 
 # Remove generated files inside dist/ but preserve dist/.git repository
 clean:
