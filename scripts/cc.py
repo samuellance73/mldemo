@@ -103,6 +103,26 @@ def main():
         help="Automatically spawn SSH connection through the established tunnel",
     )
 
+    # GOST subparser
+    gost_parser = subparsers.add_parser(
+        "gost",
+        help="Establish HTTP/WebSocket tunnel via GOST proxy to Hugging Face Space",
+    )
+    gost_parser.add_argument(
+        "--node", required=True, help="Name of the node to connect to (e.g., server-04)"
+    )
+    gost_parser.add_argument(
+        "--auth",
+        default="user:apple123",
+        help="GOST authentication credentials (default: user:apple123)",
+    )
+    gost_parser.add_argument(
+        "--mode",
+        default="socks5",
+        choices=["socks5", "ssh"],
+        help="Proxy mode: 'socks5' (local port 1080) or 'ssh' (local port 2222 -> container SSH)",
+    )
+
     args = parser.parse_args()
 
     # Set the global debug flag in common
@@ -186,6 +206,59 @@ def main():
             proc.wait()
         else:
             run_chisel_client(hf_url, args.auth, args.remotes)
+
+    elif args.mode == "gost":
+        try:
+            hf_url = get_node_url(args.node)
+        except Exception as e:
+            print(f"[-] Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        print("====================================================================")
+        print("                 GOST TUNNEL INITIALIZING")
+        print("====================================================================")
+        
+        ws_url = hf_url.replace("https://", "mws://").replace("http://", "mws://").rstrip("/")
+        ws_url = f"{ws_url}/gost-bridge"
+        # Extract the mws:// part and inject auth
+        if ws_url.startswith("mws://"):
+            ws_url = f"mws://{args.auth}@{ws_url[6:]}"
+
+        if args.proxy_mode == "socks5":
+            listen_flag = "socks5://:1080"
+            print(f"[+] Creating local SOCKS5 proxy on port 1080")
+        else:
+            listen_flag = "tcp://:2222/127.0.0.1:2222"
+            print(f"[+] Forwarding local port 2222 to container SSH (2222)")
+
+        cmd = [
+            "gost",
+            "-L", listen_flag,
+            "-F", ws_url
+        ]
+
+        print(f"[+] Launching GOST client -> {ws_url}")
+        
+        if args.proxy_mode == "ssh":
+            try:
+                proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                time.sleep(2)
+                run_ssh(2222)
+                print("[+] Terminating GOST client.")
+                proc.terminate()
+                proc.wait()
+            except FileNotFoundError:
+                print("[-] Error: 'gost' binary not found. Please install from https://github.com/go-gost/gost", file=sys.stderr)
+                sys.exit(1)
+        else:
+            print("Press Ctrl+C to stop the tunnel and exit.")
+            try:
+                subprocess.run(cmd)
+            except KeyboardInterrupt:
+                print("\n[+] Closing GOST tunnel.")
+            except FileNotFoundError:
+                print("[-] Error: 'gost' binary not found. Please install from https://github.com/go-gost/gost", file=sys.stderr)
+                sys.exit(1)
 
 
 if __name__ == "__main__":

