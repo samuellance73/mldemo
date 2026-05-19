@@ -22,7 +22,12 @@ This project is an advanced, multi-service application environment designed for 
 ├── scripts/
 │   ├── build.py
 │   ├── cc.py
-│   └── deploy.py
+│   ├── deploy.py
+│   └── cc_utils/
+│       ├── __init__.py
+│       ├── chisel.py
+│       ├── common.py
+│       └── playit.py
 ├── src/
 │   ├── app.py
 │   ├── README.md
@@ -66,6 +71,26 @@ Run `make build LOGS=1` (default) from the repo root to log to standard files. U
    - Copied verbatim for the Space documentation
 
 After running `scripts/build.py`, the `dist/` directory is fully prepared for cloud deployment.
+
+---
+
+## Tunneling and Connectivity Client (`scripts/cc.py`)
+
+A protocol-focused CLI tool designed to establish local endpoints for interacting with the background services running in the Hugging Face Space nodes. It implements two main connection modes:
+
+1. **Playit mode (`playit`)**:
+   - Establishes a local bridge forwarding to the remote Playit public tunnel address.
+   - Performs a Minecraft Handshake to masquerade traffic as game network packets.
+   - Applies bidirectional XOR-obfuscation (`0x5A`) to stream standard SSH traffic cleanly.
+   - Usage: `uv run python scripts/cc.py playit --host <host> --port <port> [--local-port 2222]`
+
+2. **Chisel mode (`chisel`)**:
+   - Connects directly to the node's WebSocket/HTTP proxy endpoint (using `state.json` to resolve the node name to the target Hugging Face space URL).
+   - Establishes remote tunnels mapping:
+     - Local SOCKS5 Proxy: `1080`
+     - SSH Forwarding: `2222 -> 127.0.0.1:2222`
+     - Filebrowser Forwarding: `9000 -> 127.0.0.1:9000`
+   - Usage: `uv run python scripts/cc.py chisel --node <node-name> [--auth user:apple123]`
 
 ---
 
@@ -123,6 +148,15 @@ To protect sensitive credentials during container initialization, high-value tok
 | `PASS`          | SSH user password (XOR hex encoded)                            |
 
 All secret variables are actively purged from the process environment memory immediately after service initialization.
+
+### Local Secret Resolution (.env)
+
+During local deployment, `scripts/deploy.py` resolves secrets standardizing to node-specific or global variables, obfuscates them, and pushes them to Hugging Face:
+
+- **Tailscale Key**: Resolved from `TAILSCALE_<suffix>` (e.g. `TAILSCALE_01` for node `server-01`) or global `TAILSCALE` / legacy `A`.
+- **Playit Secret**: Resolved from `PLAYIT_<suffix>` (e.g. `PLAYIT_01` for node `server-01`) or global `PLAYIT` / legacy `P`.
+- **Chisel Auth**: Resolved from `CHISEL_<suffix>` or global `CHISEL` / legacy `C`.
+- **SSH Password**: Resolved from `SSH_<suffix>` or global `SSH` / legacy `PASS`.
 
 ---
 
