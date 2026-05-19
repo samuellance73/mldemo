@@ -2,6 +2,8 @@ import os
 import sys
 import yaml
 import argparse
+import json
+from datetime import datetime, timezone
 from huggingface_hub import HfApi
 from loguru import logger
 
@@ -25,6 +27,50 @@ def obfuscate_secret(val, key=0x5A):
     if not val:
         return ""
     return bytes([b ^ key for b in val.encode('utf-8')]).hex()
+
+def update_state(state_path, node_name, repo_id, repo_type, status, commit_url=None, error=None):
+    """Updates state.json with the outcome of a deployment step."""
+    direct_url = None
+    if repo_type == "space":
+        subdomain = repo_id.lower().replace('/', '-').replace('_', '-')
+        direct_url = f"https://{subdomain}.hf.space"
+    
+    state = {}
+    if os.path.exists(state_path):
+        try:
+            with open(state_path, "r") as f:
+                state = json.load(f)
+        except Exception as e:
+            logger.warning(f"Failed to read existing state.json: {e}")
+            
+    if node_name not in state:
+        state[node_name] = {}
+        
+    now_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    
+    node_state = state[node_name]
+    node_state.update({
+        "hf_repo": repo_id,
+        "repo_type": repo_type,
+        "url": direct_url,
+        "last_deployed": now_str,
+        "status": status
+    })
+    
+    if commit_url:
+        node_state["commit_url"] = commit_url
+        node_state.pop("error", None)
+    elif error:
+        node_state["error"] = error
+        node_state.pop("commit_url", None)
+        
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(state_path)), exist_ok=True)
+        with open(state_path, "w") as f:
+            json.dump(state, f, indent=2)
+        logger.debug(f"Saved state for '{node_name}' to '{state_path}'")
+    except Exception as e:
+        logger.error(f"Failed to write to state.json: {e}")
 
 def main():
     env_secrets = load_env(".env")
@@ -61,6 +107,7 @@ def main():
         sys.exit(0)
 
     logger.info(f"Starting deployment of '{args.dist}' to {len(nodes)} node(s)...")
+    state_path = os.path.join(os.path.dirname(os.path.abspath(args.nodes)), "state.json")
 
     for node_name, node_info in nodes.items():
         repo_id = node_info.get("hf-repo")
@@ -135,6 +182,12 @@ def main():
                     else:
                         logger.warning(f"Secret '{s_key}' requested for push but not found in environment/.env.")
 
+        direct_url = None
+        if repo_type == "space":
+            # Sanitize subdomain: lowercase, replace slashes and underscores with hyphens
+            subdomain = repo_id.lower().replace('/', '-').replace('_', '-')
+            direct_url = f"https://{subdomain}.hf.space"
+
         try:
             commit_info = node_api.upload_folder(
                 folder_path=args.dist,
@@ -143,10 +196,30 @@ def main():
                 commit_message=args.commit_message,
             )
             logger.success(f"Successfully deployed '{node_name}'! Target Repo: {target_url}")
-            if hasattr(commit_info, "commit_url") and commit_info.commit_url:
-                logger.info(f"Commit URL: {commit_info.commit_url}")
+            if direct_url:
+                logger.info(f"Direct App URL: {direct_url}")
+            commit_url = getattr(commit_info, "commit_url", None)
+            if commit_url:
+                logger.info(f"Commit URL: {commit_url}")
+                
+            update_state(
+                state_path=state_path,
+                node_name=node_name,
+                repo_id=repo_id,
+                repo_type=repo_type,
+                status="success",
+                commit_url=commit_url
+            )
         except Exception as e:
             logger.error(f"Failed to deploy node '{node_name}': {e}")
+            update_state(
+                state_path=state_path,
+                node_name=node_name,
+                repo_id=repo_id,
+                repo_type=repo_type,
+                status="failed",
+                error=str(e)
+            )
 
     logger.success("Deployment run completed.")
 

@@ -4,6 +4,7 @@ import subprocess
 import base64
 import threading
 import random
+import string
 import sys
 from loguru import logger
 
@@ -195,7 +196,6 @@ def main():
     cmd3 = ""
 
     # 3.7 Configure SSH Password
-    import string, random
     ssh_pwd = deobfuscate_secret(os.environ.get("PASS", "").strip())
     if ssh_pwd:
         logger.info("Setting SSH password from Hugging Face Secrets (PASS)...")
