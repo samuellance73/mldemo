@@ -2,19 +2,25 @@ nodes:
   server-01:
     hf-repo: "samuellance73/mldemo"
     token-env: "HF1"
+    push-secrets: true
 
   server-02:
     hf-repo: "samuellance73/Banana"
     token-env: "HF1"
+    push-secrets: true
+
   server-03:
-    hf-repo: "SamuelLance73/mldemo"
+    hf-repo: "samuellance73/Apple"
     token-env: "HF1"
-  server-03:
+    push-secrets: true
+
+  server-04:
     hf-repo: "samuellance73/gemma4"
     token-env: "HF1"
     create-repo: true
     space-sdk: docker
     repo-type: space
+    push-secrets: true
 
 
 

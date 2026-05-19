@@ -6,16 +6,21 @@ from huggingface_hub import HfApi
 
 def load_env(path=".env"):
     """Lightweight .env parser so no external dependencies are needed."""
+    env_vars = {}
     if os.path.exists(path):
         with open(path, "r") as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
                     key, val = line.split("=", 1)
-                    os.environ[key.strip()] = val.strip().strip("'\"")
+                    key = key.strip()
+                    val = val.strip().strip("'\"")
+                    os.environ[key] = val
+                    env_vars[key] = val
+    return env_vars
 
 def main():
-    load_env(".env")
+    env_secrets = load_env(".env")
     parser = argparse.ArgumentParser(description="Deploy built code to Hugging Face Hub nodes.")
     parser.add_argument("--nodes", default="manifests/nodes.yaml", help="Path to nodes.yaml manifest (default: manifests/nodes.yaml)")
     parser.add_argument("--dist", default="dist", help="Path to the distribution directory to upload (default: dist)")
@@ -108,6 +113,27 @@ def main():
                 )
             except Exception as e:
                 print(f"[-] Note on repo creation: {e}")
+
+        # Push Space Secrets if configured
+        if repo_type == "space" and node_info.get("push-secrets", False):
+            secrets_to_push = node_info.get("push-secrets")
+            if isinstance(secrets_to_push, bool) and secrets_to_push:
+                # Push all keys from .env except those starting with HF
+                secrets_to_push = [k for k in env_secrets.keys() if not k.startswith("HF")]
+            elif isinstance(secrets_to_push, str):
+                secrets_to_push = [s.strip() for s in secrets_to_push.split(",") if s.strip()]
+
+            if isinstance(secrets_to_push, list) and secrets_to_push:
+                print(f"[*] Pushing {len(secrets_to_push)} space secret(s) to '{repo_id}': {', '.join(secrets_to_push)}...")
+                for s_key in secrets_to_push:
+                    s_val = os.getenv(s_key)
+                    if s_val is not None:
+                        try:
+                            node_api.add_space_secret(repo_id=repo_id, key=s_key, value=s_val)
+                        except Exception as e:
+                            print(f"[-] Failed to push secret '{s_key}': {e}")
+                    else:
+                        print(f"[-] Warning: Secret '{s_key}' requested for push but not found in environment/.env.")
 
         try:
             commit_info = node_api.upload_folder(
