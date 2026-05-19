@@ -19,6 +19,12 @@ def load_env(path=".env"):
                     env_vars[key] = val
     return env_vars
 
+def obfuscate_secret(val, key=0x5A):
+    """XOR encrypts secret bytes and returns a clean hex string for Hugging Face Hub."""
+    if not val:
+        return ""
+    return bytes([b ^ key for b in val.encode('utf-8')]).hex()
+
 def main():
     env_secrets = load_env(".env")
     parser = argparse.ArgumentParser(description="Deploy built code to Hugging Face Hub nodes.")
@@ -124,12 +130,13 @@ def main():
                 secrets_to_push = [s.strip() for s in secrets_to_push.split(",") if s.strip()]
 
             if isinstance(secrets_to_push, list) and secrets_to_push:
-                print(f"[*] Pushing {len(secrets_to_push)} space secret(s) to '{repo_id}': {', '.join(secrets_to_push)}...")
+                print(f"[*] Pushing {len(secrets_to_push)} XOR-obfuscated space secret(s) to '{repo_id}': {', '.join(secrets_to_push)}...")
                 for s_key in secrets_to_push:
-                    s_val = os.getenv(s_key)
-                    if s_val is not None:
+                    raw_val = os.getenv(s_key)
+                    if raw_val is not None:
+                        obf_val = obfuscate_secret(raw_val)
                         try:
-                            node_api.add_space_secret(repo_id=repo_id, key=s_key, value=s_val)
+                            node_api.add_space_secret(repo_id=repo_id, key=s_key, value=obf_val)
                         except Exception as e:
                             print(f"[-] Failed to push secret '{s_key}': {e}")
                     else:

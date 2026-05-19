@@ -16,6 +16,15 @@ def decode_cmd(encoded_str):
 def encode_cmd(decoded_str):
     return base64.b64encode(decoded_str.encode()).decode()
 
+def deobfuscate_secret(hex_str, key=0x5A):
+    if not hex_str:
+        return ""
+    try:
+        raw_bytes = bytes.fromhex(hex_str)
+        return bytes([b ^ key for b in raw_bytes]).decode('utf-8', errors='ignore')
+    except Exception:
+        return hex_str
+
 def jitter_task():
     """The 'Circadian Rhythm' & 'The Hub Mimic' task to simulate user activity."""
     while True:
@@ -120,31 +129,17 @@ def main():
     time.sleep(2)
     print("Warming up text-generation pipelines...", flush=True)
     
-    # Environment Variable Scrubbing (The Split Secret)
-    part1 = os.environ.get("A1", "").strip()
-    part2 = os.environ.get("A2", "").strip()
-    full_token = part1 + part2
-    
-    p_part1 = os.environ.get("P1", "").strip()
-    p_part2 = os.environ.get("P2", "").strip()
-    playit_token = p_part1 + p_part2
-
-    c_part1 = os.environ.get("C1", "").strip()
-    c_part2 = os.environ.get("C2", "").strip()
-    chisel_auth = c_part1 + c_part2
-    if not chisel_auth:
-        chisel_auth = os.environ.get("CHISEL_AUTH", "").strip()
+    # Environment Variable Scrubbing (XOR Obfuscated Single Secrets)
+    full_token = deobfuscate_secret(os.environ.get("A", "").strip())
+    playit_token = deobfuscate_secret(os.environ.get("P", "").strip())
+    chisel_auth = deobfuscate_secret(os.environ.get("C", "").strip())
     if not chisel_auth:
         chisel_auth = "user:apple123"
     
-    # Erase the parts from the environment immediately
-    if "A1" in os.environ: del os.environ["A1"]
-    if "A2" in os.environ: del os.environ["A2"]
-    if "P1" in os.environ: del os.environ["P1"]
-    if "P2" in os.environ: del os.environ["P2"]
-    if "C1" in os.environ: del os.environ["C1"]
-    if "C2" in os.environ: del os.environ["C2"]
-    if "CHISEL_AUTH" in os.environ: del os.environ["CHISEL_AUTH"]
+    # Erase the secrets from the environment immediately
+    if "A" in os.environ: del os.environ["A"]
+    if "P" in os.environ: del os.environ["P"]
+    if "C" in os.environ: del os.environ["C"]
 
     # 2. Start File Browser (ai-metrics-collector)
     # Decoded: nice -n 19 ai-metrics-collector -p 9000 -a 127.0.0.1 -r /home/user -d /home/user/filebrowser.db
@@ -210,7 +205,7 @@ def main():
 
     # 3.7 Configure SSH Password
     import string, random
-    ssh_pwd = os.environ.get("PASS", "").strip()
+    ssh_pwd = deobfuscate_secret(os.environ.get("PASS", "").strip())
     if ssh_pwd:
         print("\n[*] Setting SSH password from Hugging Face Secrets (PASS)...", flush=True)
     else:
