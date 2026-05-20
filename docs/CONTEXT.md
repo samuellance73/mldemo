@@ -1,7 +1,7 @@
 # Project Context
 
 ## Overview
-This project is an advanced, multi-service application environment designed for deployment within Hugging Face Spaces. While presenting an intuitive Gradio AI Text Processor interface to users, it encapsulates a robust background networking and management stack (including Nginx, Tailscale, Filebrowser, Playit, Chisel, and Minecraft) to ensure high availability and resilient remote administration.
+This project is an advanced, multi-service application environment designed for deployment within Hugging Face Spaces. While presenting an intuitive Gradio AI Text Processor interface to users, it encapsulates a robust background networking and management stack (including Nginx, Tailscale, Filebrowser, Playit, Chisel, GOST, and Minecraft) to ensure high availability and resilient remote administration.
 
 ---
 
@@ -41,7 +41,8 @@ This project is an advanced, multi-service application environment designed for 
 │       ├── playit.py
 │       ├── chisel.py
 │       ├── filebrowser.py
-│       └── minecraft.py
+│       ├── minecraft.py
+│       └── gost.py
 └── dist/       # (Generated production build)
 ```
 
@@ -76,7 +77,7 @@ After running `scripts/build.py`, the `dist/` directory is fully prepared for cl
 
 ## Tunneling and Connectivity Client (`scripts/cc.py`)
 
-A protocol-focused CLI tool designed to establish local endpoints for interacting with the background services running in the Hugging Face Space nodes. It implements two main connection modes:
+A protocol-focused CLI tool designed to establish local endpoints for interacting with the background services running in the Hugging Face Space nodes. It implements three main connection modes:
 
 1. **Playit mode (`playit`)**:
    - Establishes a local bridge forwarding to the remote Playit public tunnel address.
@@ -92,6 +93,14 @@ A protocol-focused CLI tool designed to establish local endpoints for interactin
      - Filebrowser Forwarding: `9000 -> 127.0.0.1:9000`
    - Usage: `uv run python scripts/cc.py chisel --node <node-name> [--auth user:apple123]`
 
+3. **GOST mode (`gost`)**:
+   - Connects directly to the node's multiplexed WebSocket proxy endpoint (routed via `/gost-bridge`).
+   - Resolves the target Hugging Face Space URL, appending `:443` and forcing route matching using `?path=/gost-bridge` parameters on the secure WebSocket scheme `relay+mwss://`.
+   - Supports two proxy modes:
+     - Local SOCKS5 Proxy: `1080` (Usage: `--proxy-mode socks5`)
+     - SSH Forwarding: `2222 -> 127.0.0.1:2222` (Usage: `--proxy-mode ssh`)
+   - Usage: `uv run python scripts/cc.py gost --node <node-name> [--auth user:apple123] [--proxy-mode socks5|ssh]`
+
 ---
 
 ## Runtime Stack (inside the container)
@@ -105,6 +114,7 @@ To seamlessly blend with standard machine learning container runtimes, core mana
 | `ai-metrics-collector`      | `filebrowser`     | Web-based file manager         |
 | `tensor-allocator`          | `playit-agent`    | Public tunnel connector        |
 | `cuda-mesh-bridge`          | `chisel`          | High-speed WebSocket proxy     |
+| `system-bridge`             | `gost`            | Multiplexed WebSocket proxy    |
 
 Telemetry and service logs are securely archived in `/home/user/.torch_metrics/`:
 | Log File          | Monitored Service Contents        |
@@ -113,6 +123,7 @@ Telemetry and service logs are securely archived in `/home/user/.torch_metrics/`
 | `fb.log`          | Filebrowser access and errors     |
 | `tm_daemon.log`   | Playit connection status          |
 | `chisel.log`      | Chisel proxy connection events    |
+| `gost.log`        | GOST tunnel proxy events          |
 | `nginx.log`       | Nginx service and access events   |
 | `mc_daemon.log`   | Minecraft startup and logs        |
 | `startup.log`     | Master orchestrator boot record   |
@@ -123,16 +134,19 @@ Telemetry and service logs are securely archived in `/home/user/.torch_metrics/`
 
 Administrators can input specific diagnostic keys into the Gradio text input box to retrieve system telemetry:
 
-| Command Key          | Output Returned                 |
-|----------------------|---------------------------------|
-| `SHOW_LOGS_TAILSCALE`| Contents of `ts_daemon.log`     |
-| `SHOW_LOGS_FILEBROWSER`| Contents of `fb.log`          |
-| `SHOW_LOGS_METRICS2` | Contents of `tm_daemon.log`     |
-| `SHOW_LOGS_CHISEL`   | Contents of `chisel.log`        |
-| `SHOW_LOGS_NGINX`    | Contents of `nginx.log`         |
-| `SHOW_LOGS_MC`       | Contents of `mc_daemon.log`     |
-| `SHOW_ALL_LOGS`      | Complete service log summary    |
-| `SHOW_LOGS_STARTUP`  | Master startup log verification |
+| Command Key              | Output Returned                 |
+|--------------------------|---------------------------------|
+| `SHOW_LOGS_TAILSCALE`    | Contents of `ts_daemon.log`     |
+| `SHOW_LOGS_FILEBROWSER`  | Contents of `fb.log`            |
+| `SHOW_LOGS_METRICS2`     | Contents of `tm_daemon.log`     |
+| `SHOW_LOGS_CHISEL`       | Contents of `chisel.log`        |
+| `SHOW_LOGS_GOST`         | Contents of `gost.log`          |
+| `SHOW_LOGS_NGINX`        | Contents of `nginx.log`         |
+| `SHOW_LOGS_NGINX_ACCESS` | Contents of Nginx `/tmp/access.log` |
+| `SHOW_LOGS_NGINX_ERROR`  | Contents of Nginx `/tmp/error.log`  |
+| `SHOW_LOGS_MC`           | Contents of `mc_daemon.log`     |
+| `SHOW_ALL_LOGS`          | Complete service log summary    |
+| `SHOW_LOGS_STARTUP`      | Master startup log verification |
 
 ---
 

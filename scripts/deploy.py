@@ -232,7 +232,7 @@ def main():
                 node_api.create_repo(
                     repo_id=repo_id,
                     repo_type=repo_type,
-                    private=node_info.get("private", True),
+                    private=node_info.get("private", False),
                     space_sdk=node_info.get(
                         "space-sdk", "docker" if repo_type == "space" else None
                     ),
