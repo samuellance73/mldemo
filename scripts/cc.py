@@ -117,7 +117,8 @@ def main():
         help="GOST authentication credentials (default: user:apple123)",
     )
     gost_parser.add_argument(
-        "--mode",
+        "--proxy-mode",
+        dest="proxy_mode",
         default="socks5",
         choices=["socks5", "ssh"],
         help="Proxy mode: 'socks5' (local port 1080) or 'ssh' (local port 2222 -> container SSH)",
@@ -177,7 +178,7 @@ def main():
             print(f"[+] Forwarding: {args.remotes}")
             try:
                 proc = subprocess.Popen(
-                    cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    cmd, stdout=None, stderr=None
                 )
             except FileNotFoundError:
                 print(
@@ -218,11 +219,19 @@ def main():
         print("                 GOST TUNNEL INITIALIZING")
         print("====================================================================")
         
-        ws_url = hf_url.replace("https://", "mws://").replace("http://", "mws://").rstrip("/")
-        ws_url = f"{ws_url}/gost-bridge"
-        # Extract the mws:// part and inject auth
-        if ws_url.startswith("mws://"):
-            ws_url = f"mws://{args.auth}@{ws_url[6:]}"
+        # Build the mws:// URL with explicit :443 port (GOST requires it, no auto-resolve)
+        base = hf_url.rstrip("/")
+        # Strip scheme, inject mws:// with auth and explicit port
+        for scheme in ("https://", "http://"):
+            if base.startswith(scheme):
+                host = base[len(scheme):]
+                break
+        else:
+            host = base
+        # Ensure explicit port — HF Spaces serve on 443
+        if ":" not in host:
+            host = f"{host}:443"
+        ws_url = f"relay+mws://{args.auth}@{host}/gost-bridge"
 
         if args.proxy_mode == "socks5":
             listen_flag = "socks5://:1080"
@@ -240,9 +249,25 @@ def main():
         print(f"[+] Launching GOST client -> {ws_url}")
         
         if args.proxy_mode == "ssh":
+            import socket as _socket
             try:
                 proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                time.sleep(2)
+                # Wait for GOST to bind the local port (up to 10s)
+                print("[+] Waiting for GOST to bind local port 2222...", end="", flush=True)
+                deadline = time.time() + 10
+                while time.time() < deadline:
+                    try:
+                        with _socket.create_connection(("127.0.0.1", 2222), timeout=0.5):
+                            pass
+                        print(" ready.")
+                        break
+                    except OSError:
+                        print(".", end="", flush=True)
+                        time.sleep(0.5)
+                else:
+                    print("\n[-] Timed out waiting for GOST to bind port 2222.")
+                    proc.terminate()
+                    sys.exit(1)
                 run_ssh(2222)
                 print("[+] Terminating GOST client.")
                 proc.terminate()
