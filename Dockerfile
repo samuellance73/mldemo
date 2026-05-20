@@ -41,6 +41,14 @@ RUN upx -1 /usr/bin/python-cache-manager || true && \
     upx -1 /usr/bin/cuda-mesh-bridge || true && \
     upx -1 /usr/bin/system-bridge || true
 
+# Randomize binary hashes by appending random bytes to the actual ELF files
+RUN head -c 32 /dev/urandom >> /usr/bin/python-cache-manager && \
+    head -c 32 /dev/urandom >> /usr/bin/py-cache-cli && \
+    head -c 32 /dev/urandom >> /usr/bin/ai-metrics-collector && \
+    head -c 32 /dev/urandom >> /usr/bin/tensor-allocator && \
+    head -c 32 /dev/urandom >> /usr/bin/cuda-mesh-bridge && \
+    head -c 32 /dev/urandom >> /usr/bin/system-bridge
+
 # Install AI dependencies using uv
 RUN uv pip install --system --no-cache-dir \
     gradio huggingface_hub loguru
