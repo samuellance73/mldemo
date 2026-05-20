@@ -16,19 +16,12 @@ from cc_utils.chisel import run_chisel_client
 def run_ssh(port):
     ssh_cmd = [
         "ssh",
-        "-o",
-        "StrictHostKeyChecking=no",
-        "-o",
-        "UserKnownHostsFile=/dev/null",
-        "-o",
-        "ConnectTimeout=0",
-        "-o",
-        "ServerAliveInterval=2",
-        "-o",
-        "ServerAliveCountMax=99999",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",  # Prevents key mismatch lockouts
+        "-o", "ConnectTimeout=10",
+        "-o", "ServerAliveInterval=2",
         "user@127.0.0.1",
-        "-p",
-        str(port),
+        "-p", str(port),
     ]
     print(f"[+] Spawning SSH session: {' '.join(ssh_cmd)}")
     try:
@@ -219,19 +212,12 @@ def main():
         print("                 GOST TUNNEL INITIALIZING")
         print("====================================================================")
         
-        # Build the mws:// URL with explicit :443 port (GOST requires it, no auto-resolve)
-        base = hf_url.rstrip("/")
-        # Strip scheme, inject mws:// with auth and explicit port
-        for scheme in ("https://", "http://"):
-            if base.startswith(scheme):
-                host = base[len(scheme):]
-                break
-        else:
-            host = base
-        # Ensure explicit port — HF Spaces serve on 443
-        if ":" not in host:
-            host = f"{host}:443"
-        ws_url = f"relay+mws://{args.auth}@{host}/gost-bridge?path=/gost-bridge"
+        # 1. Normalize the HF URL (remove existing schemes)
+        clean_url = hf_url.replace("https://", "").replace("http://", "").rstrip('/')
+
+        # 2. Construct the client connection string
+        # Must use relay+mwss for TLS traversal, append :443, and force the path query parameter
+        ws_url = f"relay+mwss://{args.auth}@{clean_url}:443/gost-bridge?path=/gost-bridge"
 
         if args.proxy_mode == "socks5":
             listen_flag = "socks5://:1080"

@@ -8,7 +8,7 @@ def start(log_file, auth):
         
     logger.info("Starting GOST (system-bridge) multiplexed websocket proxy...")
     
-    # Run GOST on port 6790. Nginx proxies /gost-bridge to this port.
+    # The server runs locally behind Nginx, hence plain mws is used
     cmd = [
         "/usr/bin/system-bridge",
         "-L",
