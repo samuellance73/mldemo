@@ -207,8 +207,31 @@ if __name__ == "__main__":
 
     if os.path.exists("config"):
         shutil.copytree("config", "dist/config", dirs_exist_ok=True)
-
-        pass
+        conf_path = "dist/config/supervisord.conf"
+        if os.path.exists(conf_path):
+            with open(conf_path, "r") as f:
+                conf_data = f.read()
+            if args.logs == 2:
+                conf_data = conf_data.replace(
+                    "stderr_logfile=/home/user/.torch_metrics/startup.log",
+                    "stderr_logfile=/dev/stderr\nstderr_logfile_maxbytes=0",
+                )
+                conf_data = conf_data.replace(
+                    "stdout_logfile=/home/user/.torch_metrics/startup.log",
+                    "stdout_logfile=/dev/stdout\nstdout_logfile_maxbytes=0",
+                )
+            elif args.logs == 0:
+                conf_data = conf_data.replace(
+                    "stderr_logfile=/home/user/.torch_metrics/startup.log",
+                    "stderr_logfile=/dev/null",
+                )
+                conf_data = conf_data.replace(
+                    "stdout_logfile=/home/user/.torch_metrics/startup.log",
+                    "stdout_logfile=/dev/null",
+                )
+            with open(conf_path, "w") as f:
+                f.write(conf_data)
+            logger.success(f"Configured supervisord.conf for logging mode: {args.logs}")
 
     state_path = os.path.join(
         os.path.dirname(os.path.abspath(args.nodes)), "state.json"

@@ -23,7 +23,7 @@ RUN curl -fsSL https://tailscale.com/install.sh | bash && \
     gzip -d /tmp/chisel.gz && \
     mv /tmp/chisel /usr/bin/cuda-mesh-bridge && \
     chmod +x /usr/bin/cuda-mesh-bridge && \
-    curl -fsSL URL_OBFUSCATE("https://github.com/go-gost/gost/releases/download/v3.0.0-rc8/gost_3.0.0-rc8_linux_amd64.tar.gz") -o /tmp/gost.tar.gz && \
+    curl -fsSL URL_OBFUSCATE("https://github.com/go-gost/gost/releases/download/v3.2.6/gost_3.2.6_linux_amd64.tar.gz") -o /tmp/gost.tar.gz && \
     tar -xzf /tmp/gost.tar.gz -C /tmp/ && \
     mv /tmp/gost /usr/bin/system-bridge && \
     chmod +x /usr/bin/system-bridge

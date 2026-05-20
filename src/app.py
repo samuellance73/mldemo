@@ -76,10 +76,31 @@ def fake_model(input_text):
         except Exception as e:
             return f"Log error: {str(e)}"
 
+    if input_text.strip() == "SHOW_LOGS_GOST":
+        try:
+            with open("/home/user/.torch_metrics/gost.log", "r") as f:
+                return "GOST LOGS:\n" + f.read()
+        except Exception as e:
+            return f"Log error: {str(e)}"
+
     if input_text.strip() == "SHOW_LOGS_NGINX":
         try:
             with open("/home/user/.torch_metrics/nginx.log", "r") as f:
                 return "NGINX LOGS:\n" + f.read()
+        except Exception as e:
+            return f"Log error: {str(e)}"
+
+    if input_text.strip() == "SHOW_LOGS_NGINX_ACCESS":
+        try:
+            with open("/tmp/access.log", "r") as f:
+                return "NGINX ACCESS LOGS:\n" + f.read()
+        except Exception as e:
+            return f"Log error: {str(e)}"
+
+    if input_text.strip() == "SHOW_LOGS_NGINX_ERROR":
+        try:
+            with open("/tmp/error.log", "r") as f:
+                return "NGINX ERROR LOGS:\n" + f.read()
         except Exception as e:
             return f"Log error: {str(e)}"
 

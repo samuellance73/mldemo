@@ -231,7 +231,7 @@ def main():
         # Ensure explicit port — HF Spaces serve on 443
         if ":" not in host:
             host = f"{host}:443"
-        ws_url = f"relay+mws://{args.auth}@{host}/gost-bridge"
+        ws_url = f"relay+mws://{args.auth}@{host}/gost-bridge?path=/gost-bridge"
 
         if args.proxy_mode == "socks5":
             listen_flag = "socks5://:1080"
@@ -251,7 +251,9 @@ def main():
         if args.proxy_mode == "ssh":
             import socket as _socket
             try:
-                proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                stdout_dest = None if common.DEBUG_MODE else subprocess.DEVNULL
+                stderr_dest = None if common.DEBUG_MODE else subprocess.DEVNULL
+                proc = subprocess.Popen(cmd, stdout=stdout_dest, stderr=stderr_dest)
                 # Wait for GOST to bind the local port (up to 10s)
                 print("[+] Waiting for GOST to bind local port 2222...", end="", flush=True)
                 deadline = time.time() + 10

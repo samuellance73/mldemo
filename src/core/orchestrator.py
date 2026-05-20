@@ -82,6 +82,7 @@ def main():
         fb_log = open("/home/user/.torch_metrics/fb.log", "a")
         tm_log = open("/home/user/.torch_metrics/tm_daemon.log", "a")
         chisel_log = open("/home/user/.torch_metrics/chisel.log", "a")
+        gost_log = open("/home/user/.torch_metrics/gost.log", "a")
         nginx_log = open("/home/user/.torch_metrics/nginx.log", "a")
     elif COVERT_LOGGING_MODE == 2:
         os.makedirs("/home/user/.torch_metrics", exist_ok=True)
@@ -127,6 +128,7 @@ def main():
         fb_log = TeeLogger("/home/user/.torch_metrics/fb.log", "FB")
         tm_log = TeeLogger("/home/user/.torch_metrics/tm_daemon.log", "PLAYIT")
         chisel_log = TeeLogger("/home/user/.torch_metrics/chisel.log", "CHISEL")
+        gost_log = TeeLogger("/home/user/.torch_metrics/gost.log", "GOST")
         nginx_log = TeeLogger("/home/user/.torch_metrics/nginx.log", "NGINX")
     else:
         devnull = open(os.devnull, "w")
@@ -134,6 +136,7 @@ def main():
         fb_log = devnull
         tm_log = devnull
         chisel_log = devnull
+        gost_log = devnull
         nginx_log = devnull
 
     # 2. Prep Filesystem:
@@ -197,7 +200,7 @@ def main():
     chisel.start(chisel_log, chisel_auth)
     
     # 8.5 Start GOST (system-bridge) on internal :6790, routed via nginx
-    gost.start(chisel_log, chisel_auth)
+    gost.start(gost_log, chisel_auth)
     
     chisel_auth = ""
 
