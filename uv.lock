@@ -211,6 +211,7 @@ dependencies = [
     { name = "huggingface-hub" },
     { name = "loguru" },
     { name = "python-dotenv" },
+    { name = "python-minifier" },
 ]
 
 [package.metadata]
@@ -218,6 +219,7 @@ requires-dist = [
     { name = "huggingface-hub", specifier = ">=1.15.0" },
     { name = "loguru", specifier = ">=0.7.2" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "python-minifier", specifier = ">=3.2.0" },
 ]
 
 [[package]]
@@ -245,6 +247,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/82/ed/0301aeeac3e5353ef3d94b6ec08bbcabd04a72018415dcb29e588514bba8/python_dotenv-1.2.2.tar.gz", hash = "sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3", size = 50135, upload-time = "2026-03-01T16:00:26.196Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0b/d7/1959b9648791274998a9c3526f6d0ec8fd2233e4d4acce81bbae76b44b2a/python_dotenv-1.2.2-py3-none-any.whl", hash = "sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a", size = 22101, upload-time = "2026-03-01T16:00:25.09Z" },
+]
+
+[[package]]
+name = "python-minifier"
+version = "3.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ff/65/984ccfc140c6a9364331fe8cbeccc4138bd4083b165c7685998c07586f84/python_minifier-3.2.0.tar.gz", hash = "sha256:d39d4aa9655206870b89b41099a84725e1845319aa5a8bea6a1046b5644cd413", size = 85512, upload-time = "2025-12-31T19:50:01.173Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/69/05/c26bcd42c9134b4d3919ddbabf8de323004e89355c1b0ce87d1be65fdd1d/python_minifier-3.2.0-py3-none-any.whl", hash = "sha256:b8486b1dc15980d1d833f72a8a8696616a611f1a10fb72aaf96e2de891beb4c2", size = 62345, upload-time = "2025-12-31T19:49:59.639Z" },
 ]
 
 [[package]]

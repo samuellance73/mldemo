@@ -6,6 +6,7 @@ import shutil
 import argparse
 import yaml
 import json
+import python_minifier
 from datetime import datetime, timezone
 from loguru import logger
 
@@ -30,10 +31,8 @@ def build_orchestrator(logging_mode=1):
         "COVERT_LOGGING_MODE = 1", f"COVERT_LOGGING_MODE = {logging_mode}"
     )
 
-    # Strip comments
-    content = "\n".join(
-        line for line in content.split("\n") if not line.lstrip().startswith("#")
-    )
+    # Minify content
+    content = python_minifier.minify(content, remove_literal_statements=True)
 
     os.makedirs("dist/core", exist_ok=True)
     with open("dist/core/orchestrator.py", "w") as f:
@@ -167,15 +166,11 @@ if __name__ == "__main__":
     build_orchestrator(logging_mode=args.logs)
     build_dockerfile(logging_mode=args.logs)
 
-    # Copy other necessary files and strip their comments if python
+    # Copy and minify other necessary files if python
     if os.path.exists("src/app.py"):
         with open("src/app.py", "r") as f:
             app_content = f.read()
-        app_content = "\n".join(
-            line
-            for line in app_content.split("\n")
-            if not line.lstrip().startswith("#")
-        )
+        app_content = python_minifier.minify(app_content, remove_literal_statements=True)
         with open("dist/app.py", "w") as f:
             f.write(app_content)
 
@@ -194,11 +189,7 @@ if __name__ == "__main__":
                     return f'"{encoded}"'
 
                 content = re.sub(r'OBFUSCATE\(\s*"([^"]+)"\s*\)', replacer, content)
-                content = "\n".join(
-                    line
-                    for line in content.split("\n")
-                    if not line.lstrip().startswith("#")
-                )
+                content = python_minifier.minify(content, remove_literal_statements=True)
                 with open(dist_entry, "w") as f:
                     f.write(content)
         logger.success("Processed and copied services to dist/services")

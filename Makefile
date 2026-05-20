@@ -1,7 +1,7 @@
 .PHONY: all build deploy clean
 
 # 0 = Disabled, 1 = File Only (default), 2 = Console + File
-LOGS ?= 2
+LOGS ?= 1
 
 # Default target
 all: build
