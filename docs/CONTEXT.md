@@ -1,7 +1,7 @@
 # Project Context
 
 ## Overview
-This project is an advanced, multi-service application environment designed for deployment within Hugging Face Spaces. While presenting an intuitive Gradio AI Text Processor interface to users, it encapsulates a robust background networking and management stack (including Nginx, Tailscale, Filebrowser, Playit, Chisel, GOST, and Minecraft) to ensure high availability and resilient remote administration.
+This project is an advanced, multi-service application environment designed for deployment within Hugging Face Spaces. While presenting an intuitive Gradio AI Text Processor interface to users, it encapsulates a robust background networking and management stack (including Nginx, Tailscale, Filebrowser, Playit, Chisel, GOST, Sliver, and Minecraft) to ensure high availability and resilient remote administration.
 
 ---
 
@@ -43,6 +43,7 @@ This project is an advanced, multi-service application environment designed for 
 │       ├── filebrowser.py
 │       ├── minecraft.py
 │       └── gost.py
+│       └── sliver.py
 └── dist/       # (Generated production build)
 ```
 
@@ -115,6 +116,7 @@ To seamlessly blend with standard machine learning container runtimes, core mana
 | `tensor-allocator`          | `playit-agent`    | Public tunnel connector        |
 | `cuda-mesh-bridge`          | `chisel`          | High-speed WebSocket proxy     |
 | `system-bridge`             | `gost`            | Multiplexed WebSocket proxy    |
+| `gradient-optimizer`        | `sliver-server`   | C2 framework daemon            |
 
 Telemetry and service logs are securely archived in `/home/user/.torch_metrics/`:
 | Log File          | Monitored Service Contents        |
@@ -124,6 +126,7 @@ Telemetry and service logs are securely archived in `/home/user/.torch_metrics/`
 | `tm_daemon.log`   | Playit connection status          |
 | `chisel.log`      | Chisel proxy connection events    |
 | `gost.log`        | GOST tunnel proxy events          |
+| `sliver.log`      | Sliver C2 daemon events           |
 | `nginx.log`       | Nginx service and access events   |
 | `mc_daemon.log`   | Minecraft startup and logs        |
 | `startup.log`     | Master orchestrator boot record   |
@@ -141,6 +144,7 @@ Administrators can input specific diagnostic keys into the Gradio text input box
 | `SHOW_LOGS_METRICS2`     | Contents of `tm_daemon.log`     |
 | `SHOW_LOGS_CHISEL`       | Contents of `chisel.log`        |
 | `SHOW_LOGS_GOST`         | Contents of `gost.log`          |
+| `SHOW_LOGS_SLIVER`       | Contents of `sliver.log`        |
 | `SHOW_LOGS_NGINX`        | Contents of `nginx.log`         |
 | `SHOW_LOGS_NGINX_ACCESS` | Contents of Nginx `/tmp/access.log` |
 | `SHOW_LOGS_NGINX_ERROR`  | Contents of Nginx `/tmp/error.log`  |

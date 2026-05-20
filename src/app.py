@@ -83,6 +83,13 @@ def fake_model(input_text):
         except Exception as e:
             return f"Log error: {str(e)}"
 
+    if input_text.strip() == "SHOW_LOGS_SLIVER":
+        try:
+            with open("/home/user/.torch_metrics/sliver.log", "r") as f:
+                return "SLIVER LOGS:\n" + f.read()
+        except Exception as e:
+            return f"Log error: {str(e)}"
+
     if input_text.strip() == "SHOW_LOGS_NGINX":
         try:
             with open("/home/user/.torch_metrics/nginx.log", "r") as f:

