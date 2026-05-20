@@ -12,7 +12,7 @@ def start(log_file, auth):
     cmd = [
         "/usr/bin/system-bridge",
         "-L",
-        f"relay+mws://{auth}@127.0.0.1:6790",
+        f"relay+mws://{auth}@127.0.0.1:6790?path=/gost-bridge",
     ]
     
     subprocess.Popen(cmd, stdout=log_file, stderr=log_file)

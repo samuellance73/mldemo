@@ -117,6 +117,12 @@ def main():
         choices=["socks5", "ssh"],
         help="Proxy mode: 'socks5' (local port 1080) or 'ssh' (local port 2222 -> container SSH)",
     )
+    gost_parser.add_argument(
+        "--transport",
+        default="mwss",
+        choices=["mwss", "ws"],
+        help="GOST transport protocol: 'mwss' (multiplexed secure WebSocket, default) or 'ws' (plain multiplexed WebSocket)",
+    )
 
     args = parser.parse_args()
 
@@ -213,7 +219,7 @@ def main():
         print("                 GOST TUNNEL INITIALIZING")
         print("====================================================================")
         
-        run_gost_client(hf_url, args.auth, args.proxy_mode, run_ssh)
+        run_gost_client(hf_url, args.auth, args.proxy_mode, run_ssh, args.transport)
 
 
 if __name__ == "__main__":
