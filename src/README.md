@@ -1,5 +1,5 @@
 ---
-title: MLDEMO2
+title: MLDEMO
 emoji: 🤖
 colorFrom: blue
 colorTo: indigo

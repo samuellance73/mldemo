@@ -197,6 +197,9 @@ if __name__ == "__main__":
     if os.path.exists("src/README.md"):
         shutil.copy("src/README.md", "dist/README.md")
 
+    if os.path.exists(".gitattributes"):
+        shutil.copy(".gitattributes", "dist/.gitattributes")
+
     if os.path.exists("config"):
         shutil.copytree("config", "dist/config", dirs_exist_ok=True)
         conf_path = "dist/config/supervisord.conf"

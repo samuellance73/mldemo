@@ -54,22 +54,22 @@ Run `make build LOGS=1` (default) from the repo root to log to standard files. U
 
 1. **`src/core/orchestrator.py`** → `dist/core/orchestrator.py`
    - Encodes internal shell commands for clean packaging
-   - Strips all `#` comment lines for minimal footprint
+   - Minifies code via `python-minifier` to remove comments, docstrings, and unneeded whitespace
 
 2. **`Dockerfile`** → `dist/Dockerfile`
    - Encodes external download URLs dynamically
-   - Strips all `#` comment lines
+   - Strips all `#` comment lines for minimal footprint
 
 3. **`src/app.py`** → `dist/app.py`
-   - Strips all `#` comment lines
+   - Minifies code via `python-minifier` to remove comments, docstrings, and unneeded whitespace
 
 4. **`src/services/`** → `dist/services/`
    - Iterates through all Python modules under `src/services/`
    - Resolves and replaces internal shell command obfuscation `OBFUSCATE(...)`
-   - Strips all `#` comment lines
+   - Minifies code via `python-minifier` to remove comments, docstrings, and unneeded whitespace
 
-5. **`src/README.md`** → `dist/README.md`
-   - Copied verbatim for the Space documentation
+5. **`src/README.md`** & **`.gitattributes`** → `dist/`
+   - Copied verbatim for Space configuration and documentation
 
 After running `scripts/build.py`, the `dist/` directory is fully prepared for cloud deployment.
 

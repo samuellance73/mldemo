@@ -281,6 +281,7 @@ def main():
                 repo_id=repo_id,
                 repo_type=repo_type,
                 commit_message=args.commit_message,
+                delete_patterns="*",
             )
             logger.success(
                 f"Successfully deployed '{node_name}'! Target Repo: {target_url}"
