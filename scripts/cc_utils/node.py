@@ -203,3 +203,74 @@ def cmd_secrets(node_name):
                 print(f"  {name:<{col}}  (no secrets)")
         except Exception as e:
             print(f"  {name:<{col}}  🔴 Error: {e}")
+
+
+def cmd_logs(node_name, follow=False, build=False):
+    """Stream or snapshot container logs for a single node."""
+    nodes, repo_root = _load_nodes_config()
+    targets = _resolve_nodes(node_name, nodes)
+    if len(targets) > 1:
+        print("[-] --logs only works on a single node, not 'all'", file=sys.stderr)
+        sys.exit(1)
+
+    name, info = targets[0]
+    api = _get_api(info, repo_root)
+    repo_id = _get_repo_id(api, info)
+    if not repo_id:
+        print(f"[-] {name}: No hf-repo configured", file=sys.stderr)
+        sys.exit(1)
+
+    mode = "build" if build else "app"
+    tail = "following" if follow else "snapshot"
+    print(f"[+] {name} ({repo_id}) — {mode} logs ({tail}):")
+    print("────────────────────────────────────────────────────────────")
+    try:
+        for line in api.fetch_space_logs(repo_id, build=build, follow=follow):
+            print(line, end="" if line.endswith("\n") else "\n", flush=True)
+    except KeyboardInterrupt:
+        print("\n[+] Log stream stopped.")
+    except Exception as e:
+        print(f"[-] Failed to fetch logs: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_dev(node_name, disable=False):
+    """Enable or disable Space Dev Mode (persistent SSH shell into the container)."""
+    nodes, repo_root = _load_nodes_config()
+    targets = _resolve_nodes(node_name, nodes)
+    if len(targets) > 1:
+        print("[-] --dev/--undev only works on a single node, not 'all'", file=sys.stderr)
+        sys.exit(1)
+
+    name, info = targets[0]
+    api = _get_api(info, repo_root)
+    repo_id = _get_repo_id(api, info)
+    if not repo_id:
+        print(f"[-] {name}: No hf-repo configured", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        if disable:
+            runtime = api.disable_space_dev_mode(repo_id)
+            print(f"[+] {name}: Dev mode disabled. Space is restarting normally.")
+            print(f"    Stage: {runtime.stage}")
+        else:
+            runtime = api.enable_space_dev_mode(repo_id)
+            raw = runtime.raw if hasattr(runtime, "raw") else {}
+            dev_info = raw.get("devMode") or raw.get("dev_mode") or {}
+            ssh_url = dev_info.get("sshUrl") or dev_info.get("ssh_url") or "ssh.hf.space"
+            ssh_port = dev_info.get("port", 22)
+
+            print(f"[+] {name}: Dev mode ENABLED → {repo_id}")
+            print(f"    Stage:  {runtime.stage}")
+            print()
+            print("    ⚠️  Your app is NOT running. The container is in a persistent shell.")
+            print()
+            print("    Connect via SSH (requires your HF SSH key):")
+            print(f"      ssh -p {ssh_port} {ssh_url}")
+            print()
+            print("    Your HF SSH key: https://huggingface.co/settings/keys")
+            print("    To return to normal:  cc.py node <name> --undev")
+    except Exception as e:
+        print(f"[-] {name}: Dev mode operation failed: {e}", file=sys.stderr)
+        sys.exit(1)

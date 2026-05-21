@@ -165,6 +165,26 @@ def main():
         "--del-var", metavar="KEY",
         help="Delete a public Space variable",
     )
+    node_action.add_argument(
+        "--logs", action="store_true",
+        help="Snapshot the latest app container logs",
+    )
+    node_action.add_argument(
+        "--build-logs", action="store_true",
+        help="Snapshot the latest build/Docker logs",
+    )
+    node_action.add_argument(
+        "--dev", action="store_true",
+        help="Enable Space Dev Mode (pauses app, opens persistent SSH shell into container)",
+    )
+    node_action.add_argument(
+        "--undev", action="store_true",
+        help="Disable Space Dev Mode and return to normal operation",
+    )
+    node_parser.add_argument(
+        "--follow", "-f", action="store_true",
+        help="Stream logs continuously (use with --logs or --build-logs)",
+    )
 
     args = parser.parse_args()
 
@@ -189,6 +209,14 @@ def main():
             node_cmd.cmd_vars(args.name, set_kv=args.set_var)
         elif args.del_var:
             node_cmd.cmd_vars(args.name, delete_key=args.del_var)
+        elif args.logs:
+            node_cmd.cmd_logs(args.name, follow=args.follow, build=False)
+        elif args.build_logs:
+            node_cmd.cmd_logs(args.name, follow=args.follow, build=True)
+        elif args.dev:
+            node_cmd.cmd_dev(args.name, disable=False)
+        elif args.undev:
+            node_cmd.cmd_dev(args.name, disable=True)
         sys.exit(0)
 
     # Action flags verification (tunnel modes only)
