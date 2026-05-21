@@ -26,5 +26,13 @@ nodes:
     repo-type: space
     push-secrets: true
 
+    server-06:
+    hf-repo: "samuelfanglance/test2"
+    token-env: "HF2"
+    create-repo: true
+    space-sdk: docker
+    repo-type: space
+    push-secrets: true
+
 
 
