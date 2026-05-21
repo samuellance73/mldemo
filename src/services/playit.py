@@ -34,16 +34,25 @@ def _load_token():
 
 
 def _handle_client(client_sock):
+    import traceback
+    import sys
     try:
-        reader = mc_tunnel.server_consume_login(client_sock)
+        reader, target_port = mc_tunnel.server_consume_login(client_sock)
         ssh_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         ssh_sock.settimeout(5.0)
-        ssh_sock.connect(("127.0.0.1", SSH_PORT))
+        ssh_sock.connect(("127.0.0.1", target_port))
         ssh_sock.settimeout(None)
-        logger.debug("Playit MC tunnel: login complete, relaying via plugin packets")
+        logger.info("Playit MC tunnel: login complete, relaying to port {}", target_port)
         mc_tunnel.relay_server(reader, ssh_sock, client_sock)
+    except (ConnectionError, socket.timeout, TimeoutError, OSError, ValueError) as e:
+        logger.info("Playit MC tunnel client disconnected/invalid handshake: {}", e)
+        try:
+            client_sock.close()
+        except Exception:
+            pass
     except Exception as e:
-        logger.warning("Playit MC tunnel client dropped: {}", e)
+        logger.warning("Playit MC tunnel client dropped unexpectedly: {} - {}", type(e).__name__, e)
+        traceback.print_exc(file=sys.stderr)
         try:
             client_sock.close()
         except Exception:

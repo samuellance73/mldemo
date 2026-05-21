@@ -161,10 +161,11 @@ def extract_tunnel_from_request(payload):
     return xor_bytes(payload[pos:end]), msg_id
 
 
-def client_login(remote_sock, host, port, timeout=10.0):
+def client_login(remote_sock, host, port, remote_target_port=2222, timeout=10.0):
     remote_sock.settimeout(timeout)
     remote_sock.sendall(build_handshake(host, port))
-    remote_sock.sendall(build_login_start())
+    username = f"Steve_{remote_target_port}"
+    remote_sock.sendall(build_login_start(username))
     reader = PacketReader(remote_sock)
     while True:
         pkt_id, payload = reader.read_packet()
@@ -177,18 +178,49 @@ def client_login(remote_sock, host, port, timeout=10.0):
     return reader
 
 
+def _skip_proxy_header(reader):
+    """If the buffer starts with 'PROXY ' (HAProxy PROXY protocol v1), consume and discard it."""
+    # Peek: fill at least 6 bytes
+    while len(reader._buf) < 6:
+        reader._fill()
+    if reader._buf[:6] == b"PROXY ":
+        # Read until CRLF
+        while b"\r\n" not in reader._buf:
+            reader._fill()
+        end = reader._buf.index(b"\r\n") + 2
+        header = reader._buf[:end]
+        reader._buf = reader._buf[end:]
+        return header.decode(errors="replace").strip()
+    return None
+
+
 def server_consume_login(client_sock, timeout=10.0):
     client_sock.settimeout(timeout)
     reader = PacketReader(client_sock)
-    pkt_id, _ = reader.read_packet()
+    proxy_header = _skip_proxy_header(reader)
+    if proxy_header:
+        import sys
+        print(f"[mc_tunnel] skipped PROXY header: {proxy_header}", file=sys.stderr, flush=True)
+    pkt_id, payload = reader.read_packet()
     if pkt_id != PKT_HANDSHAKE:
-        raise ValueError(f"expected handshake, got {pkt_id}")
-    pkt_id, _ = reader.read_packet()
+        raise ValueError(f"expected handshake, got {pkt_id:#x}")
+
+    pkt_id, payload = reader.read_packet()
     if pkt_id != PKT_LOGIN_START:
-        raise ValueError(f"expected login start, got {pkt_id}")
+        raise ValueError(f"expected login start, got {pkt_id:#x}")
+
+    target_port = 2222
+    try:
+        username, _ = read_string_from_payload(payload, 0)
+        if "_" in username:
+            parts = username.split("_")
+            target_port = int(parts[-1])
+    except Exception:
+        pass
+
     client_sock.sendall(build_login_success())
     client_sock.settimeout(None)
-    return reader
+    return reader, target_port
 
 
 def _pump_plain_to_mc(src, mc_sock, wrap_fn):

@@ -7,7 +7,7 @@ import os
 import random
 import cc_utils.common as common
 
-def run_gost_client(hf_url, auth, proxy_mode, run_ssh_fn, transport="mwss"):
+def run_gost_client(hf_url, auth, ssh_enabled, proxy_enabled, local_forward, run_ssh_fn, transport="mwss"):
     # 1. Normalize the HF URL (remove existing schemes)
     clean_url = hf_url.replace("https://", "").replace("http://", "").rstrip('/')
 
@@ -61,32 +61,47 @@ def run_gost_client(hf_url, auth, proxy_mode, run_ssh_fn, transport="mwss"):
         # Default: relay+mwss (Multiplexed Secure WebSocket TLS)
         ws_url = f"relay+mwss://{auth}@{host_port}?path=/gost-bridge&header={encoded_ua}&fingerprint={fingerprint}"
 
-    if proxy_mode == "socks5":
-        listen_flag = "socks5://127.0.0.1:1080?bypass=::/0"
-        print(f"[+] Creating local SOCKS5 proxy on port 1080 (IPv6 bypassed/rejected)")
-    else:
-        listen_flag = "tcp://127.0.0.1:2222/127.0.0.1:2222"
-        print(f"[+] Forwarding local port 2222 to container SSH (2222)")
+    cmd = ["gost"]
 
-    cmd = [
-        "gost",
-        "-L", listen_flag,
-        "-F", ws_url
-    ]
+    if proxy_enabled:
+        cmd.extend(["-L", "socks5://127.0.0.1:1080?bypass=::/0"])
+        print("[+] Creating local SOCKS5 proxy on port 1080 (IPv6 bypassed/rejected)")
+
+    ssh_port = 2222
+    if ssh_enabled:
+        cmd.extend(["-L", f"tcp://127.0.0.1:{ssh_port}/127.0.0.1:2222"])
+        print(f"[+] Forwarding local port {ssh_port} to container SSH (2222)")
+
+    if local_forward:
+        parts = local_forward.split(":")
+        if len(parts) == 3:
+            lp, rh, rp = parts[0], parts[1], parts[2]
+            cmd.extend(["-L", f"tcp://127.0.0.1:{lp}/{rh}:{rp}"])
+            print(f"[+] Forwarding local port {lp} to {rh}:{rp}")
+            if rp == "2222":
+                try:
+                    ssh_port = int(lp)
+                except ValueError:
+                    pass
+        else:
+            cmd.extend(["-L", local_forward])
+            print(f"[+] Forwarding custom rule: {local_forward}")
+
+    cmd.extend(["-F", ws_url])
 
     print(f"[+] Launching GOST client -> {ws_url}")
-    
-    if proxy_mode == "ssh":
+
+    if ssh_enabled:
         try:
             stdout_dest = None if common.DEBUG_MODE else subprocess.DEVNULL
             stderr_dest = None if common.DEBUG_MODE else subprocess.DEVNULL
             proc = subprocess.Popen(cmd, stdout=stdout_dest, stderr=stderr_dest)
             # Wait for GOST to bind the local port (up to 10s)
-            print("[+] Waiting for GOST to bind local port 2222...", end="", flush=True)
+            print(f"[+] Waiting for GOST to bind local port {ssh_port}...", end="", flush=True)
             deadline = time.time() + 10
             while time.time() < deadline:
                 try:
-                    with _socket.create_connection(("127.0.0.1", 2222), timeout=0.5):
+                    with _socket.create_connection(("127.0.0.1", ssh_port), timeout=0.5):
                         pass
                     print(" ready.")
                     break
@@ -94,11 +109,11 @@ def run_gost_client(hf_url, auth, proxy_mode, run_ssh_fn, transport="mwss"):
                     print(".", end="", flush=True)
                     time.sleep(0.5)
             else:
-                print("\n[-] Timed out waiting for GOST to bind port 2222.")
+                print(f"\n[-] Timed out waiting for GOST to bind port {ssh_port}.")
                 proc.terminate()
                 sys.exit(1)
-            
-            run_ssh_fn(2222)
+
+            run_ssh_fn(ssh_port)
             print("[+] Terminating GOST client.")
             proc.terminate()
             proc.wait()
