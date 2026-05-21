@@ -12,6 +12,7 @@ from cc_utils.common import get_node_url
 from cc_utils.playit import start_playit_bridge, run_probe
 from cc_utils.chisel import run_chisel_client
 from cc_utils.gost import run_gost_client
+import cc_utils.node as node_cmd
 
 
 def run_ssh(port):
@@ -122,12 +123,75 @@ def main():
         help="GOST transport protocol: 'mwss' (multiplexed secure WebSocket, default) or 'ws' (plain multiplexed WebSocket)",
     )
 
+    # Node subparser — HF Space lifecycle management
+    node_parser = subparsers.add_parser(
+        "node",
+        help="Manage Hugging Face Space nodes (status, restart, wake, sleep, vars)",
+    )
+    node_parser.add_argument(
+        "name",
+        help="Node name from nodes.yaml (e.g., server-01) or 'all'",
+    )
+    node_action = node_parser.add_mutually_exclusive_group(required=True)
+    node_action.add_argument(
+        "--status", action="store_true",
+        help="Show runtime status and hardware for the node(s)",
+    )
+    node_action.add_argument(
+        "--restart", action="store_true",
+        help="Trigger a Space restart",
+    )
+    node_action.add_argument(
+        "--wake", action="store_true",
+        help="Resume a sleeping/paused Space",
+    )
+    node_action.add_argument(
+        "--sleep", action="store_true",
+        help="Pause the Space to save compute quota",
+    )
+    node_action.add_argument(
+        "--vars", action="store_true",
+        help="List public Space variables",
+    )
+    node_action.add_argument(
+        "--secrets", action="store_true",
+        help="List secret key names currently set on the Space (values are never exposed)",
+    )
+    node_action.add_argument(
+        "--set-var", metavar="KEY=VALUE",
+        help="Set a public Space variable (e.g., --set-var LOG_LEVEL=2)",
+    )
+    node_action.add_argument(
+        "--del-var", metavar="KEY",
+        help="Delete a public Space variable",
+    )
+
     args = parser.parse_args()
 
     # Set the global debug flag in common
     common.DEBUG_MODE = args.debug
 
-    # Action flags verification
+    # Node subcommand — handled entirely separately, no tunnel flags needed
+    if args.mode == "node":
+        if args.status:
+            node_cmd.cmd_status(args.name)
+        elif args.restart:
+            node_cmd.cmd_restart(args.name)
+        elif args.wake:
+            node_cmd.cmd_wake(args.name)
+        elif args.sleep:
+            node_cmd.cmd_sleep(args.name)
+        elif args.vars:
+            node_cmd.cmd_vars(args.name)
+        elif args.secrets:
+            node_cmd.cmd_secrets(args.name)
+        elif args.set_var:
+            node_cmd.cmd_vars(args.name, set_kv=args.set_var)
+        elif args.del_var:
+            node_cmd.cmd_vars(args.name, delete_key=args.del_var)
+        sys.exit(0)
+
+    # Action flags verification (tunnel modes only)
     if args.mode == "playit" and getattr(args, "probe", False):
         pass
     else:
