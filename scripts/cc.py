@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import cc_utils.common as common
 from cc_utils.common import get_node_url
-from cc_utils.playit import start_playit_bridge
+from cc_utils.playit import start_playit_bridge, run_probe
 from cc_utils.chisel import run_chisel_client
 from cc_utils.gost import run_gost_client
 
@@ -20,7 +20,7 @@ def run_ssh(port):
         "-o", "StrictHostKeyChecking=no",
         "-o", "UserKnownHostsFile=/dev/null",  # Prevents key mismatch lockouts
         "-o", "ConnectTimeout=10",
-        "-o", "ServerAliveInterval=2",
+        "-o", "ServerAliveInterval=1",
         "user@127.0.0.1",
         "-p", str(port),
     ]
@@ -58,19 +58,31 @@ def main():
     playit_parser.add_argument(
         "--port",
         type=int,
-        required=True,
-        help="Playit public tunnel port (e.g., 43345)",
+        default=25565,
+        help="Public Playit relay port from playit.gg (default: 25565). "
+        "Not the local SSH port (2222).",
     )
     playit_parser.add_argument(
-        "--local-port",
+        "--forward",
+        metavar="LOCAL_PORT",
         type=int,
         default=2222,
-        help="Local listening port for standard SSH connection (default: 2222)",
+        help="Local port to listen on (default: 2222). Traffic is piped through the Playit relay.",
     )
     playit_parser.add_argument(
         "--ssh",
         action="store_true",
         help="Automatically spawn SSH connection through the established tunnel",
+    )
+    playit_parser.add_argument(
+        "--probe",
+        action="store_true",
+        help="Ping the tunnel path (TCP + SSH banner check) and exit",
+    )
+    playit_parser.add_argument(
+        "--plain",
+        action="store_true",
+        help="Plain TCP bridge (no MC handshake, no XOR). Use with playit TCP tunnel → 127.0.0.1:2222",
     )
 
     # Chisel subparser
@@ -130,19 +142,26 @@ def main():
     common.DEBUG_MODE = args.debug
 
     if args.mode == "playit":
-        bridge = start_playit_bridge(args.host, args.port, args.local_port)
+        if args.probe:
+            sys.exit(run_probe(args.host, args.port, plain=args.plain))
+
+        bridge = start_playit_bridge(
+            args.host, args.port, args.forward, plain=args.plain
+        )
         print("====================================================================")
         print("                 PLAYIT TUNNEL READY TO USE")
         print("====================================================================")
+        mode = "plain TCP" if args.plain else "MC login + plugin tunnel"
+        print(f"  Relay:  {args.host}:{args.port}  ({mode})")
         if args.ssh:
-            run_ssh(args.local_port)
+            run_ssh(args.forward)
             print("\n[+] Closing Playit XOR bridge.")
             bridge.close()
         else:
             print(
-                f"  SSH:  ssh -o StrictHostKeyChecking=no user@127.0.0.1 -p {args.local_port}"
+                f"  SSH:  ssh -o StrictHostKeyChecking=no user@127.0.0.1 -p {args.forward}"
             )
-            print(f"  SFTP: sftp -P {args.local_port} user@127.0.0.1")
+            print(f"  SFTP: sftp -P {args.forward} user@127.0.0.1")
             print(
                 "===================================================================="
             )

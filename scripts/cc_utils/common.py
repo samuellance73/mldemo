@@ -19,6 +19,31 @@ def log_info(msg):
     print(f"[+] {msg}", flush=True)
 
 
+def pipe_direct(src, dst, label="pipe"):
+    try:
+        log_debug(f"{label}: Started transfer.")
+        total_bytes = 0
+        while True:
+            data = src.recv(8192)
+            if not data:
+                log_debug(f"{label}: Connection closed by sender (EOF).")
+                break
+            total_bytes += len(data)
+            dst.sendall(data)
+        log_debug(f"{label}: Finished transfer. Total bytes: {total_bytes}")
+    except Exception as e:
+        log_debug(f"{label}: Connection error: {e}")
+    finally:
+        try:
+            src.close()
+        except OSError:
+            pass
+        try:
+            dst.close()
+        except OSError:
+            pass
+
+
 def pipe_xor(src, dst, label="pipe"):
     try:
         log_debug(f"{label}: Started transfer.")

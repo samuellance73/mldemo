@@ -2,9 +2,12 @@ import subprocess
 import os
 import socket
 import threading
+from loguru import logger
 from .utils import decode_cmd
+from . import mc_tunnel
 
-XOR_KEY = 0x5A
+XOR_BRIDGE_PORT = 25565
+SSH_PORT = 2222
 
 
 def deobfuscate_secret(hex_str, key=0x5A):
@@ -30,69 +33,17 @@ def _load_token():
     return token
 
 
-def _pipe_xor(src, dst):
-    try:
-        while True:
-            data = src.recv(8192)
-            if not data:
-                break
-            scrambled = bytes([b ^ XOR_KEY for b in data])
-            dst.sendall(scrambled)
-    except Exception:
-        pass
-    finally:
-        try:
-            src.close()
-        except Exception:
-            pass
-        try:
-            dst.close()
-        except Exception:
-            pass
-
-
-def _read_varint(sock):
-    val = 0
-    shift = 0
-    while True:
-        b = sock.recv(1)
-        if not b:
-            break
-        byte = b[0]
-        val |= (byte & 0x7F) << shift
-        if not (byte & 0x80):
-            break
-        shift += 7
-    return val
-
-
-def _recv_exact(sock, n):
-    """Drain exactly n bytes — fixes TCP partial-read bug that left handshake
-    remnants in the stream, corrupting the XOR pipe."""
-    buf = b""
-    while len(buf) < n:
-        chunk = sock.recv(n - len(buf))
-        if not chunk:
-            break
-        buf += chunk
-    return buf
-
-
 def _handle_client(client_sock):
     try:
-        pkt_len = _read_varint(client_sock)
-        if pkt_len > 0:
-            _recv_exact(client_sock, pkt_len)   # consume full MC handshake packet
-
+        reader = mc_tunnel.server_consume_login(client_sock)
         ssh_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        ssh_sock.connect(("127.0.0.1", 2222))
-        threading.Thread(
-            target=_pipe_xor, args=(client_sock, ssh_sock), daemon=True
-        ).start()
-        threading.Thread(
-            target=_pipe_xor, args=(ssh_sock, client_sock), daemon=True
-        ).start()
-    except Exception:
+        ssh_sock.settimeout(5.0)
+        ssh_sock.connect(("127.0.0.1", SSH_PORT))
+        ssh_sock.settimeout(None)
+        logger.debug("Playit MC tunnel: login complete, relaying via plugin packets")
+        mc_tunnel.relay_server(reader, ssh_sock, client_sock)
+    except Exception as e:
+        logger.warning("Playit MC tunnel client dropped: {}", e)
         try:
             client_sock.close()
         except Exception:
@@ -103,7 +54,7 @@ def _xor_bridge_loop():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
-        server.bind(("0.0.0.0", 25564))
+        server.bind(("0.0.0.0", XOR_BRIDGE_PORT))
         server.listen(10)
         while True:
             client_sock, _ = server.accept()
@@ -115,8 +66,13 @@ def _xor_bridge_loop():
 
 
 def start_xor_bridge():
-    """Server-side XOR reverse proxy: port 25564 → strips MC handshake → SSHD :2222."""
+    """MC-disguised XOR proxy on :25565 (login plugin packets) -> sshd :2222."""
     threading.Thread(target=_xor_bridge_loop, daemon=True).start()
+    logger.info(
+        "Playit MC tunnel bridge on 0.0.0.0:{} (plugin channel {})",
+        XOR_BRIDGE_PORT,
+        mc_tunnel.TUNNEL_CHANNEL,
+    )
 
 
 def start(tm_log):

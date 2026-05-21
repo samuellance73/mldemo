@@ -169,21 +169,29 @@ def setup_and_run():
         props_path = os.path.join(mc_dir, "server.properties")
         if not os.path.exists(props_path):
             with open(props_path, "w") as f:
-                f.write("server-port=25565\n")
+                f.write("server-port=25566\n")
                 f.write("online-mode=false\n")
                 f.write("motd=NITIN NEELRU JERK OFF\n")
         else:
             try:
                 with open(props_path, "r") as f:
                     props_data = f.read()
+                changed = False
                 if "online-mode=true" in props_data:
                     props_data = props_data.replace(
                         "online-mode=true", "online-mode=false"
                     )
+                    changed = True
+                if "server-port=25565" in props_data:
+                    props_data = props_data.replace(
+                        "server-port=25565", "server-port=25566"
+                    )
+                    changed = True
+                if changed:
                     with open(props_path, "w") as f:
                         f.write(props_data)
             except Exception as e:
-                log_print(f"[-] Failed to enforce offline mode: {e}")
+                log_print(f"[-] Failed to update server.properties: {e}")
 
         log_print("[*] Starting Minecraft server process...")
         with open(log_file, "a") as log:

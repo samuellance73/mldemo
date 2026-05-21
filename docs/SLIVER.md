@@ -24,7 +24,7 @@ The Sliver C2 ecosystem inside your Sanctuary environment is structured for comp
 SLIVER_ROOT_DIR=/home/user/.sliver /usr/bin/gradient-optimizer operator \
   --name localoperator \
   --lhost 127.0.0.1 \
-  --save /home/user/l.cfg \
+  --save /data/l.cfg \
   --permissions all
 
 
