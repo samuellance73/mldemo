@@ -243,11 +243,12 @@ def main():
 
         # Push Space Secrets if configured
         if repo_type == "space" and node_info.get("push-secrets", False):
-            logger.info(f"Pushing XOR-obfuscated space secret(s) to '{repo_id}'...")
+            logger.info(f"Synchronizing space secret(s) to '{repo_id}'...")
             pushed_keys = {}
+            deleted_keys = []
             for target_key in ["A", "P", "C", "PASS"]:
                 raw_val, source_key = resolve_mapped_secret(target_key, node_name)
-                if raw_val is not None:
+                if raw_val:
                     obf_val = obfuscate_secret(raw_val)
                     try:
                         node_api.add_space_secret(
@@ -258,9 +259,21 @@ def main():
                         logger.error(
                             f"Failed to push secret '{source_key}' as '{target_key}': {e}"
                         )
+                else:
+                    # Secret is not defined/empty; delete it from HF Space to ensure it doesn't linger
+                    try:
+                        node_api.delete_space_secret(
+                            repo_id=repo_id, key=target_key
+                        )
+                        deleted_keys.append(target_key)
+                    except Exception as e:
+                        # Silently ignore if secret didn't exist on the space
+                        logger.debug(f"Secret '{target_key}' did not exist or could not be deleted: {e}")
             if pushed_keys:
                 summary = [f"{k}->{v}" for k, v in pushed_keys.items()]
                 logger.info(f"Successfully pushed space secrets: {', '.join(summary)}")
+            if deleted_keys:
+                logger.info(f"Successfully deleted/cleared stale space secrets: {', '.join(deleted_keys)}")
 
         direct_url = None
         if repo_type == "space":
