@@ -4,15 +4,15 @@ import os
 import time
 import subprocess
 
-# Ensure the scripts directory is in sys.path so cc_utils can be imported properly
+# Ensure the scripts directory is in sys.path so client/ can be imported properly
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import cc_utils.common as common
-from cc_utils.common import get_node_url
-from cc_utils.playit import start_playit_bridge, run_probe
-from cc_utils.chisel import run_chisel_client
-from cc_utils.gost import run_gost_client
-import cc_utils.node as node_cmd
+import client.common as common
+from client.common import get_node_url
+from client.playit_client import start_playit_bridge, run_probe
+from client.chisel_client import run_chisel_client
+from client.gost_client import run_gost_client
+import client.node as node_cmd
 
 
 def run_ssh(port):
@@ -96,12 +96,6 @@ def main():
     chisel_parser.add_argument(
         "--node", required=True, help="Name of the node to connect to (e.g., server-04)"
     )
-    chisel_parser.add_argument(
-        "--auth",
-        default="user:apple123",
-        help="Chisel authentication credentials (default: user:apple123)",
-    )
-
     # GOST subparser
     gost_parser = subparsers.add_parser(
         "gost",
@@ -301,13 +295,7 @@ def main():
         if args.ssh:
             # Launch Chisel in background
             server_url = hf_url.rstrip("/") + "/chisel-tunnel"
-            cmd = [
-                "chisel",
-                "client",
-                "--auth",
-                args.auth,
-                server_url,
-            ] + remotes_list
+            cmd = ["chisel", "client", server_url] + remotes_list
             print(f"[+] Launching Chisel client in background -> {server_url}")
             print(f"[+] Forwarding: {remotes_str}")
             try:
@@ -339,7 +327,7 @@ def main():
             proc.terminate()
             proc.wait()
         else:
-            run_chisel_client(hf_url, args.auth, remotes_str)
+            run_chisel_client(hf_url, remotes_str)
 
     elif args.mode == "gost":
         try:

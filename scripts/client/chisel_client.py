@@ -2,12 +2,12 @@ import subprocess
 import sys
 
 
-def run_chisel_client(hf_url, auth, remotes):
+def run_chisel_client(hf_url, remotes):
     server_url = hf_url.rstrip("/") + "/chisel-tunnel"
     print(f"[+] Launching Chisel client -> {server_url}")
     print(f"[+] Forwarding: {remotes}")
 
-    cmd = ["chisel", "client", "--auth", auth, server_url] + remotes.split()
+    cmd = ["chisel", "client", server_url] + remotes.split()
     try:
         # Run chisel client in foreground
         subprocess.run(cmd)

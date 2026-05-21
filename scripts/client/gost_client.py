@@ -5,7 +5,7 @@ import socket as _socket
 import urllib.parse
 import os
 import random
-import cc_utils.common as common
+import client.common as common
 
 def run_gost_client(hf_url, auth, ssh_enabled, proxy_enabled, local_forward, run_ssh_fn, transport="mwss"):
     # 1. Normalize the HF URL (remove existing schemes)

@@ -99,7 +99,7 @@ def build_mc_handshake(host, port):
 
 def get_node_url(node_name):
     # Locate state.json relative to the repository root
-    # cc_utils is nested in scripts/
+    # client/ is nested in scripts/
     repo_root = os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     )

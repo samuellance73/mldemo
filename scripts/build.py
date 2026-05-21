@@ -15,24 +15,39 @@ def encode_cmd(decoded_str):
     return base64.b64encode(decoded_str.encode()).decode()[::-1]
 
 
-def build_orchestrator(logging_mode=1):
-    with open("src/core/orchestrator.py", "r") as f:
-        content = f.read()
+def _minify_py(content):
+    return python_minifier.minify(content, remove_literal_statements=True)
 
+
+def _obfuscate_content(content):
     def replacer(match):
         raw_cmd = match.group(1)
         encoded = encode_cmd(raw_cmd)
         return f'"{encoded}"'
 
-    # Replace OBFUSCATE("...") with "encoded_reversed_b64"
-    content = re.sub(r'OBFUSCATE\(\s*"([^"]+)"\s*\)', replacer, content)
+    return re.sub(r'OBFUSCATE\(\s*"([^"]+)"\s*\)', replacer, content)
+
+
+def build_logging(logging_mode=1):
+    with open("src/core/logging.py", "r") as f:
+        content = f.read()
 
     content = content.replace(
         "COVERT_LOGGING_MODE = 1", f"COVERT_LOGGING_MODE = {logging_mode}"
     )
+    content = _minify_py(content)
 
-    # Minify content
-    content = python_minifier.minify(content, remove_literal_statements=True)
+    os.makedirs("dist/core", exist_ok=True)
+    with open("dist/core/logging.py", "w") as f:
+        f.write(content)
+
+
+def build_orchestrator(logging_mode=1):
+    with open("src/core/orchestrator.py", "r") as f:
+        content = f.read()
+
+    content = _obfuscate_content(content)
+    content = _minify_py(content)
 
     os.makedirs("dist/core", exist_ok=True)
     with open("dist/core/orchestrator.py", "w") as f:
@@ -43,7 +58,7 @@ def build_orchestrator(logging_mode=1):
         else ("Console + File" if logging_mode == 2 else "DISABLED")
     )
     logger.success(
-        f"Built orchestrator.py from src/core/orchestrator.py (Logging: {mode_str})"
+        f"Built core/ from src/core/ (Logging: {mode_str})"
     )
 
 
@@ -163,7 +178,11 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
+    build_logging(logging_mode=args.logs)
     build_orchestrator(logging_mode=args.logs)
+    if os.path.exists("src/core/__init__.py"):
+        os.makedirs("dist/core", exist_ok=True)
+        shutil.copy("src/core/__init__.py", "dist/core/__init__.py")
     build_dockerfile(logging_mode=args.logs)
 
     # Copy and minify other necessary files if python

@@ -18,7 +18,7 @@ def obfuscate_secret(val, key=0x5A):
 
 def resolve_mapped_secret(target_key, node_name):
     """Resolves mapped secrets standardizing to node-specific or global keys."""
-    prefix_map = {"A": "TAILSCALE", "P": "PLAYIT", "C": "CHISEL", "PASS": "SSH"}
+    prefix_map = {"A": "TAILSCALE", "P": "PLAYIT", "PASS": "SSH"}
     prefix = prefix_map.get(target_key)
     if not prefix:
         return None, None
@@ -126,10 +126,6 @@ def main():
         "--tailscale-key", help="Tailscale auth key to push as space secret 'A'"
     )
     parser.add_argument(
-        "--chisel-auth",
-        help="Chisel authentication credentials (username:password) to push as space secret 'C'",
-    )
-    parser.add_argument(
         "--ssh-password", help="SSH user password to push as space secret 'PASS'"
     )
     args = parser.parse_args()
@@ -139,8 +135,6 @@ def main():
         os.environ["PLAYIT"] = args.playit_secret
     if args.tailscale_key:
         os.environ["TAILSCALE"] = args.tailscale_key
-    if args.chisel_auth:
-        os.environ["CHISEL"] = args.chisel_auth
     if args.ssh_password:
         os.environ["SSH"] = args.ssh_password
 
@@ -246,7 +240,7 @@ def main():
             logger.info(f"Synchronizing space secret(s) to '{repo_id}'...")
             pushed_keys = {}
             deleted_keys = []
-            for target_key in ["A", "P", "C", "PASS"]:
+            for target_key in ["A", "P", "PASS"]:
                 raw_val, source_key = resolve_mapped_secret(target_key, node_name)
                 if raw_val:
                     obf_val = obfuscate_secret(raw_val)

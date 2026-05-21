@@ -7,7 +7,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 sys.path.insert(0, os.path.join(_REPO_ROOT, "src"))
 from services import mc_tunnel  # noqa: E402
 
-from cc_utils.common import log_debug, log_info, log_error, pipe_direct
+from client.common import log_debug, log_info, log_error, pipe_direct
 
 
 def probe_relay(host, port, timeout=5.0):

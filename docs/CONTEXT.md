@@ -23,27 +23,29 @@ This project is an advanced, multi-service application environment designed for 
 │   ├── build.py
 │   ├── cc.py
 │   ├── deploy.py
-│   └── cc_utils/
+│   └── client/
 │       ├── __init__.py
-│       ├── chisel.py
 │       ├── common.py
-│       └── playit.py
+│       ├── chisel_client.py
+│       └── playit_client.py
 ├── src/
 │   ├── app.py
 │   ├── README.md
 │   ├── core/
+│   │   ├── logging.py
 │   │   └── orchestrator.py
-│   └── services/
+│   └── services/           # server-side service wrappers only
 │       ├── __init__.py
 │       ├── utils.py
-│       ├── nginx.py
-│       ├── tailscale.py
-│       ├── playit.py
-│       ├── chisel.py
-│       ├── filebrowser.py
-│       ├── minecraft.py
-│       └── gost.py
-│       └── sliver.py
+│       ├── nginx_service.py
+│       ├── tailscale_service.py
+│       ├── filebrowser_service.py
+│       ├── playit_service.py
+│       ├── chisel_service.py
+│       ├── gost_service.py
+│       ├── mc_tunnel.py
+│       ├── minecraft_service.py
+│       └── sliver_service.py
 └── dist/       # (Generated production build)
 ```
 
@@ -53,9 +55,9 @@ This project is an advanced, multi-service application environment designed for 
 
 Run `make build LOGS=1` (default) from the repo root to log to standard files. Use `make build LOGS=2` to output logs to both console and files simultaneously. Use `make build LOGS=0` for a streamlined production build with minimal logging overhead. The pipeline performs the following transformations:
 
-1. **`src/core/orchestrator.py`** → `dist/core/orchestrator.py`
-   - Encodes internal shell commands for clean packaging
-   - Minifies code via `python-minifier` to remove comments, docstrings, and unneeded whitespace
+1. **`src/core/`** → `dist/core/`
+   - **`logging.py`**: Sets `COVERT_LOGGING_MODE` from build `LOGS` flag, then minifies
+   - **`orchestrator.py`**: Encodes internal shell commands (`OBFUSCATE`), then minifies
 
 2. **`Dockerfile`** → `dist/Dockerfile`
    - Encodes external download URLs dynamically
@@ -95,7 +97,7 @@ A protocol-focused CLI tool designed to establish local endpoints for interactin
      - Local SOCKS5 Proxy: `1080`
      - SSH Forwarding: `2222 -> 127.0.0.1:2222`
      - Filebrowser Forwarding: `9000 -> 127.0.0.1:9000`
-   - Usage: `uv run python scripts/cc.py chisel --node <node-name> [--auth user:apple123]`
+   - Usage: `uv run python scripts/cc.py chisel --node <node-name>`
 
 3. **GOST mode (`gost`)**:
    - Connects directly to the node's multiplexed WebSocket proxy endpoint (routed via `/gost-bridge`).
@@ -165,7 +167,6 @@ To protect sensitive credentials during container initialization, high-value tok
 |-----------------|----------------------------------------------------------------|
 | `A`             | Tailscale network authentication key (XOR hex encoded)         |
 | `P`             | Playit tunnel secret credential (XOR hex encoded)              |
-| `C`             | Chisel secure WebSocket credentials (XOR hex encoded)          |
 | `PASS`          | SSH user password (XOR hex encoded)                            |
 
 All secret variables are actively purged from the process environment memory immediately after service initialization.
@@ -176,7 +177,6 @@ During local deployment, `scripts/deploy.py` resolves secrets standardizing to n
 
 - **Tailscale Key**: Resolved from `TAILSCALE_<suffix>` (e.g. `TAILSCALE_01` for node `server-01`) or global `TAILSCALE` / legacy `A`.
 - **Playit Secret**: Resolved from `PLAYIT_<suffix>` (e.g. `PLAYIT_01` for node `server-01`) or global `PLAYIT` / legacy `P`.
-- **Chisel Auth**: Resolved from `CHISEL_<suffix>` or global `CHISEL` / legacy `C`.
 - **SSH Password**: Resolved from `SSH_<suffix>` or global `SSH` / legacy `PASS`.
 
 ---

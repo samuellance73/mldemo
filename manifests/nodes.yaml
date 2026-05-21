@@ -26,7 +26,7 @@ nodes:
     repo-type: space
     push-secrets: true
 
-    server-06:
+  server-06:
     hf-repo: "samuelfanglance/test2"
     token-env: "HF2"
     create-repo: true

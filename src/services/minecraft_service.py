@@ -221,7 +221,7 @@ def start():
             )
             subprocess.run(["tmux", "kill-session", "-t", "mc_server"])
 
-        # Start the new tmux session running minecraft.py as a module
+        # Start the new tmux session running minecraft_service as a module
         subprocess.Popen(
             [
                 "tmux",
@@ -229,7 +229,7 @@ def start():
                 "-d",
                 "-s",
                 "mc_server",
-                "python3 -u -m services.minecraft",
+                "python3 -u -m services.minecraft_service",
             ]
         )
         logger.success("Stealth Minecraft Daemon started successfully in tmux.")

