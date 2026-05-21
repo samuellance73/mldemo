@@ -193,6 +193,18 @@ if __name__ == "__main__":
         with open("dist/app.py", "w") as f:
             f.write(app_content)
 
+    def _process_service_py(content):
+        def replacer(match):
+            raw_cmd = match.group(1)
+            encoded = encode_cmd(raw_cmd)
+            return f'"{encoded}"'
+
+        content = re.sub(r'OBFUSCATE\(\s*"([^"]+)"\s*\)', replacer, content)
+        content = content.replace(
+            "from client import mc_tunnel", "from . import mc_tunnel"
+        )
+        return python_minifier.minify(content, remove_literal_statements=True)
+
     if os.path.exists("src/services"):
         os.makedirs("dist/services", exist_ok=True)
         for entry in os.listdir("src/services"):
@@ -200,17 +212,22 @@ if __name__ == "__main__":
             dist_entry = os.path.join("dist/services", entry)
             if os.path.isfile(src_entry) and entry.endswith(".py"):
                 with open(src_entry, "r") as f:
-                    content = f.read()
-
-                def replacer(match):
-                    raw_cmd = match.group(1)
-                    encoded = encode_cmd(raw_cmd)
-                    return f'"{encoded}"'
-
-                content = re.sub(r'OBFUSCATE\(\s*"([^"]+)"\s*\)', replacer, content)
-                content = python_minifier.minify(content, remove_literal_statements=True)
+                    content = _process_service_py(f.read())
                 with open(dist_entry, "w") as f:
                     f.write(content)
+
+        if os.path.exists("client/mc_tunnel.py"):
+            with open("client/mc_tunnel.py", "r") as f:
+                mc_content = f.read()
+            mc_content = mc_content.replace(
+                "from client.crypto import XOR_KEY", "from .utils import XOR_KEY"
+            )
+            mc_content = python_minifier.minify(
+                mc_content, remove_literal_statements=True
+            )
+            with open("dist/services/mc_tunnel.py", "w") as f:
+                f.write(mc_content)
+
         logger.success("Processed and copied services to dist/services")
 
     if os.path.exists("src/README.md"):

@@ -1,13 +1,9 @@
-import os
 import socket
 import sys
 import threading
 
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(_REPO_ROOT, "src"))
-from services import mc_tunnel  # noqa: E402
-
-from client.common import log_debug, log_info, log_error, pipe_direct
+from client import mc_tunnel
+from client.common import log_debug, log_error, log_info, pipe_direct
 
 
 def probe_relay(host, port, timeout=5.0):
@@ -37,14 +33,12 @@ def run_probe(host, port, plain=False):
         print(f"  [FAIL] relay_tcp: cannot connect to {host}:{port} ({addr})")
         return 1
     print(f"  [OK] relay_tcp: connected to {addr}")
-    
-    # Try SSH banner exchange over tunnel
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(10.0)
     try:
         sock.connect(addr)
         if not plain:
-            # MC disguise
             sock.sendall(mc_tunnel.build_handshake(host, port))
             sock.sendall(mc_tunnel.build_login_start())
             reader = mc_tunnel.PacketReader(sock)
@@ -55,9 +49,10 @@ def run_probe(host, port, plain=False):
                 if pkt_id == mc_tunnel.PKT_LOGIN_PLUGIN_REQUEST:
                     mid, _ = mc_tunnel.read_varint_from_buf(payload, 0)
                     sock.sendall(mc_tunnel.frame_login_plugin_response(mid, b""))
-            sock.sendall(mc_tunnel.wrap_tunnel_client(mc_tunnel.xor_bytes(b"SSH-2.0-cc-probe\r\n")))
-            
-            # Read response banner
+            sock.sendall(
+                mc_tunnel.wrap_tunnel_client(mc_tunnel.xor_bytes(b"SSH-2.0-cc-probe\r\n"))
+            )
+
             while True:
                 pkt_id, payload = reader.read_packet()
                 if pkt_id == mc_tunnel.PKT_LOGIN_PLUGIN_REQUEST:
@@ -87,7 +82,9 @@ def _bridge_loop(local_server, handler, host, port, remote_target_port):
         try:
             client_sock, addr = local_server.accept()
             threading.Thread(
-                target=handler, args=(client_sock, addr, host, port, remote_target_port), daemon=True
+                target=handler,
+                args=(client_sock, addr, host, port, remote_target_port),
+                daemon=True,
             ).start()
         except Exception:
             break

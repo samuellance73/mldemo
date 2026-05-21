@@ -19,16 +19,18 @@ This project is an advanced, multi-service application environment designed for 
 ├── manifests/
 │   ├── nodes.yaml
 │   └── state.json
+├── client/                 # local client domain (cc.py, MC tunnel protocol)
+│   ├── mc_tunnel.py
+│   ├── crypto.py
+│   ├── common.py
+│   ├── playit_client.py
+│   ├── chisel_client.py
+│   └── node.py
 ├── scripts/
 │   ├── build.py
 │   ├── cc.py
-│   ├── deploy.py
-│   └── client/
-│       ├── __init__.py
-│       ├── common.py
-│       ├── chisel_client.py
-│       └── playit_client.py
-├── src/
+│   └── deploy.py
+├── src/                    # remote server domain (HF Space runtime)
 │   ├── app.py
 │   ├── README.md
 │   ├── core/
@@ -43,7 +45,6 @@ This project is an advanced, multi-service application environment designed for 
 │       ├── playit_service.py
 │       ├── chisel_service.py
 │       ├── gost_service.py
-│       ├── mc_tunnel.py
 │       ├── minecraft_service.py
 │       └── sliver_service.py
 └── dist/       # (Generated production build)

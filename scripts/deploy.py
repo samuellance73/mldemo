@@ -8,7 +8,11 @@ from huggingface_hub import HfApi
 from loguru import logger
 from dotenv import load_dotenv
 
-from crypto_utils import XOR_KEY
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from client.crypto import XOR_KEY
 
 
 def obfuscate_secret(val, key=XOR_KEY):

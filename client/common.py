@@ -1,8 +1,10 @@
-import os
 import json
+import os
 import sys
 
-from crypto_utils import XOR_KEY
+from client._repo import REPO_ROOT
+from client.crypto import XOR_KEY
+
 DEBUG_MODE = False
 
 
@@ -62,11 +64,11 @@ def pipe_xor(src, dst, label="pipe"):
     finally:
         try:
             src.close()
-        except:
+        except OSError:
             pass
         try:
             dst.close()
-        except:
+        except OSError:
             pass
 
 
@@ -85,7 +87,6 @@ def pack_varint(val):
 
 def build_mc_handshake(host, port):
     host_bytes = host.encode("utf-8")
-    # Packet ID (0x00) + Protocol (763) + Host Len + Host + Port (2 bytes) + Next State (2 for Login)
     data = (
         pack_varint(0)
         + pack_varint(763)
@@ -98,12 +99,7 @@ def build_mc_handshake(host, port):
 
 
 def get_node_url(node_name):
-    # Locate state.json relative to the repository root
-    # client/ is nested in scripts/
-    repo_root = os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    )
-    state_path = os.path.join(repo_root, "manifests", "state.json")
+    state_path = os.path.join(REPO_ROOT, "manifests", "state.json")
     if not os.path.exists(state_path):
         raise FileNotFoundError(
             f"State file '{state_path}' not found. Build/deploy first."

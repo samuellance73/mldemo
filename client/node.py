@@ -28,7 +28,7 @@ _HARDWARE_LABELS = {
 
 
 def _load_nodes_config():
-    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from client._repo import REPO_ROOT as repo_root
     nodes_path = os.path.join(repo_root, "manifests", "nodes.yaml")
     if not os.path.exists(nodes_path):
         print(f"[-] nodes.yaml not found at '{nodes_path}'", file=sys.stderr)

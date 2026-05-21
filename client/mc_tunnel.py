@@ -8,7 +8,7 @@ import struct
 import threading
 import uuid
 
-from .utils import XOR_KEY
+from client.crypto import XOR_KEY
 
 PROTOCOL_VERSION = 763
 TUNNEL_CHANNEL = "bungeecord:main"

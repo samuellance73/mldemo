@@ -8,8 +8,10 @@ import string
 import sys
 from loguru import logger
 
-# Add src/ to sys.path for services and core imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add repo root (client/) and src/ (server services, core) to sys.path
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(_REPO_ROOT, "src"))
+sys.path.insert(0, _REPO_ROOT)
 from core.logging import setup_service_logs
 from services import (
     nginx_service,

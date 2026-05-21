@@ -4,8 +4,9 @@ import os
 import time
 import subprocess
 
-# Ensure the scripts directory is in sys.path so client/ can be imported properly
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Repo root on sys.path so top-level client/ package resolves (not scripts/client/)
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _REPO_ROOT)
 
 import client.common as common
 from client.common import get_node_url

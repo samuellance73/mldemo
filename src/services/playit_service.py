@@ -4,7 +4,7 @@ import socket
 import threading
 from loguru import logger
 from .utils import decode_cmd, deobfuscate_secret
-from . import mc_tunnel
+from client import mc_tunnel
 
 XOR_BRIDGE_PORT = 25565
 SSH_PORT = 2222
