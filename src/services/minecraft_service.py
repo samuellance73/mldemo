@@ -171,7 +171,7 @@ def setup_and_run():
             with open(props_path, "w") as f:
                 f.write("server-port=25566\n")
                 f.write("online-mode=false\n")
-                f.write("motd=NITIN NEELRU JERK OFF\n")
+                f.write("motd=PCEP\n")
         else:
             try:
                 with open(props_path, "r") as f:
