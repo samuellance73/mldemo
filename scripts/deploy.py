@@ -8,8 +8,10 @@ from huggingface_hub import HfApi
 from loguru import logger
 from dotenv import load_dotenv
 
+from crypto_utils import XOR_KEY
 
-def obfuscate_secret(val, key=0x5A):
+
+def obfuscate_secret(val, key=XOR_KEY):
     """XOR encrypts secret bytes and returns a clean hex string for Hugging Face Hub."""
     if not val:
         return ""

@@ -2,7 +2,7 @@ import os
 import json
 import sys
 
-XOR_KEY = 0x5A
+from crypto_utils import XOR_KEY
 DEBUG_MODE = False
 
 

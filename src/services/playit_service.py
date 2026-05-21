@@ -3,25 +3,11 @@ import os
 import socket
 import threading
 from loguru import logger
-from .utils import decode_cmd
+from .utils import decode_cmd, deobfuscate_secret
 from . import mc_tunnel
 
 XOR_BRIDGE_PORT = 25565
 SSH_PORT = 2222
-
-
-def deobfuscate_secret(hex_str, key=0x5A):
-    if not hex_str:
-        return ""
-    try:
-        raw_bytes = bytes.fromhex(hex_str.strip())
-        deobf_bytes = bytes([b ^ key for b in raw_bytes])
-        if all(32 <= b <= 126 or b in (9, 10, 13) for b in deobf_bytes):
-            return deobf_bytes.decode("utf-8", errors="ignore")
-        else:
-            return hex_str
-    except Exception:
-        return hex_str
 
 
 def _load_token():

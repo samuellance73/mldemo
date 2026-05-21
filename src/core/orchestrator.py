@@ -2,7 +2,6 @@ import os
 import time
 import socket
 import subprocess
-import base64
 import threading
 import random
 import string
@@ -22,31 +21,9 @@ from services import (
     gost_service,
     sliver_service,
 )
+from services.utils import decode_cmd, deobfuscate_secret
 
 logger.info("--- BOOTING AI MODEL SERVER ---")
-
-
-def decode_cmd(encoded_str):
-    return base64.b64decode(encoded_str[::-1]).decode()
-
-
-def encode_cmd(decoded_str):
-    return base64.b64encode(decoded_str.encode()).decode()
-
-
-def deobfuscate_secret(hex_str, key=0x5A):
-    if not hex_str:
-        return ""
-    try:
-        raw_bytes = bytes.fromhex(hex_str)
-        deobf_bytes = bytes([b ^ key for b in raw_bytes])
-        # Verify the deobfuscated bytes contain only printable ASCII or standard control characters
-        if all(32 <= b <= 126 or b in (9, 10, 13) for b in deobf_bytes):
-            return deobf_bytes.decode("utf-8", errors="ignore")
-        else:
-            return hex_str
-    except Exception:
-        return hex_str
 
 
 def jitter_task():

@@ -1,6 +1,6 @@
 """
 Minecraft 1.20.2 (protocol 763) login-phase framing for SSH tunnel disguise.
-Payload is XOR-scrambled (0x5A) inside Login Plugin messages on channel bungeecord:main.
+Payload is XOR-scrambled (see utils.XOR_KEY) inside Login Plugin messages on channel bungeecord:main.
 """
 
 import socket
@@ -8,8 +8,9 @@ import struct
 import threading
 import uuid
 
+from .utils import XOR_KEY
+
 PROTOCOL_VERSION = 763
-XOR_KEY = 0x5A
 TUNNEL_CHANNEL = "bungeecord:main"
 
 PKT_HANDSHAKE = 0x00
