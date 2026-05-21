@@ -13,5 +13,6 @@ __pycache__/
 !.env.example
 manifests/state.json
 
-sliver
-cfg
+/sliver
+/cfg/*
+!/cfg/.gitkeep
