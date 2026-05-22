@@ -3,7 +3,7 @@ nodes:
     hf-repo: "samuellance73/mldemo"
     token-env: "HF1"
     push-secrets: true
-    services: ["nginx", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "test"]
+    services: ["nginx", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "test" ,"minecraft"]
 
   server-02:
     hf-repo: "samuellance73/Banana"
