@@ -12,6 +12,7 @@ This project is an advanced, multi-service application environment designed for 
 ├── README.md
 ├── Makefile
 ├── config/
+│   ├── enabled_services.json
 │   └── nginx.conf.template
 ├── docs/
 │   ├── CONTEXT.md
@@ -34,7 +35,8 @@ This project is an advanced, multi-service application environment designed for 
 │   ├── app.py
 │   ├── README.md
 │   ├── core/
-│   │   ├── logging.py
+│   │   ├── service_logs.py
+│   │   ├── service_registry.py
 │   │   └── orchestrator.py
 │   └── services/           # server-side service wrappers only
 │       ├── __init__.py
@@ -57,7 +59,7 @@ This project is an advanced, multi-service application environment designed for 
 Run `make build LOGS=1` (default) from the repo root to log to standard files. Use `make build LOGS=2` to output logs to both console and files simultaneously. Use `make build LOGS=0` for a streamlined production build with minimal logging overhead. The pipeline performs the following transformations:
 
 1. **`src/core/`** → `dist/core/`
-   - **`logging.py`**: Sets `COVERT_LOGGING_MODE` from build `LOGS` flag, then minifies
+   - **`service_logs.py`**: Sets `COVERT_LOGGING_MODE` from build `LOGS` flag, then minifies
    - **`orchestrator.py`**: Encodes internal shell commands (`OBFUSCATE`), then minifies
 
 2. **`Dockerfile`** → `dist/Dockerfile`
@@ -157,6 +159,30 @@ Administrators can input specific diagnostic keys into the Gradio text input box
 | `SHOW_LOGS_MC`           | Contents of `mc_daemon.log`     |
 | `SHOW_ALL_LOGS`          | Complete service log summary    |
 | `SHOW_LOGS_STARTUP`      | Master startup log verification |
+
+---
+
+## Per-node services (`manifests/nodes.yaml`)
+
+Each node may declare an optional `services` list. At deploy time, `scripts/deploy.py` writes `config/enabled_services.json` into `dist/` before upload; the orchestrator reads it at container boot and starts only those services.
+
+**Allowed names** (see `src/core/service_registry.py`): `nginx`, `filebrowser`, `tailscale`, `playit`, `chisel`, `gost`, `sliver`, `minecraft`.
+
+**Always-on core** (not listed in YAML): Gradio on `:7861`, camouflage (`pytorch_model.bin`, jitter), SSH on `:2222`.
+
+**Default when `services` is omitted**: minimal core only (no tunnels, no nginx). Add `nginx` for production HF Spaces that must bind `:7860`.
+
+| Secret | Pushed when |
+|--------|-------------|
+| `A` | `tailscale` is in the node's `services` list |
+| `P` | `playit` is in the list |
+| `PASS` | always (SSH password; also used by filebrowser when enabled) |
+
+Example stacks:
+
+- **server-01**: `nginx`, `filebrowser`, `chisel`, `sliver` — standard proxy stack
+- **server-02**: `nginx`, `filebrowser`, `playit`, `minecraft` — Minecraft stack
+- **server-03**: `nginx`, `gost`, `tailscale` — stealth gateway stack
 
 ---
 

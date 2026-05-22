@@ -29,7 +29,7 @@ def _obfuscate_content(content):
 
 
 def build_logging(logging_mode=1):
-    with open("src/core/logging.py", "r") as f:
+    with open("src/core/service_logs.py", "r") as f:
         content = f.read()
 
     content = content.replace(
@@ -38,7 +38,10 @@ def build_logging(logging_mode=1):
     content = _minify_py(content)
 
     os.makedirs("dist/core", exist_ok=True)
-    with open("dist/core/logging.py", "w") as f:
+    legacy_logging = "dist/core/logging.py"
+    if os.path.exists(legacy_logging):
+        os.remove(legacy_logging)
+    with open("dist/core/service_logs.py", "w") as f:
         f.write(content)
 
 
@@ -48,6 +51,16 @@ def build_orchestrator(logging_mode=1):
 
     content = _obfuscate_content(content)
     content = _minify_py(content)
+    if "sys.path.insert" not in content:
+        bootstrap = (
+            "_P=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\n"
+            "sys.path.insert(0,_P) if _P not in sys.path else None\n"
+        )
+        first_nl = content.find("\n")
+        if first_nl != -1 and content.startswith("import "):
+            content = content[: first_nl + 1] + bootstrap + content[first_nl + 1 :]
+        else:
+            content = bootstrap + content
 
     os.makedirs("dist/core", exist_ok=True)
     with open("dist/core/orchestrator.py", "w") as f:
@@ -180,9 +193,15 @@ if __name__ == "__main__":
 
     build_logging(logging_mode=args.logs)
     build_orchestrator(logging_mode=args.logs)
+    os.makedirs("dist/core", exist_ok=True)
     if os.path.exists("src/core/__init__.py"):
-        os.makedirs("dist/core", exist_ok=True)
         shutil.copy("src/core/__init__.py", "dist/core/__init__.py")
+    if os.path.exists("src/core/service_registry.py"):
+        with open("src/core/service_registry.py", "r") as f:
+            reg_content = f.read()
+        with open("dist/core/service_registry.py", "w") as f:
+            f.write(_minify_py(reg_content))
+        logger.success("Built dist/core/service_registry.py")
     build_dockerfile(logging_mode=args.logs)
 
     # Copy and minify other necessary files if python

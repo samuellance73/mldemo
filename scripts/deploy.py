@@ -9,10 +9,30 @@ from loguru import logger
 from dotenv import load_dotenv
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
+_SRC_ROOT = os.path.join(_REPO_ROOT, "src")
+for _p in (_SRC_ROOT, _REPO_ROOT):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from client.crypto import XOR_KEY
+from core.service_registry import ALLOWED_SERVICES
+
+
+def resolve_node_services(node_info):
+    """Return enabled service names for a node (empty = minimal core)."""
+    services = node_info.get("services")
+    if services is None:
+        return []
+    if not isinstance(services, list):
+        raise ValueError("'services' must be a list of service names")
+    return [str(s).strip().lower() for s in services if str(s).strip()]
+
+
+def write_enabled_services(dist_dir, node_name, enabled):
+    path = os.path.join(dist_dir, "config", "enabled_services.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump({"services": enabled, "node": node_name}, f)
 
 
 def obfuscate_secret(val, key=XOR_KEY):
@@ -53,7 +73,14 @@ def resolve_mapped_secret(target_key, node_name):
 
 
 def update_state(
-    state_path, node_name, repo_id, repo_type, status, commit_url=None, error=None
+    state_path,
+    node_name,
+    repo_id,
+    repo_type,
+    status,
+    commit_url=None,
+    error=None,
+    services=None,
 ):
     """Updates state.json with the outcome of a deployment step."""
     direct_url = None
@@ -75,15 +102,16 @@ def update_state(
     now_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     node_state = state[node_name]
-    node_state.update(
-        {
-            "hf_repo": repo_id,
-            "repo_type": repo_type,
-            "url": direct_url,
-            "last_deployed": now_str,
-            "status": status,
-        }
-    )
+    update_payload = {
+        "hf_repo": repo_id,
+        "repo_type": repo_type,
+        "url": direct_url,
+        "last_deployed": now_str,
+        "status": status,
+    }
+    if services is not None:
+        update_payload["services"] = services
+    node_state.update(update_payload)
 
     if commit_url:
         node_state["commit_url"] = commit_url
@@ -241,12 +269,37 @@ def main():
             except Exception as e:
                 logger.debug(f"Note on repo creation: {e}")
 
+        try:
+            enabled_services = resolve_node_services(node_info)
+        except ValueError as e:
+            logger.error(f"Invalid services for '{node_name}': {e}")
+            continue
+
+        unknown = set(enabled_services) - ALLOWED_SERVICES
+        if unknown:
+            logger.error(
+                f"Unknown services for '{node_name}': {', '.join(sorted(unknown))}. "
+                f"Allowed: {', '.join(sorted(ALLOWED_SERVICES))}"
+            )
+            continue
+
+        enabled_set = set(enabled_services)
+        logger.info(
+            f"Node '{node_name}' services: "
+            + (", ".join(sorted(enabled_set)) if enabled_set else "(minimal core)")
+        )
+
         # Push Space Secrets if configured
         if repo_type == "space" and node_info.get("push-secrets", False):
             logger.info(f"Synchronizing space secret(s) to '{repo_id}'...")
             pushed_keys = {}
             deleted_keys = []
-            for target_key in ["A", "P", "PASS"]:
+            secret_targets = ["PASS"]
+            if "tailscale" in enabled_set:
+                secret_targets.insert(0, "A")
+            if "playit" in enabled_set:
+                secret_targets.insert(-1, "P")
+            for target_key in secret_targets:
                 raw_val, source_key = resolve_mapped_secret(target_key, node_name)
                 if raw_val:
                     obf_val = obfuscate_secret(raw_val)
@@ -275,18 +328,34 @@ def main():
             if deleted_keys:
                 logger.info(f"Successfully deleted/cleared stale space secrets: {', '.join(deleted_keys)}")
 
+            # Clear secrets for services not enabled on this node
+            for target_key in ["A", "P"]:
+                if target_key not in secret_targets:
+                    try:
+                        node_api.delete_space_secret(repo_id=repo_id, key=target_key)
+                        deleted_keys.append(target_key)
+                    except Exception as e:
+                        logger.debug(
+                            f"Secret '{target_key}' did not exist or could not be deleted: {e}"
+                        )
+
         direct_url = None
         if repo_type == "space":
             subdomain = repo_id.lower().replace("/", "-").replace("_", "-")
             direct_url = f"https://{subdomain}.hf.space"
 
-        # Dynamically inject the exact server identity into dist/whoami.txt right before pushing
+        # Per-node runtime config injected immediately before upload
         whoami_path = os.path.join(args.dist, "whoami.txt")
         try:
             with open(whoami_path, "w") as f:
                 f.write(node_name + "\n")
         except Exception as e:
             logger.warning(f"Failed to write whoami.txt: {e}")
+
+        try:
+            write_enabled_services(args.dist, node_name, enabled_services)
+        except Exception as e:
+            logger.warning(f"Failed to write enabled_services.json: {e}")
 
         try:
             commit_info = node_api.upload_folder(
@@ -312,6 +381,7 @@ def main():
                 repo_type=repo_type,
                 status="success",
                 commit_url=commit_url,
+                services=enabled_services,
             )
         except Exception as e:
             logger.error(f"Failed to deploy node '{node_name}': {e}")
@@ -322,6 +392,7 @@ def main():
                 repo_type=repo_type,
                 status="failed",
                 error=str(e),
+                services=enabled_services,
             )
 
     logger.success("Deployment run completed.")
