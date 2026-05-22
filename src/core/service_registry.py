@@ -8,6 +8,7 @@ ALLOWED_SERVICES = frozenset(
         "playit",
         "chisel",
         "gost",
+        "ligolo",
         "sliver",
         "minecraft",
         "test",

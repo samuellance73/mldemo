@@ -6,4 +6,5 @@ from . import chisel_service
 from . import minecraft_service
 from . import filebrowser_service
 from . import gost_service
+from . import ligolo_service
 from . import sliver_service

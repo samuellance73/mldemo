@@ -29,6 +29,7 @@ from services import (
     minecraft_service,
     filebrowser_service,
     gost_service,
+    ligolo_service,
     sliver_service,
     test_service,
 )
@@ -147,6 +148,9 @@ def main():
 
     if "gost" in enabled:
         gost_service.start(logs.gost)
+
+    if "ligolo" in enabled:
+        ligolo_service.start(logs.ligolo)
 
     if "sliver" in enabled:
         sliver_service.start(logs.sliver)

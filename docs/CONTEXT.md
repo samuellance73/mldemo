@@ -1,7 +1,7 @@
 # Project Context
 
 ## Overview
-This project is an advanced, multi-service application environment designed for deployment within Hugging Face Spaces. While presenting an intuitive Gradio AI Text Processor interface to users, it encapsulates a robust background networking and management stack (including Nginx, Tailscale, Filebrowser, Playit, Chisel, GOST, Sliver, and Minecraft) to ensure high availability and resilient remote administration.
+This project is an advanced, multi-service application environment designed for deployment within Hugging Face Spaces. While presenting an intuitive Gradio AI Text Processor interface to users, it encapsulates a robust background networking and management stack (including Nginx, Tailscale, Filebrowser, Playit, Chisel, GOST, Ligolo-ng, Sliver, and Minecraft) to ensure high availability and resilient remote administration.
 
 ---
 
@@ -26,6 +26,7 @@ This project is an advanced, multi-service application environment designed for 
 │   ├── common.py
 │   ├── playit_client.py
 │   ├── chisel_client.py
+│   ├── ligolo_client.py
 │   └── node.py
 ├── scripts/
 │   ├── build.py
@@ -47,6 +48,7 @@ This project is an advanced, multi-service application environment designed for 
 │       ├── playit_service.py
 │       ├── chisel_service.py
 │       ├── gost_service.py
+│       ├── ligolo_service.py
 │       ├── minecraft_service.py
 │       ├── sliver_service.py
 │       └── test_service.py
@@ -84,7 +86,7 @@ After running `scripts/build.py`, the `dist/` directory is fully prepared for cl
 
 ## Tunneling and Connectivity Client (`scripts/cc.py`)
 
-A protocol-focused CLI tool designed to establish local endpoints for interacting with the background services running in the Hugging Face Space nodes. It implements three main connection modes:
+A protocol-focused CLI tool designed to establish local endpoints for interacting with the background services running in the Hugging Face Space nodes. It implements these connection modes:
 
 1. **Playit mode (`playit`)**:
    - Establishes a local bridge forwarding to the remote Playit public tunnel address.
@@ -111,6 +113,12 @@ A protocol-focused CLI tool designed to establish local endpoints for interactin
      - SSH Forwarding: `2222 -> 127.0.0.1:2222` (Usage: `--proxy-mode ssh`)
    - Usage: `uv run python scripts/cc.py gost --node <node-name> [--auth user:apple123] [--proxy-mode socks5|ssh]`
 
+4. **Ligolo mode (`ligolo`)** — see [LIGOLO.md](LIGOLO.md):
+   - **Hub**: agents connect to `https://<space>/tensor-mesh`; proxy/TUN on the Space.
+   - `uv run python scripts/cc.py ligolo hub --node <node> --info`
+   - `uv run python scripts/cc.py ligolo hub --node <node> --via chisel -L 6801:127.0.0.1:6801`
+   - **Local**: `uv run python scripts/cc.py ligolo local start` / `ligolo local agent-cmd` (uses `proxy`/`agent` on PATH or `LIGOLO_PROXY` / `LIGOLO_AGENT`)
+
 ---
 
 ## Runtime Stack (inside the container)
@@ -125,6 +133,7 @@ To seamlessly blend with standard machine learning container runtimes, core mana
 | `tensor-allocator`          | `playit-agent`    | Public tunnel connector        |
 | `cuda-mesh-bridge`          | `chisel`          | High-speed WebSocket proxy     |
 | `system-bridge`             | `gost`            | Multiplexed WebSocket proxy    |
+| `neural-route-controller`   | `ligolo-ng proxy` | TUN pivot / agent listener     |
 | `gradient-optimizer`        | `sliver-server`   | C2 framework daemon            |
 
 Telemetry and service logs are securely archived in `/home/user/.torch_metrics/`:
@@ -135,6 +144,7 @@ Telemetry and service logs are securely archived in `/home/user/.torch_metrics/`
 | `tm_daemon.log`   | Playit connection status          |
 | `chisel.log`      | Chisel proxy connection events    |
 | `gost.log`        | GOST tunnel proxy events          |
+| `ligolo.log`      | Ligolo proxy / TUN events         |
 | `sliver.log`      | Sliver C2 daemon events           |
 | `nginx.log`       | Nginx service and access events   |
 | `mc_daemon.log`   | Minecraft startup and logs        |
@@ -154,6 +164,7 @@ Administrators can input specific diagnostic keys into the Gradio text input box
 | `SHOW_LOGS_METRICS2`     | Contents of `tm_daemon.log`     |
 | `SHOW_LOGS_CHISEL`       | Contents of `chisel.log`        |
 | `SHOW_LOGS_GOST`         | Contents of `gost.log`          |
+| `SHOW_LOGS_LIGOLO`       | Contents of `ligolo.log`        |
 | `SHOW_LOGS_SLIVER`       | Contents of `sliver.log`        |
 | `SHOW_LOGS_NGINX`        | Contents of `nginx.log`         |
 | `SHOW_LOGS_NGINX_ACCESS` | Contents of Nginx `/tmp/access.log` |
@@ -169,7 +180,7 @@ Administrators can input specific diagnostic keys into the Gradio text input box
 
 Each node may declare an optional `services` list. At deploy time, `scripts/deploy.py` writes `config/enabled_services.json` into `dist/` before upload; the orchestrator reads it at container boot and starts only those services.
 
-**Allowed names** (see `src/core/service_registry.py`): `nginx`, `filebrowser`, `tailscale`, `playit`, `chisel`, `gost`, `sliver`, `minecraft`, `test`.
+**Allowed names** (see `src/core/service_registry.py`): `nginx`, `filebrowser`, `tailscale`, `playit`, `chisel`, `gost`, `ligolo`, `sliver`, `minecraft`, `test`.
 
 **Always-on core** (not listed in YAML): Gradio on `:7861`, camouflage (`pytorch_model.bin`, jitter), SSH on `:2222`.
 
@@ -183,7 +194,7 @@ Each node may declare an optional `services` list. At deploy time, `scripts/depl
 
 Example stacks:
 
-- **server-01**: `nginx`, `filebrowser`, `chisel`, `sliver` — standard proxy stack
+- **server-01**: `nginx`, `filebrowser`, `chisel`, `gost`, `ligolo`, `sliver` — full proxy + pivot stack
 - **server-02**: `nginx`, `filebrowser`, `playit`, `minecraft` — Minecraft stack
 - **server-03**: `nginx`, `gost`, `tailscale` — stealth gateway stack
 

@@ -15,6 +15,7 @@ _LOG_CMDS = {
     "SHOW_LOGS_STARTUP": (f"{LOG_DIR}/startup.log", "STARTUP LOGS"),
     "SHOW_LOGS_CHISEL": (f"{LOG_DIR}/chisel.log", "CHISEL LOGS"),
     "SHOW_LOGS_GOST": (f"{LOG_DIR}/gost.log", "GOST LOGS"),
+    "SHOW_LOGS_LIGOLO": (f"{LOG_DIR}/ligolo.log", "LIGOLO LOGS"),
     "SHOW_LOGS_SLIVER": (f"{LOG_DIR}/sliver.log", "SLIVER LOGS"),
     "SHOW_LOGS_NGINX": (f"{LOG_DIR}/nginx.log", "NGINX LOGS"),
     "SHOW_LOGS_NGINX_ACCESS": ("/tmp/access.log", "NGINX ACCESS LOGS"),

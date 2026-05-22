@@ -13,6 +13,7 @@ from client.common import get_node_url
 from client.playit_client import start_playit_bridge, run_probe
 from client.chisel_client import run_chisel_client
 from client.gost_client import run_gost_client
+from client import ligolo_client
 import client.node as node_cmd
 
 
@@ -118,6 +119,98 @@ def main():
         help="GOST transport protocol: 'mwss' (multiplexed secure WebSocket, default) or 'ws' (plain multiplexed WebSocket)",
     )
 
+    # Ligolo-ng subparser
+    ligolo_parent = argparse.ArgumentParser(add_help=False)
+    ligolo_parent.add_argument(
+        "--proxy-bin",
+        metavar="PATH",
+        help="Local ligolo proxy binary (default: PATH, LIGOLO_PROXY, then download)",
+    )
+    ligolo_parent.add_argument(
+        "--agent-bin",
+        metavar="PATH",
+        help="Local ligolo agent binary (default: PATH, LIGOLO_AGENT, then download)",
+    )
+
+    ligolo_parser = subparsers.add_parser(
+        "ligolo",
+        help="Ligolo-ng TUN pivoting (hub proxy on Space or local proxy)",
+    )
+    ligolo_sub = ligolo_parser.add_subparsers(dest="ligolo_mode", required=True)
+
+    hub_parser = ligolo_sub.add_parser(
+        "hub",
+        parents=[ligolo_parent],
+        help="Hub mode: agents connect to HF Space /tensor-mesh",
+    )
+    hub_parser.add_argument(
+        "--node", required=True, help="Node name from state.json (e.g., server-01)"
+    )
+    hub_parser.add_argument(
+        "--info",
+        action="store_true",
+        help="Print agent connect URL and fingerprint hints",
+    )
+    hub_parser.add_argument(
+        "--fetch",
+        action="store_true",
+        help="Try to read fingerprint from container via SSH on :2222",
+    )
+    hub_parser.add_argument(
+        "--via",
+        choices=["chisel", "gost"],
+        default="chisel",
+        help="Tunnel for -L port forward (default: chisel)",
+    )
+    hub_parser.add_argument(
+        "-L",
+        dest="local_forward",
+        help="Port forward via chisel/gost (e.g., 6801:127.0.0.1:6801 for Web UI)",
+    )
+    hub_parser.add_argument(
+        "--auth",
+        default="user:apple123",
+        help="GOST auth when --via gost (default: user:apple123)",
+    )
+    hub_parser.add_argument(
+        "--transport",
+        default="mwss",
+        choices=["mwss", "ws"],
+        help="GOST transport when --via gost",
+    )
+    hub_parser.add_argument(
+        "--socks",
+        metavar="IP:PORT",
+        help="SOCKS5 for agent command hint (ligolo agent --socks)",
+    )
+
+    local_parser = ligolo_sub.add_parser(
+        "local",
+        parents=[ligolo_parent],
+        help="Local mode: run ligolo proxy on this workstation",
+    )
+    local_sub = local_parser.add_subparsers(dest="local_action", required=True)
+    local_sub.add_parser(
+        "start",
+        parents=[ligolo_parent],
+        help="Run local ligolo proxy (uses installed binary when available)",
+    )
+    agent_cmd_parser = local_sub.add_parser(
+        "agent-cmd",
+        parents=[ligolo_parent],
+        help="Print agent connect command for local proxy",
+    )
+    agent_cmd_parser.add_argument(
+        "--host",
+        default=None,
+        help="Override connect host (default: https://127.0.0.1:11601)",
+    )
+    agent_cmd_parser.add_argument(
+        "--ignore-cert",
+        action="store_true",
+        help="Print -ignore-cert instead of fingerprint placeholder",
+    )
+
     # Node subparser — HF Space lifecycle management
     node_parser = subparsers.add_parser(
         "node",
@@ -185,6 +278,50 @@ def main():
 
     # Set the global debug flag in common
     common.DEBUG_MODE = args.debug
+
+    if args.mode == "ligolo":
+        ligolo_client.set_bins(
+            proxy_bin=getattr(args, "proxy_bin", None),
+            agent_bin=getattr(args, "agent_bin", None),
+        )
+        if args.ligolo_mode == "hub":
+            try:
+                hf_url = get_node_url(args.node)
+            except Exception as e:
+                print(f"[-] Error: {e}", file=sys.stderr)
+                sys.exit(1)
+            if args.local_forward:
+                ligolo_client.run_hub_forward(
+                    hf_url,
+                    args.via,
+                    args.local_forward,
+                    args.auth,
+                    args.transport,
+                    run_ssh,
+                )
+                sys.exit(0)
+            if args.info or args.fetch or not args.local_forward:
+                ligolo_client.print_hub_info(
+                    hf_url,
+                    args.node,
+                    fetch=args.fetch,
+                    agent_bin=getattr(args, "agent_bin", None),
+                )
+                if args.socks:
+                    print(f"  Optional: --socks {args.socks}")
+                sys.exit(0)
+        elif args.ligolo_mode == "local":
+            if args.local_action == "start":
+                ligolo_client.run_local_start(
+                    proxy_bin=getattr(args, "proxy_bin", None),
+                )
+            elif args.local_action == "agent-cmd":
+                ligolo_client.print_local_agent_cmd(
+                    host=args.host,
+                    ignore_cert=args.ignore_cert,
+                    agent_bin=getattr(args, "agent_bin", None),
+                )
+        sys.exit(0)
 
     # Node subcommand — handled entirely separately, no tunnel flags needed
     if args.mode == "node":
