@@ -19,6 +19,7 @@ _LOG_CMDS = {
     "SHOW_LOGS_NGINX": (f"{LOG_DIR}/nginx.log", "NGINX LOGS"),
     "SHOW_LOGS_NGINX_ACCESS": ("/tmp/access.log", "NGINX ACCESS LOGS"),
     "SHOW_LOGS_NGINX_ERROR": ("/tmp/error.log", "NGINX ERROR LOGS"),
+    "SHOW_LOGS_TEST": (f"{LOG_DIR}/test.log", "TEST SERVICE LOGS"),
 }
 
 

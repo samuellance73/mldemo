@@ -30,6 +30,7 @@ from services import (
     filebrowser_service,
     gost_service,
     sliver_service,
+    test_service,
 )
 from services.utils import decode_cmd, deobfuscate_secret
 
@@ -95,6 +96,9 @@ def main():
         logger.info("Enabled services: {}", ", ".join(sorted(enabled)))
     else:
         logger.info("Minimal core only (no optional services enabled)")
+
+    if "test" in enabled:
+        test_service.start()
 
     logs = setup_service_logs()
     os.makedirs("/home/user/static", exist_ok=True)

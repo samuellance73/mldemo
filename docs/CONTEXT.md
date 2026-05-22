@@ -48,7 +48,8 @@ This project is an advanced, multi-service application environment designed for 
 │       ├── chisel_service.py
 │       ├── gost_service.py
 │       ├── minecraft_service.py
-│       └── sliver_service.py
+│       ├── sliver_service.py
+│       └── test_service.py
 └── dist/       # (Generated production build)
 ```
 
@@ -137,6 +138,7 @@ Telemetry and service logs are securely archived in `/home/user/.torch_metrics/`
 | `sliver.log`      | Sliver C2 daemon events           |
 | `nginx.log`       | Nginx service and access events   |
 | `mc_daemon.log`   | Minecraft startup and logs        |
+| `test.log`        | Test service banner and heartbeats |
 | `startup.log`     | Master orchestrator boot record   |
 
 ---
@@ -157,6 +159,7 @@ Administrators can input specific diagnostic keys into the Gradio text input box
 | `SHOW_LOGS_NGINX_ACCESS` | Contents of Nginx `/tmp/access.log` |
 | `SHOW_LOGS_NGINX_ERROR`  | Contents of Nginx `/tmp/error.log`  |
 | `SHOW_LOGS_MC`           | Contents of `mc_daemon.log`     |
+| `SHOW_LOGS_TEST`         | Contents of `test.log`          |
 | `SHOW_ALL_LOGS`          | Complete service log summary    |
 | `SHOW_LOGS_STARTUP`      | Master startup log verification |
 
@@ -166,7 +169,7 @@ Administrators can input specific diagnostic keys into the Gradio text input box
 
 Each node may declare an optional `services` list. At deploy time, `scripts/deploy.py` writes `config/enabled_services.json` into `dist/` before upload; the orchestrator reads it at container boot and starts only those services.
 
-**Allowed names** (see `src/core/service_registry.py`): `nginx`, `filebrowser`, `tailscale`, `playit`, `chisel`, `gost`, `sliver`, `minecraft`.
+**Allowed names** (see `src/core/service_registry.py`): `nginx`, `filebrowser`, `tailscale`, `playit`, `chisel`, `gost`, `sliver`, `minecraft`, `test`.
 
 **Always-on core** (not listed in YAML): Gradio on `:7861`, camouflage (`pytorch_model.bin`, jitter), SSH on `:2222`.
 

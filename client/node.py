@@ -222,16 +222,36 @@ def cmd_logs(node_name, follow=False, build=False):
 
     mode = "build" if build else "app"
     tail = "following" if follow else "snapshot"
+    node_services = info.get("services") or []
+    if isinstance(node_services, list):
+        node_services = [str(s).lower() for s in node_services]
     print(f"[+] {name} ({repo_id}) — {mode} logs ({tail}):")
+    if "test" in node_services:
+        print(
+            "[i] Node has 'test' enabled: look for lines starting with [TEST SERVICE] below."
+        )
+        print(
+            "[i] File-only detail: .torch_metrics/test.log — Gradio: SHOW_LOGS_TEST"
+        )
     print("────────────────────────────────────────────────────────────")
+    saw_test = False
     try:
         for line in api.fetch_space_logs(repo_id, build=build, follow=follow):
+            if "[TEST SERVICE]" in line:
+                saw_test = True
             print(line, end="" if line.endswith("\n") else "\n", flush=True)
     except KeyboardInterrupt:
         print("\n[+] Log stream stopped.")
     except Exception as e:
         print(f"[-] Failed to fetch logs: {e}", file=sys.stderr)
         sys.exit(1)
+    if "test" in node_services and not follow and not saw_test:
+        print("────────────────────────────────────────────────────────────")
+        print(
+            "[!] No [TEST SERVICE] lines in this snapshot. Orchestrator may have "
+            "crashed before test started, or redeploy after the test-service fix."
+        )
+        print("    Rebuild + deploy, then retry. In-app: SHOW_LOGS_TEST")
 
 
 def cmd_dev(node_name, disable=False):

@@ -10,6 +10,7 @@ ALLOWED_SERVICES = frozenset(
         "gost",
         "sliver",
         "minecraft",
+        "test",
     }
 )
 

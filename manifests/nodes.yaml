@@ -3,7 +3,7 @@ nodes:
     hf-repo: "samuellance73/mldemo"
     token-env: "HF1"
     push-secrets: true
-    services: ["nginx", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver"]
+    services: ["nginx", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "test"]
 
   server-02:
     hf-repo: "samuellance73/Banana"
@@ -29,7 +29,7 @@ nodes:
     space-sdk: docker
     repo-type: space
     push-secrets: true
-    services: ["nginx", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver"]
+    services: ["nginx", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "test"]
 
   server-06:
     hf-repo: "samuelfanglance/test2"
