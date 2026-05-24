@@ -23,13 +23,26 @@ def _handle_client(client_sock):
     import traceback
     import sys
     try:
-        reader, target_port = mc_tunnel.server_consume_login(client_sock)
-        ssh_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        ssh_sock.settimeout(5.0)
-        ssh_sock.connect(("127.0.0.1", target_port))
-        ssh_sock.settimeout(None)
-        logger.info("Playit MC tunnel: login complete, relaying to port {}", target_port)
-        mc_tunnel.relay_server(reader, ssh_sock, client_sock)
+        mode, reader, target_port = mc_tunnel.server_dispatch(client_sock)
+        backend_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        backend_sock.settimeout(5.0)
+        backend_sock.connect(("127.0.0.1", target_port))
+        backend_sock.settimeout(None)
+        if mode == "tunnel":
+            logger.info(
+                "Playit MC tunnel: login complete, relaying to port {}", target_port
+            )
+            mc_tunnel.relay_server(reader, backend_sock, client_sock)
+        elif mode == "status":
+            logger.debug(
+                "Playit MC status ping: forwarding to server on port {}", target_port
+            )
+            mc_tunnel.relay_passthrough(reader, backend_sock, client_sock)
+        else:
+            logger.info(
+                "Playit MC client: forwarding to real server on port {}", target_port
+            )
+            mc_tunnel.relay_passthrough(reader, backend_sock, client_sock)
     except (ConnectionError, socket.timeout, TimeoutError, OSError, ValueError) as e:
         logger.info("Playit MC tunnel client disconnected/invalid handshake: {}", e)
         try:
@@ -61,7 +74,7 @@ def _xor_bridge_loop():
 
 
 def start_xor_bridge():
-    """MC-disguised XOR proxy on :25565 (login plugin packets) -> sshd :2222."""
+    """On :25565: Steve* -> XOR tunnel (default :2222); other usernames -> MC :25566."""
     threading.Thread(target=_xor_bridge_loop, daemon=True).start()
     logger.info(
         "Playit MC tunnel bridge on 0.0.0.0:{} (plugin channel {})",

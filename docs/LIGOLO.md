@@ -2,10 +2,9 @@
 
 [Ligolo-ng](https://github.com/nicocha30/ligolo-ng) provides Layer-3 tunneling via a TUN interface on the **proxy** host. Agents reverse-connect to the proxy; traffic to the TUN is translated to the agent's network (no SOCKS/proxychains for tooling).
 
-Sanctuary integrates ligolo-ng v0.8.3 in two ways:
+Sanctuary integrates ligolo-ng v0.8.3:
 
 - **Hub**: proxy runs on the HF Space (`neural-route-controller`), exposed at `/tensor-mesh` (agents) and `/routing-console` (Web UI).
-- **Local**: operator runs a local proxy via `scripts/cc.py ligolo local`.
 
 See also [CONTEXT.md](CONTEXT.md) for the full stack.
 
@@ -18,7 +17,7 @@ See also [CONTEXT.md](CONTEXT.md) for the full stack.
    uv run python scripts/cc.py ligolo hub --node server-01 --info
    ```
 
-3. On the pivoted host, run the printed command (download agent from [releases](https://github.com/nicocha30/ligolo-ng/releases) or use `cc.py ligolo local` cache paths as a reference binary name `inference-edge-worker` in-container is not shipped; use upstream `agent` binary).
+3. On the pivoted host, run the printed command (`agent` must be on PATH or set via `LIGOLO_AGENT` / `--agent-bin`).
 
 4. Manage sessions on the Space:
    - SSH: `uv run python scripts/cc.py chisel --node server-01 -s`
@@ -42,22 +41,7 @@ See also [CONTEXT.md](CONTEXT.md) for the full stack.
 
 Use `nmap --unprivileged` or `-PE` when scanning through the tunnel ([ligolo docs](https://docs.ligolo.ng/Quickstart/)).
 
-## Local workflow
 
-If `proxy` and `agent` are already on your PATH (or set `LIGOLO_PROXY` / `LIGOLO_AGENT`), Sanctuary uses them and does not download releases:
-
-```bash
-uv run python scripts/cc.py ligolo local start
-uv run python scripts/cc.py ligolo local agent-cmd
-```
-
-Override paths explicitly:
-
-```bash
-uv run python scripts/cc.py ligolo --proxy-bin /path/to/proxy --agent-bin /path/to/agent local start
-```
-
-Configure TUN and routes on **your workstation** (where the proxy runs), not on the HF Space.
 
 ## Camouflage mapping
 

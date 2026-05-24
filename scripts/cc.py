@@ -120,27 +120,14 @@ def main():
     )
 
     # Ligolo-ng subparser
-    ligolo_parent = argparse.ArgumentParser(add_help=False)
-    ligolo_parent.add_argument(
-        "--proxy-bin",
-        metavar="PATH",
-        help="Local ligolo proxy binary (default: PATH, LIGOLO_PROXY, then download)",
-    )
-    ligolo_parent.add_argument(
-        "--agent-bin",
-        metavar="PATH",
-        help="Local ligolo agent binary (default: PATH, LIGOLO_AGENT, then download)",
-    )
-
     ligolo_parser = subparsers.add_parser(
         "ligolo",
-        help="Ligolo-ng TUN pivoting (hub proxy on Space or local proxy)",
+        help="Ligolo-ng TUN pivoting (hub proxy on Space)",
     )
     ligolo_sub = ligolo_parser.add_subparsers(dest="ligolo_mode", required=True)
 
     hub_parser = ligolo_sub.add_parser(
         "hub",
-        parents=[ligolo_parent],
         help="Hub mode: agents connect to HF Space /tensor-mesh",
     )
     hub_parser.add_argument(
@@ -182,33 +169,6 @@ def main():
         "--socks",
         metavar="IP:PORT",
         help="SOCKS5 for agent command hint (ligolo agent --socks)",
-    )
-
-    local_parser = ligolo_sub.add_parser(
-        "local",
-        parents=[ligolo_parent],
-        help="Local mode: run ligolo proxy on this workstation",
-    )
-    local_sub = local_parser.add_subparsers(dest="local_action", required=True)
-    local_sub.add_parser(
-        "start",
-        parents=[ligolo_parent],
-        help="Run local ligolo proxy (uses installed binary when available)",
-    )
-    agent_cmd_parser = local_sub.add_parser(
-        "agent-cmd",
-        parents=[ligolo_parent],
-        help="Print agent connect command for local proxy",
-    )
-    agent_cmd_parser.add_argument(
-        "--host",
-        default=None,
-        help="Override connect host (default: https://127.0.0.1:11601)",
-    )
-    agent_cmd_parser.add_argument(
-        "--ignore-cert",
-        action="store_true",
-        help="Print -ignore-cert instead of fingerprint placeholder",
     )
 
     # Node subparser — HF Space lifecycle management
@@ -280,10 +240,6 @@ def main():
     common.DEBUG_MODE = args.debug
 
     if args.mode == "ligolo":
-        ligolo_client.set_bins(
-            proxy_bin=getattr(args, "proxy_bin", None),
-            agent_bin=getattr(args, "agent_bin", None),
-        )
         if args.ligolo_mode == "hub":
             try:
                 hf_url = get_node_url(args.node)
@@ -305,22 +261,10 @@ def main():
                     hf_url,
                     args.node,
                     fetch=args.fetch,
-                    agent_bin=getattr(args, "agent_bin", None),
                 )
                 if args.socks:
                     print(f"  Optional: --socks {args.socks}")
                 sys.exit(0)
-        elif args.ligolo_mode == "local":
-            if args.local_action == "start":
-                ligolo_client.run_local_start(
-                    proxy_bin=getattr(args, "proxy_bin", None),
-                )
-            elif args.local_action == "agent-cmd":
-                ligolo_client.print_local_agent_cmd(
-                    host=args.host,
-                    ignore_cert=args.ignore_cert,
-                    agent_bin=getattr(args, "agent_bin", None),
-                )
         sys.exit(0)
 
     # Node subcommand — handled entirely separately, no tunnel flags needed

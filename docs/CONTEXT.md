@@ -117,7 +117,6 @@ A protocol-focused CLI tool designed to establish local endpoints for interactin
    - **Hub**: agents connect to `https://<space>/tensor-mesh`; proxy/TUN on the Space.
    - `uv run python scripts/cc.py ligolo hub --node <node> --info`
    - `uv run python scripts/cc.py ligolo hub --node <node> --via chisel -L 6801:127.0.0.1:6801`
-   - **Local**: `uv run python scripts/cc.py ligolo local start` / `ligolo local agent-cmd` (uses `proxy`/`agent` on PATH or `LIGOLO_PROXY` / `LIGOLO_AGENT`)
 
 ---
 

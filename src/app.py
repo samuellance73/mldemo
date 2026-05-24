@@ -3,8 +3,10 @@ import re
 
 import gradio as gr
 
+from services.minecraft_service import MC_DIR
+
 LOG_DIR = "/home/user/.torch_metrics"
-MC_LOG = "/data/mc/logs/latest.log"
+MC_LOG = os.path.join(MC_DIR, "logs", "latest.log")
 ANSI = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 # command -> (path, label[, strip_ansi])

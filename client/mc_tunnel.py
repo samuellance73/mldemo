@@ -12,8 +12,12 @@ from client.crypto import XOR_KEY
 
 PROTOCOL_VERSION = 763
 TUNNEL_CHANNEL = "bungeecord:main"
+MC_SERVER_PORT = 25566
+TUNNEL_DEFAULT_PORT = 2222
 
 PKT_HANDSHAKE = 0x00
+HANDSHAKE_STATE_STATUS = 1
+HANDSHAKE_STATE_LOGIN = 2
 PKT_LOGIN_SUCCESS = 0x02
 PKT_LOGIN_PLUGIN_REQUEST = 0x03
 PKT_LOGIN_PLUGIN_RESPONSE = 0x04
@@ -115,6 +119,7 @@ class PacketReader:
     def __init__(self, sock):
         self.sock = sock
         self._buf = b""
+        self.consumed = b""
 
     def _fill(self):
         chunk = self.sock.recv(8192)
@@ -132,6 +137,8 @@ class PacketReader:
             total = pos + pkt_len
             while len(self._buf) < total:
                 self._fill()
+            frame = self._buf[:total]
+            self.consumed += frame
             packet = self._buf[pos:total]
             self._buf = self._buf[total:]
             pkt_id, ppos = read_varint_from_buf(packet, 0)
@@ -190,12 +197,38 @@ def _skip_proxy_header(reader):
             reader._fill()
         end = reader._buf.index(b"\r\n") + 2
         header = reader._buf[:end]
+        reader.consumed += header
         reader._buf = reader._buf[end:]
         return header.decode(errors="replace").strip()
     return None
 
 
-def server_consume_login(client_sock, timeout=10.0):
+def is_tunnel_username(username):
+    return username == "Steve" or username.startswith("Steve_")
+
+
+def tunnel_target_port(username):
+    if not username.startswith("Steve_"):
+        return TUNNEL_DEFAULT_PORT
+    try:
+        return int(username.split("_")[-1])
+    except ValueError:
+        return TUNNEL_DEFAULT_PORT
+
+
+def parse_handshake_next_state(payload):
+    pos = 0
+    _, pos = read_varint_from_buf(payload, pos)
+    _, pos = read_string_from_payload(payload, pos)
+    if pos + 2 > len(payload):
+        raise ValueError("short handshake")
+    pos += 2
+    next_state, _ = read_varint_from_buf(payload, pos)
+    return next_state
+
+
+def server_dispatch(client_sock, timeout=10.0):
+    """Classify inbound connection: status ping, SSH tunnel login, or real MC login."""
     client_sock.settimeout(timeout)
     reader = PacketReader(client_sock)
     proxy_header = _skip_proxy_header(reader)
@@ -206,22 +239,65 @@ def server_consume_login(client_sock, timeout=10.0):
     if pkt_id != PKT_HANDSHAKE:
         raise ValueError(f"expected handshake, got {pkt_id:#x}")
 
+    if parse_handshake_next_state(payload) == HANDSHAKE_STATE_STATUS:
+        client_sock.settimeout(None)
+        return "status", reader, MC_SERVER_PORT
+
     pkt_id, payload = reader.read_packet()
     if pkt_id != PKT_LOGIN_START:
         raise ValueError(f"expected login start, got {pkt_id:#x}")
 
-    target_port = 2222
+    username = "Steve"
     try:
         username, _ = read_string_from_payload(payload, 0)
-        if "_" in username:
-            parts = username.split("_")
-            target_port = int(parts[-1])
     except Exception:
         pass
 
-    client_sock.sendall(build_login_success())
     client_sock.settimeout(None)
-    return reader, target_port
+    if is_tunnel_username(username):
+        target_port = tunnel_target_port(username)
+        client_sock.sendall(build_login_success())
+        return "tunnel", reader, target_port
+
+    return "mc", reader, MC_SERVER_PORT
+
+
+def server_consume_login(client_sock, timeout=10.0):
+    """Backward-compatible wrapper returning (is_tunnel, reader, target_port)."""
+    mode, reader, target_port = server_dispatch(client_sock, timeout)
+    if mode == "status":
+        return False, reader, target_port
+    return mode == "tunnel", reader, target_port
+
+
+def _pump_socket(src, dst):
+    try:
+        while True:
+            data = src.recv(8192)
+            if not data:
+                break
+            dst.sendall(data)
+    except (OSError, ConnectionError):
+        pass
+
+
+def relay_passthrough(reader, backend_sock, client_sock):
+    """Replay captured login bytes to a real MC server, then plain TCP relay."""
+    pending = reader.consumed + reader._buf
+    reader._buf = b""
+    if pending:
+        backend_sock.sendall(pending)
+    threading.Thread(
+        target=_pump_socket, args=(client_sock, backend_sock), daemon=True
+    ).start()
+    try:
+        _pump_socket(backend_sock, client_sock)
+    finally:
+        for s in (client_sock, backend_sock):
+            try:
+                s.close()
+            except OSError:
+                pass
 
 
 def _pump_plain_to_mc(src, mc_sock, wrap_fn):
