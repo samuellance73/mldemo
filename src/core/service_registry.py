@@ -12,6 +12,7 @@ ALLOWED_SERVICES = frozenset(
         "sliver",
         "minecraft",
         "test",
+        "llm_proxy",
     }
 )
 

@@ -1,5 +1,4 @@
 import os
-import shutil
 import subprocess
 import sys
 
@@ -28,7 +27,8 @@ def _fingerprint_cache(node_name):
 def load_fingerprint(node_name):
     path = _fingerprint_cache(node_name)
     if os.path.isfile(path):
-        return open(path).read().strip()
+        with open(path) as f:
+            return f.read().strip()
     return None
 
 
@@ -152,14 +152,11 @@ def run_hub_forward(hf_url, via, local_forward, auth, transport, ssh_fn):
     if not local_forward:
         common.log_error("Hub forward requires -L local:remote:port")
         sys.exit(1)
-    remotes = local_forward
     if via == "chisel":
-        run_chisel_client(hf_url, remotes if isinstance(remotes, str) else " ".join(remotes))
+        remotes = local_forward if isinstance(local_forward, str) else " ".join(local_forward)
+        run_chisel_client(hf_url, remotes)
     elif via == "gost":
-        ssh = False
-        proxy = False
-        lf = local_forward
-        run_gost_client(hf_url, auth, ssh, proxy, lf, ssh_fn, transport)
+        run_gost_client(hf_url, auth, False, False, local_forward, ssh_fn, transport)
     else:
         common.log_error(f"Unknown tunnel via={via}")
         sys.exit(1)

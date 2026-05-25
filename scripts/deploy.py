@@ -339,6 +339,27 @@ def main():
                             f"Secret '{target_key}' did not exist or could not be deleted: {e}"
                         )
 
+            # LLM_KEYS: push when llm_proxy is enabled, delete otherwise
+            llm_keys_raw = os.getenv("LLM_KEYS", "").strip()
+            if "llm_proxy" in enabled_set:
+                if llm_keys_raw:
+                    try:
+                        node_api.add_space_secret(
+                            repo_id=repo_id,
+                            key="LLM_KEYS",
+                            value=obfuscate_secret(llm_keys_raw),
+                        )
+                        logger.info(f"Successfully pushed space secret: LLM_KEYS ({len(llm_keys_raw.split(','))} key(s))")
+                    except Exception as e:
+                        logger.error(f"Failed to push LLM_KEYS secret: {e}")
+                else:
+                    logger.warning(f"Node '{node_name}' has llm_proxy enabled but LLM_KEYS is not set in .env")
+            else:
+                try:
+                    node_api.delete_space_secret(repo_id=repo_id, key="LLM_KEYS")
+                except Exception:
+                    pass
+
         direct_url = None
         if repo_type == "space":
             subdomain = repo_id.lower().replace("/", "-").replace("_", "-")

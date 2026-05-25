@@ -3,7 +3,7 @@ import sys
 import threading
 
 from client import mc_tunnel
-from client.common import log_debug, log_error, log_info, pipe_direct
+from client.common import log_debug, log_error, log_info, pipe
 
 
 def probe_relay(host, port, timeout=5.0):
@@ -118,13 +118,15 @@ def handle_client_plain(client_sock, client_addr, host, port, remote_target_port
         remote_sock.connect((host, port))
         remote_sock.settimeout(None)
         threading.Thread(
-            target=pipe_direct,
-            args=(client_sock, remote_sock, f"Local({client_addr[1]}) -> Remote"),
+            target=pipe,
+            args=(client_sock, remote_sock),
+            kwargs={"xor": False, "label": f"Local({client_addr[1]}) -> Remote"},
             daemon=True,
         ).start()
         threading.Thread(
-            target=pipe_direct,
-            args=(remote_sock, client_sock, f"Remote -> Local({client_addr[1]})"),
+            target=pipe,
+            args=(remote_sock, client_sock),
+            kwargs={"xor": False, "label": f"Remote -> Local({client_addr[1]})"},
             daemon=True,
         ).start()
     except Exception as e:

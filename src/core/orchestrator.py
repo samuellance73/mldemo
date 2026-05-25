@@ -32,6 +32,7 @@ from services import (
     ligolo_service,
     sliver_service,
     test_service,
+    llm_proxy_service,
 )
 from services.utils import decode_cmd, deobfuscate_secret
 
@@ -103,6 +104,9 @@ def main():
 
     logs = setup_service_logs()
     os.makedirs("/home/user/static", exist_ok=True)
+
+    if "llm_proxy" in enabled:
+        llm_proxy_service.start()
 
     if "nginx" in enabled:
         nginx_service.start(logs.nginx)

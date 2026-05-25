@@ -21,7 +21,7 @@ def log_info(msg):
     print(f"[+] {msg}", flush=True)
 
 
-def pipe_direct(src, dst, label="pipe"):
+def pipe(src, dst, xor=False, label="pipe"):
     try:
         log_debug(f"{label}: Started transfer.")
         total_bytes = 0
@@ -31,45 +31,25 @@ def pipe_direct(src, dst, label="pipe"):
                 log_debug(f"{label}: Connection closed by sender (EOF).")
                 break
             total_bytes += len(data)
-            dst.sendall(data)
+            dst.sendall(bytes([b ^ XOR_KEY for b in data]) if xor else data)
         log_debug(f"{label}: Finished transfer. Total bytes: {total_bytes}")
     except Exception as e:
         log_debug(f"{label}: Connection error: {e}")
     finally:
-        try:
-            src.close()
-        except OSError:
-            pass
-        try:
-            dst.close()
-        except OSError:
-            pass
+        for sock in (src, dst):
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+
+# Convenience aliases for callers that use the original names
+def pipe_direct(src, dst, label="pipe"):
+    pipe(src, dst, xor=False, label=label)
 
 
 def pipe_xor(src, dst, label="pipe"):
-    try:
-        log_debug(f"{label}: Started transfer.")
-        total_bytes = 0
-        while True:
-            data = src.recv(8192)
-            if not data:
-                log_debug(f"{label}: Connection closed by sender (EOF).")
-                break
-            total_bytes += len(data)
-            scrambled = bytes([b ^ XOR_KEY for b in data])
-            dst.sendall(scrambled)
-        log_debug(f"{label}: Finished transfer. Total bytes: {total_bytes}")
-    except Exception as e:
-        log_debug(f"{label}: Connection error: {e}")
-    finally:
-        try:
-            src.close()
-        except OSError:
-            pass
-        try:
-            dst.close()
-        except OSError:
-            pass
+    pipe(src, dst, xor=True, label=label)
 
 
 def pack_varint(val):

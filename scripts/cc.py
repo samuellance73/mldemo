@@ -17,6 +17,15 @@ from client import ligolo_client
 import client.node as node_cmd
 
 
+def _resolve_node(node_name):
+    """Resolve a node name to its HF Space URL, or exit on error."""
+    try:
+        return get_node_url(node_name)
+    except Exception as e:
+        print(f"[-] Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def run_ssh(port):
     ssh_cmd = [
         "ssh",
@@ -241,11 +250,7 @@ def main():
 
     if args.mode == "ligolo":
         if args.ligolo_mode == "hub":
-            try:
-                hf_url = get_node_url(args.node)
-            except Exception as e:
-                print(f"[-] Error: {e}", file=sys.stderr)
-                sys.exit(1)
+            hf_url = _resolve_node(args.node)
             if args.local_forward:
                 ligolo_client.run_hub_forward(
                     hf_url,
@@ -255,16 +260,10 @@ def main():
                     args.transport,
                     run_ssh,
                 )
-                sys.exit(0)
-            if args.info or args.fetch or not args.local_forward:
-                ligolo_client.print_hub_info(
-                    hf_url,
-                    args.node,
-                    fetch=args.fetch,
-                )
+            else:
+                ligolo_client.print_hub_info(hf_url, args.node, fetch=args.fetch)
                 if args.socks:
                     print(f"  Optional: --socks {args.socks}")
-                sys.exit(0)
         sys.exit(0)
 
     # Node subcommand — handled entirely separately, no tunnel flags needed
@@ -296,11 +295,8 @@ def main():
         sys.exit(0)
 
     # Action flags verification (tunnel modes only)
-    if args.mode == "playit" and getattr(args, "probe", False):
-        pass
-    else:
-        if not (args.ssh or args.proxy or args.local_forward):
-            parser.error("At least one action flag must be specified: -s/--ssh, -p/--proxy, or -L <forward_rule>")
+    if not (getattr(args, "probe", False) or args.ssh or args.proxy or args.local_forward):
+        parser.error("At least one action flag must be specified: -s/--ssh, -p/--proxy, or -L <forward_rule>")
 
     if args.mode == "playit":
         if args.probe:
@@ -354,11 +350,7 @@ def main():
                 bridge.close()
 
     elif args.mode == "chisel":
-        try:
-            hf_url = get_node_url(args.node)
-        except Exception as e:
-            print(f"[-] Error: {e}", file=sys.stderr)
-            sys.exit(1)
+        hf_url = _resolve_node(args.node)
 
         # Build Chisel remotes list based on active flags
         remotes_list = []
@@ -412,11 +404,7 @@ def main():
             run_chisel_client(hf_url, remotes_str)
 
     elif args.mode == "gost":
-        try:
-            hf_url = get_node_url(args.node)
-        except Exception as e:
-            print(f"[-] Error: {e}", file=sys.stderr)
-            sys.exit(1)
+        hf_url = _resolve_node(args.node)
 
         print("====================================================================")
         print("                 GOST TUNNEL INITIALIZING")

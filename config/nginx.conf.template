@@ -27,6 +27,15 @@ http {
             try_files /index.html @backend;
         }
 
+        location /v1/ {
+            proxy_pass http://127.0.0.1:8080;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $host;
+            proxy_buffering off;
+            proxy_read_timeout 86400s;
+        }
+
         location @backend {
             proxy_pass http://127.0.0.1:7861;
             proxy_http_version 1.1;
