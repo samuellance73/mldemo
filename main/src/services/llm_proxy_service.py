@@ -130,6 +130,8 @@ def _build_config() -> str:
         "\n"
         "litellm_settings:\n"
         "  check_provider_endpoint: true\n"
+        "  drop_params: true\n"
+        "  disable_end_user_caching: true\n"
         "\n"
         "general_settings:\n"
         "  drop_params: true\n"
