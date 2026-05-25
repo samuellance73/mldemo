@@ -2,6 +2,7 @@ import os
 import subprocess
 import urllib.request
 import json
+import time
 from pathlib import Path
 
 from loguru import logger
@@ -16,7 +17,7 @@ PREFIX = "[llm-proxy]"
 
 
 def _fetch_models(provider: str, api_key: str):
-    """Fetch available models from the provider's /v1/models endpoint."""
+    """Fetch available models from the provider's /v1/models endpoint with retries."""
     urls = {
         "groq": "https://api.groq.com/openai/v1/models",
         "openai": "https://api.openai.com/v1/models",
@@ -27,23 +28,31 @@ def _fetch_models(provider: str, api_key: str):
     url = urls.get(provider.lower())
     if not url:
         return []
-    try:
-        logger.info(f"{PREFIX} Fetching models for {provider} dynamically from {url}...")
-        req = urllib.request.Request(
-            url,
-            headers={"Authorization": f"Bearer {api_key}"}
-        )
-        with urllib.request.urlopen(req, timeout=5) as response:
-            data = json.loads(response.read().decode())
-            models = []
-            for item in data.get("data", []):
-                if isinstance(item, dict) and "id" in item:
-                    models.append(item["id"])
-            logger.info(f"{PREFIX} Discovered {len(models)} models for {provider}.")
-            return models
-    except Exception as e:
-        logger.warning(f"{PREFIX} Failed to fetch models for {provider} dynamically: {e}")
-        return []
+
+    # Add standard User-Agent header to avoid blocks on python-urllib UA
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    }
+
+    # Attempt fetching with retries to handle early-boot DNS/network initialization delay
+    for attempt in range(5):
+        try:
+            logger.info(f"{PREFIX} Fetching models for {provider} dynamically from {url} (attempt {attempt+1}/5)...")
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                models = []
+                for item in data.get("data", []):
+                    if isinstance(item, dict) and "id" in item:
+                        models.append(item["id"])
+                logger.info(f"{PREFIX} Discovered {len(models)} models for {provider}.")
+                return models
+        except Exception as e:
+            logger.warning(f"{PREFIX} Attempt {attempt+1}/5 failed to fetch models for {provider}: {e}")
+            if attempt < 4:
+                time.sleep(2)
+    return []
 
 
 def _build_config() -> str:
@@ -86,6 +95,8 @@ def _build_config() -> str:
                     f"    litellm_params:\n"
                     f"      model: {provider}/{m}\n"
                     f'      api_key: "{api_key}"\n'
+                    f"    model_info:\n"
+                    f"      owned_by: \"{provider}\"\n"
                 )
 
         # Append the base routing definition (serves as the wildcard fallback)
@@ -99,6 +110,8 @@ def _build_config() -> str:
             f"    litellm_params:\n"
             f"      model: {model_path}\n"
             f'      api_key: "{api_key}"\n'
+            f"    model_info:\n"
+            f"      owned_by: \"{provider}\"\n"
         )
         model_entries.append(model_entry)
 
