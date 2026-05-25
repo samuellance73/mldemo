@@ -2,7 +2,7 @@
 title: Open WebUI
 emoji: 🤖
 colorFrom: indigo
-colorTo: violet
+colorTo: purple
 sdk: docker
 app_port: 7860
 pinned: false
