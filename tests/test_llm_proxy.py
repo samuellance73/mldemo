@@ -2,19 +2,18 @@
 """
 tests/test_llm_proxy.py
 
-Test the LiteLLM proxy (/v1/) on all nodes listed in manifests/state.json.
+Test the LiteLLM proxy (/v1/) on deployed HF Space nodes.
 
 Usage:
-    uv run python tests/test_llm_proxy.py
-    uv run python tests/test_llm_proxy.py --node server-03
+    uv run python tests/test_llm_proxy.py                        # servers 1 & 2 only
+    uv run python tests/test_llm_proxy.py --all                  # all nodes
+    uv run python tests/test_llm_proxy.py --node server-01       # single node
     uv run python tests/test_llm_proxy.py --model openai/gpt-oss-120b
     uv run python tests/test_llm_proxy.py --stream
     uv run python tests/test_llm_proxy.py --verbose
 
-LLM_KEYS format in .env for Groq:
-    LLM_KEYS="groq:openai/gpt-oss-120b:gsk_xxxxxxxxxxxx"
-
-Multiple keys (load-balanced):
+LLM_KEYS format for Groq:
+    LLM_KEYS="groq:openai/gpt-oss-120b:gsk_xxxx"
     LLM_KEYS="groq:openai/gpt-oss-120b:gsk_key1,groq:openai/gpt-oss-120b:gsk_key2"
 """
 
@@ -36,9 +35,10 @@ CHAT_PATH   = "/v1/chat/completions"
 MODELS_PATH = "/v1/models"
 HEALTH_PATH = "/health"
 
-DEFAULT_MODEL  = "openai/gpt-oss-120b"   # model_name as exposed by litellm (from LLM_KEYS)
-DEFAULT_PROMPT = "Reply in exactly three words."
-TIMEOUT = 10   # short — we have up to 6 nodes × 4 checks, don't want to hang
+DEFAULT_NODES = ["server-01", "server-02"]
+DEFAULT_MODEL = "openai/gpt-oss-120b"
+DEFAULT_PROMPT = "What is the capital of France? Reply in three sentence."
+TIMEOUT = 15
 
 
 # ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@ TIMEOUT = 10   # short — we have up to 6 nodes × 4 checks, don't want to hang
 class C:
     RESET = "\033[0m"; BOLD = "\033[1m"
     GREEN = "\033[92m"; RED = "\033[91m"
-    YELLOW = "\033[93m"; CYAN = "\033[96m"; DIM = "\033[2m"
+    YELLOW = "\033[93m"; CYAN = "\033[96m"; DIM = "\033[2m"; MAGENTA = "\033[95m"
 
 def ok(msg):   return f"{C.GREEN}✓{C.RESET} {msg}"
 def fail(msg): return f"{C.RED}✗{C.RESET} {msg}"
@@ -84,6 +84,7 @@ def _stream_request(url: str, payload: dict) -> tuple[int, list[str]]:
     chunks = []
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            status = resp.status
             for raw in resp:
                 line = raw.decode().strip()
                 if not line.startswith("data:"): continue
@@ -93,7 +94,7 @@ def _stream_request(url: str, payload: dict) -> tuple[int, list[str]]:
                     delta = json.loads(s)["choices"][0]["delta"].get("content", "")
                     if delta: chunks.append(delta)
                 except: pass
-            return resp.status, chunks
+            return status, chunks
     except urllib.error.HTTPError as e:
         return e.code, [e.read().decode()]
     except Exception as e:
@@ -112,15 +113,22 @@ def test_health(base: str) -> bool:
     return False
 
 
-def test_models(base: str, verbose: bool = False) -> tuple[bool, list[str]]:
+def test_models(base: str) -> tuple[bool, list[str]]:
+    """GET /v1/models — print each model id."""
     status, body = _request(base.rstrip("/") + MODELS_PATH)
     if status == 200 and isinstance(body, dict):
-        ids = [m.get("id", "?") for m in body.get("data", [])]
-        print(f"  {ok('models')}  {', '.join(ids) or '(none)'}")
-        if verbose:
-            print(f"    {C.DIM}{json.dumps(body, indent=2)[:400]}{C.RESET}")
+        models = body.get("data", [])
+        ids = [m.get("id", "?") for m in models]
+        print(f"  {ok('models')}  {len(ids)} model(s) available:")
+        for m in models:
+            mid   = m.get("id", "?")
+            owner = m.get("owned_by", "")
+            extra = f"  {C.DIM}(owned_by: {owner}){C.RESET}" if owner else ""
+            print(f"      {C.MAGENTA}→{C.RESET} {mid}{extra}")
         return True, ids
     print(f"  {fail('models')}  HTTP {status}")
+    if isinstance(body, str):
+        print(f"    {C.DIM}{body[:200]}{C.RESET}")
     return False, []
 
 
@@ -136,51 +144,74 @@ def test_no_model(base: str) -> bool:
 
 def test_chat(base: str, model: str, verbose: bool = False) -> bool:
     url = base.rstrip("/") + CHAT_PATH
-    payload = {"model": model,
-               "messages": [{"role": "user", "content": DEFAULT_PROMPT}],
-               "max_tokens": 32}
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": DEFAULT_PROMPT}],
+        "max_tokens": 128,
+    }
     t0 = time.monotonic()
     status, body = _request(url, payload)
     elapsed = time.monotonic() - t0
 
     if status == 200 and isinstance(body, dict):
-        content = body["choices"][0]["message"]["content"].strip()
-        tokens  = body.get("usage", {}).get("total_tokens", "?")
-        print(f"  {ok('chat')}  [{elapsed:.1f}s, {tokens} tok]  \"{content}\"")
+        choice  = body["choices"][0]
+        content = (choice["message"].get("content") or "").strip()
+        usage   = body.get("usage", {})
+        total   = usage.get("total_tokens", "?")
+        finish  = choice.get("finish_reason", "")
+
+        print(f"  {ok('chat')}  [{elapsed:.2f}s | {total} tokens | finish: {finish}]")
+        # Always print the actual response text
+        if content:
+            for line in content.splitlines():
+                print(f"      {C.MAGENTA}>{C.RESET} {line}")
+        else:
+            print(f"      {C.YELLOW}(empty content){C.RESET}")
+
         if verbose:
-            print(f"    {C.DIM}{json.dumps(body, indent=2)[:600]}{C.RESET}")
+            print(f"\n    {C.DIM}--- full JSON ---")
+            print(json.dumps(body, indent=2))
+            print(f"---{C.RESET}")
         return True
 
     print(f"  {fail('chat')}  HTTP {status}")
     if isinstance(body, dict):
         err = body.get("message") or body.get("error") or body
-        print(f"    {C.RED}{str(err)[:200]}{C.RESET}")
+        print(f"    {C.RED}{str(err)[:300]}{C.RESET}")
     else:
-        print(f"    {C.RED}{str(body)[:200]}{C.RESET}")
+        print(f"    {C.RED}{str(body)[:300]}{C.RESET}")
     return False
 
 
 def test_chat_stream(base: str, model: str) -> bool:
     url = base.rstrip("/") + CHAT_PATH
-    payload = {"model": model,
-               "messages": [{"role": "user", "content": DEFAULT_PROMPT}],
-               "max_tokens": 32}
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": DEFAULT_PROMPT}],
+        "max_tokens": 128,
+    }
     t0 = time.monotonic()
     status, chunks = _stream_request(url, payload)
     elapsed = time.monotonic() - t0
 
     if status == 200:
         content = "".join(chunks).strip()
-        print(f"  {ok('stream')}  [{elapsed:.1f}s, {len(chunks)} chunks]  \"{content}\"")
+        print(f"  {ok('stream')}  [{elapsed:.2f}s | {len(chunks)} chunks]")
+        if content:
+            for line in content.splitlines():
+                print(f"      {C.MAGENTA}>{C.RESET} {line}")
+        else:
+            print(f"      {C.YELLOW}(empty content){C.RESET}")
         return True
+
     print(f"  {fail('stream')}  HTTP {status}  {chunks[:1]}")
     return False
 
 
 # ---------------------------------------------------------------------------
-# Main
+# Node loading
 # ---------------------------------------------------------------------------
-def load_nodes(node_filter: str | None) -> dict[str, str]:
+def load_nodes(node_filter: str | None, all_nodes: bool) -> dict[str, str]:
     if not STATE_PATH.exists():
         print(fail(f"state.json not found at {STATE_PATH}"))
         sys.exit(1)
@@ -189,43 +220,50 @@ def load_nodes(node_filter: str | None) -> dict[str, str]:
 
     nodes = {}
     for name, info in state.items():
-        if node_filter and name != node_filter:
-            continue
+        # Filter by --node or default list (unless --all)
+        if node_filter:
+            if name != node_filter:
+                continue
+        elif not all_nodes:
+            if name not in DEFAULT_NODES:
+                continue
+
         url = info.get("url")
         if not url:
             continue
+
         services = info.get("services", [])
         if "llm_proxy" not in services:
-            print(warn(f"Skipping {name} — llm_proxy not in deployed services (need make build && make deploy)"))
+            print(warn(f"Skipping {name} — llm_proxy not in deployed services"))
             continue
         nodes[name] = url
 
     if not nodes:
-        print(fail("No nodes with llm_proxy found in state.json. Run 'make build && make deploy' first."))
+        print(fail("No matching nodes with llm_proxy found. Run 'make build && make deploy' first."))
         sys.exit(1)
     return nodes
 
 
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 def run(args):
-    nodes = load_nodes(args.node)
+    nodes = load_nodes(args.node, args.all)
     results = {}
 
     for node_name, base_url in nodes.items():
         print(f"\n{hdr('━━━')} {hdr(node_name)}  {C.DIM}{base_url}{C.RESET}")
-        passed = 0
-        total  = 0
+        passed, total = 0, 0
 
         total += 1
         if test_health(base_url): passed += 1
 
         total += 1
-        ok_models, model_ids = test_models(base_url, verbose=args.verbose)
+        ok_models, model_ids = test_models(base_url)
         if ok_models: passed += 1
 
-        # Show a hint if the deployed model differs from what we'll test
         if model_ids and args.model not in model_ids:
-            print(f"    {C.YELLOW}hint: available models are {model_ids}; "
-                  f"testing with --model {args.model}{C.RESET}")
+            print(f"    {C.YELLOW}hint: '{args.model}' not in available models — chat test may fail{C.RESET}")
 
         total += 1
         if test_no_model(base_url): passed += 1
@@ -259,11 +297,16 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("--node",   metavar="NAME", help="Test only this node (e.g. server-03)")
-    parser.add_argument("--model",  default=DEFAULT_MODEL,
-                        help=f"Model name to test (default: {DEFAULT_MODEL})")
-    parser.add_argument("--stream", action="store_true", help="Use SSE streaming mode")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Print full JSON responses")
+    parser.add_argument("--node", metavar="NAME",
+                        help="Test only this specific node (e.g. server-01)")
+    parser.add_argument("--all",  action="store_true",
+                        help=f"Test all nodes (default: only {DEFAULT_NODES})")
+    parser.add_argument("--model", default=DEFAULT_MODEL,
+                        help=f"Model name to use in chat test (default: {DEFAULT_MODEL})")
+    parser.add_argument("--stream", action="store_true",
+                        help="Use SSE streaming mode for the chat test")
+    parser.add_argument("--verbose", "-v", action="store_true",
+                        help="Print full JSON response bodies")
     run(parser.parse_args())
 
 

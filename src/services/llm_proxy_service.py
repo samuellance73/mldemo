@@ -21,9 +21,9 @@ def _build_config() -> str:
 
     Examples:
         openai:gpt-4o:sk-abc123
-        anthropic:claude-3-5-sonnet-20241022:sk-ant-xyz
-        gemini:gemini-2.0-flash:AIza...
-        openrouter:openai/gpt-4o:sk-or-...
+        groq:*:gsk-yourkey                            # routes any model to groq/*
+        groq:groq/*:gsk-yourkey                        # routes groq/xxx models to groq/xxx
+        anthropic:anthropic/*:sk-ant-xyz              # routes anthropic/xxx models
     """
     raw = deobfuscate_secret(os.environ.pop("LLM_KEYS", "").strip())
     if not raw:
@@ -36,12 +36,26 @@ def _build_config() -> str:
             logger.warning(f"{PREFIX} Skipping malformed LLM_KEYS entry: {entry!r}")
             continue
         provider, model_name, api_key = parts
-        model_entries.append(
-            f"  - model_name: {model_name}\n"
+
+        # If model_name already starts with provider + "/" (e.g. groq/* with groq),
+        # don't prepend it again to avoid groq/groq/*
+        if model_name.startswith(f"{provider}/") or model_name == "*":
+            model_path = model_name if model_name != "*" else f"{provider}/*"
+        else:
+            model_path = f"{provider}/{model_name}"
+
+        model_entry = (
+            f"  - model_name: \"{model_name}\"\n"
             f"    litellm_params:\n"
-            f"      model: {provider}/{model_name}\n"
+            f"      model: {model_path}\n"
             f'      api_key: "{api_key}"\n'
         )
+        if "*" in model_name:
+            model_entry += (
+                "    litellm_settings:\n"
+                "      check_provider_endpoint: true\n"
+            )
+        model_entries.append(model_entry)
 
     if not model_entries:
         return ""
