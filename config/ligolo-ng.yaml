@@ -3,6 +3,8 @@ web:
   behindreverseproxy: true
   corsallowedorigin:
     - https://webui.ligolo.ng
+    - http://webui.ligolo.ng
+
   debug: false
   enabled: true
   enableui: true
@@ -13,5 +15,5 @@ web:
   trustedproxies:
     - 127.0.0.1
 
-users:
-  sanctuary: sanctuary
+  users:
+    sanctuary: sanctuary

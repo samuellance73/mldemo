@@ -37,41 +37,75 @@ def save_fingerprint(node_name, fp):
         f.write(fp.strip() + "\n")
 
 
+# One-liner run inside the container: performs a TLS handshake against the
+# local ligolo listener and prints the SHA-256 of the DER-encoded cert.
+_TLS_FP_CMD = (
+    "python3 -c "
+    "'import ssl, socket, hashlib; "
+    "ctx = ssl.create_default_context(); "
+    "ctx.check_hostname = False; "
+    "ctx.verify_mode = ssl.CERT_NONE; "
+    "s = socket.create_connection((\"127.0.0.1\", 11601)); "
+    "ss = ctx.wrap_socket(s); "
+    "print(hashlib.sha256(ss.getpeercert(binary_form=True)).hexdigest().upper())'"
+)
+
+
 def fetch_fingerprint_ssh(ssh_port=2222):
-    """Read fingerprint file from container via local forwarded SSH.
-    
-    Returns a tuple (fingerprint, error_msg).
+    """Fetch the ligolo TLS fingerprint from the container.
+
+    Primary method: direct TLS handshake against port 11601 via SSH remote
+    command.  This works even when Ligolo skips printing the fingerprint on
+    subsequent boots (cert already cached on disk, so no log line is emitted).
+
+    Fallback: read the pre-written fingerprint file (works on first boot when
+    the log scraper succeeds).
+
+    Returns a tuple (fingerprint_hex_upper, error_msg).
     """
-    cmd = [
+    ssh_base = [
         "ssh",
-        "-o",
-        "StrictHostKeyChecking=no",
-        "-o",
-        "UserKnownHostsFile=/dev/null",
-        "-o",
-        "ConnectTimeout=10",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "ConnectTimeout=10",
         "user@127.0.0.1",
-        "-p",
-        str(ssh_port),
-        "cat",
-        "/home/user/.torch_metrics/ligolo_fingerprint.txt",
+        "-p", str(ssh_port),
     ]
+
+    # --- Primary: live TLS handshake ---
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        r = subprocess.run(
+            ssh_base + [_TLS_FP_CMD],
+            capture_output=True, text=True, timeout=15,
+        )
+        if r.returncode == 0:
+            line = r.stdout.strip().splitlines()[-1].strip()
+            if len(line) == 64 and all(c in "0123456789ABCDEFabcdef" for c in line):
+                return line.upper(), None
+        tls_err = r.stderr.strip() or f"SSH exited {r.returncode}"
+    except subprocess.TimeoutExpired:
+        tls_err = "TLS handshake SSH timed out (15s)"
+    except OSError as e:
+        tls_err = f"OS error (TLS path): {e}"
+
+    # --- Fallback: log-scraped fingerprint file ---
+    try:
+        r = subprocess.run(
+            ssh_base + ["cat", "/home/user/.torch_metrics/ligolo_fingerprint.txt"],
+            capture_output=True, text=True, timeout=15,
+        )
         if r.returncode == 0:
             stdout_clean = r.stdout.strip()
             if stdout_clean:
-                fp = stdout_clean.splitlines()[0].strip()
-                return fp, None
-            else:
-                return None, "File is empty"
-        else:
-            err = r.stderr.strip() or f"SSH exited with code {r.returncode}"
-            return None, err
+                return stdout_clean.splitlines()[0].strip(), None
+            return None, "Fingerprint file is empty"
+        file_err = r.stderr.strip() or f"SSH exited {r.returncode}"
     except subprocess.TimeoutExpired:
-        return None, "SSH command timed out (15s)"
+        file_err = "file-read SSH timed out (15s)"
     except OSError as e:
-        return None, f"OS error running SSH: {e}"
+        file_err = f"OS error (file path): {e}"
+
+    return None, f"TLS handshake failed ({tls_err}); file fallback failed ({file_err})"
 
 
 def print_hub_info(hf_url, node_name, fingerprint=None, fetch=False):
