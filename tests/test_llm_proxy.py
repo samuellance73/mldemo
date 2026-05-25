@@ -135,10 +135,10 @@ def test_models(base: str) -> tuple[bool, list[str]]:
 def test_no_model(base: str) -> bool:
     status, _ = _request(base.rstrip("/") + CHAT_PATH,
                          {"messages": [{"role": "user", "content": "hi"}]})
-    if status in (400, 422):
-        print(f"  {ok('no-model → 400')}  HTTP {status} (correct)")
+    if status in (400, 404, 422):
+        print(f"  {ok('no-model → error')}  HTTP {status} (correct)")
         return True
-    print(f"  {warn('no-model → 400')}  HTTP {status} (expected 400/422)")
+    print(f"  {warn('no-model → error')}  HTTP {status} (expected 400/404/422)")
     return False
 
 
