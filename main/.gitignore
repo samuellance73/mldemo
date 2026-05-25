@@ -11,6 +11,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+llm_keys.yaml
 manifests/state.json
 
 /sliver

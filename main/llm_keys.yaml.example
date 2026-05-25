@@ -1,0 +1,41 @@
+# llm_keys.yaml.example
+#
+# INSTRUCTIONS:
+# 1. Copy this file to "llm_keys.yaml":
+#    cp llm_keys.yaml.example llm_keys.yaml
+#
+# 2. Add your provider API keys. You can define multiple keys per provider.
+#    LiteLLM will automatically balance requests across the key pool.
+#
+# 3. This file is git-ignored by default to prevent credential leakage.
+# ------------------------------------------------------------------------------
+
+providers:
+  # --- 1. Wildcard / Pool Routing (Highly Recommended) ---
+  # Any request for groq/some-model will match "groq/*" and rotate across these keys.
+  groq:
+    - "gsk_groqKeyOneHere"
+    - "gsk_groqKeyTwoHere"
+    - "gsk_groqKeyThreeHere"
+
+  deepseek:
+    - "sk-deepseekKeyOneHere"
+    - "sk-deepseekKeyTwoHere"
+
+  cerebras:
+    - "cbs_cerebrasKeyOneHere"
+
+  gemini:
+    - "AIzaSyGeminiKeyOneHere"
+    - "AIzaSyGeminiKeyTwoHere"
+
+  # --- 2. Model-Specific Targeting (Optional) ---
+  # If you want to route a specific model to a dedicated API key pool,
+  # or map a custom model name to a provider's model.
+  #
+  # Example:
+  # openai:
+  #   - "sk-standardWildcardKey..."
+  #   - model: "gpt-4o"
+  #     keys:
+  #       - "sk-dedicatedGpt4Key..."

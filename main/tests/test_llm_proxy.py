@@ -36,8 +36,8 @@ MODELS_PATH = "/v1/models"
 HEALTH_PATH = "/health"
 
 DEFAULT_NODES = ["server-01", "server-02"]
-DEFAULT_MODEL = "openai/gpt-oss-120b"
-DEFAULT_PROMPT = "What is the capital of France? Reply in three sentence."
+DEFAULT_MODEL = "gemini/gemini-3.5-flash"
+DEFAULT_PROMPT = "Who are you?"
 TIMEOUT = 15
 
 

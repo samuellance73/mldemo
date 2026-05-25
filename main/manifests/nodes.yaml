@@ -40,3 +40,13 @@ nodes:
     push-secrets: true
     services: ["nginx", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "llm_proxy"]
 
+  web-ui:
+    hf-repo: "samuellance73/open-webui"
+    token-env: "HF1"
+    create-repo: true
+    space-sdk: docker
+    repo-type: space
+    # Points to the sibling directory outside of the main/ folder
+    custom-dir: "../web-ui"
+
+

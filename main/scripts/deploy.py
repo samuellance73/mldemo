@@ -340,8 +340,41 @@ def main():
                         )
 
             # LLM_KEYS: push when llm_proxy is enabled, delete otherwise
-            llm_keys_raw = os.getenv("LLM_KEYS", "").strip()
             if "llm_proxy" in enabled_set:
+                llm_keys_raw = ""
+                yaml_path = os.path.join(_REPO_ROOT, "llm_keys.yaml")
+                if os.path.exists(yaml_path):
+                    try:
+                        with open(yaml_path, "r") as f:
+                            data = yaml.safe_load(f) or {}
+                        providers = data.get("providers", {})
+                        entries = []
+                        for provider, keys in providers.items():
+                            provider_clean = provider.lower().strip()
+                            if isinstance(keys, list):
+                                for k in keys:
+                                    if isinstance(k, str) and k:
+                                        entries.append(f"{provider_clean}:*:{k.strip()}")
+                                    elif isinstance(k, dict):
+                                        model = k.get("model")
+                                        specific_keys = k.get("keys", [])
+                                        if model and isinstance(specific_keys, list):
+                                            for sk in specific_keys:
+                                                if sk and isinstance(sk, str):
+                                                    entries.append(f"{provider_clean}:{model.strip()}:{sk.strip()}")
+                                        elif model and isinstance(k.get("keys"), str):
+                                            sk = k.get("keys")
+                                            if sk:
+                                                entries.append(f"{provider_clean}:{model.strip()}:{sk.strip()}")
+                            elif isinstance(keys, str):
+                                entries.append(f"{provider_clean}:*:{keys.strip()}")
+                        llm_keys_raw = ",".join(entries)
+                    except Exception as e:
+                        logger.error(f"Error compiling llm_keys.yaml for deployment: {e}")
+
+                if not llm_keys_raw:
+                    llm_keys_raw = os.getenv("LLM_KEYS", "").strip()
+
                 if llm_keys_raw:
                     try:
                         node_api.add_space_secret(
@@ -353,7 +386,7 @@ def main():
                     except Exception as e:
                         logger.error(f"Failed to push LLM_KEYS secret: {e}")
                 else:
-                    logger.warning(f"Node '{node_name}' has llm_proxy enabled but LLM_KEYS is not set in .env")
+                    logger.warning(f"Node '{node_name}' has llm_proxy enabled but no keys found in llm_keys.yaml or LLM_KEYS in .env")
             else:
                 try:
                     node_api.delete_space_secret(repo_id=repo_id, key="LLM_KEYS")
@@ -365,22 +398,29 @@ def main():
             subdomain = repo_id.lower().replace("/", "-").replace("_", "-")
             direct_url = f"https://{subdomain}.hf.space"
 
-        # Per-node runtime config injected immediately before upload
-        whoami_path = os.path.join(args.dist, "whoami.txt")
-        try:
-            with open(whoami_path, "w") as f:
-                f.write(node_name + "\n")
-        except Exception as e:
-            logger.warning(f"Failed to write whoami.txt: {e}")
+        custom_dir = node_info.get("custom-dir")
+        if custom_dir:
+            upload_path = os.path.abspath(os.path.join(repo_root, custom_dir))
+        else:
+            upload_path = os.path.abspath(args.dist)
 
-        try:
-            write_enabled_services(args.dist, node_name, enabled_services)
-        except Exception as e:
-            logger.warning(f"Failed to write enabled_services.json: {e}")
+        # Per-node runtime config injected immediately before upload (only for backend configurations)
+        if not custom_dir:
+            whoami_path = os.path.join(upload_path, "whoami.txt")
+            try:
+                with open(whoami_path, "w") as f:
+                    f.write(node_name + "\n")
+            except Exception as e:
+                logger.warning(f"Failed to write whoami.txt: {e}")
+
+            try:
+                write_enabled_services(upload_path, node_name, enabled_services)
+            except Exception as e:
+                logger.warning(f"Failed to write enabled_services.json: {e}")
 
         try:
             commit_info = node_api.upload_folder(
-                folder_path=args.dist,
+                folder_path=upload_path,
                 repo_id=repo_id,
                 repo_type=repo_type,
                 commit_message=args.commit_message,
