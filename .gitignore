@@ -1,5 +1,5 @@
 # Build artifacts
-dist/
+main/dist/
 __pycache__/
 *.pyc
 
@@ -11,9 +11,9 @@ __pycache__/
 .env
 .env.*
 !.env.example
-llm_keys.yaml
-manifests/state.json
+main/llm_keys.yaml
+main/manifests/state.json
 
-/sliver
-/cfg/*
-!/cfg/.gitkeep
+main/sliver
+main/cfg/*
+!main/cfg/.gitkeep
