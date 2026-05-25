@@ -13,5 +13,5 @@ web:
   trustedproxies:
     - 127.0.0.1
 
-  users:
-    sanctuary: sanctuary
+users:
+  sanctuary: sanctuary

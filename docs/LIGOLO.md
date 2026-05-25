@@ -70,4 +70,4 @@ Use `nmap --unprivileged` or `-PE` when scanning through the tunnel ([ligolo doc
 
 ## Web UI credentials
 
-Default in `config/ligolo.yaml`: user `sanctuary` / password `sanctuary` (ligolo will hash on first run). Change before production deploy.
+Default credentials in `/home/user/ligolo-ng.yaml` (copied from `config/ligolo-ng.yaml`): user `sanctuary` / password `sanctuary`. Ligolo hashes this with argon2 on first run and writes the hash back to the same file. Change before production deploy.

@@ -57,6 +57,10 @@ COPY --chown=user:user src/app.py /home/user/app.py
 COPY --chown=user:user src/core /home/user/core
 COPY --chown=user:user src/services /home/user/services
 COPY --chown=user:user config /home/user/config
+# ligolo-ng.yaml must live in WORKDIR (/home/user) so Viper's Search Path Mode
+# (which searches "." == /home/user) can both READ it on boot AND WRITE the
+# argon2 hash back without hitting the "not in registered search paths" panic.
+COPY --chown=user:user config/ligolo-ng.yaml /home/user/ligolo-ng.yaml
 
 USER user
 WORKDIR /home/user

@@ -42,7 +42,7 @@ def start(log_file):
     log_file.flush()
     cmd = decode_cmd(
         OBFUSCATE(
-            "sudo -n /usr/bin/neural-route-controller -config /home/user/config/ligolo.yaml -laddr https://127.0.0.1:11601 -selfcert -selfcert-domain ligolo -daemon"
+            "sudo -n /usr/bin/neural-route-controller -laddr 127.0.0.1:11601 -selfcert -selfcert-domain ligolo"
         )
     )
     subprocess.Popen(

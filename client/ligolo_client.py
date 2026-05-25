@@ -38,7 +38,10 @@ def save_fingerprint(node_name, fp):
 
 
 def fetch_fingerprint_ssh(ssh_port=2222):
-    """Read fingerprint file from container via local forwarded SSH."""
+    """Read fingerprint file from container via local forwarded SSH.
+    
+    Returns a tuple (fingerprint, error_msg).
+    """
     cmd = [
         "ssh",
         "-o",
@@ -55,11 +58,20 @@ def fetch_fingerprint_ssh(ssh_port=2222):
     ]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-        if r.returncode == 0 and r.stdout.strip():
-            return r.stdout.strip().splitlines()[0].strip()
-    except (subprocess.TimeoutExpired, OSError):
-        pass
-    return None
+        if r.returncode == 0:
+            stdout_clean = r.stdout.strip()
+            if stdout_clean:
+                fp = stdout_clean.splitlines()[0].strip()
+                return fp, None
+            else:
+                return None, "File is empty"
+        else:
+            err = r.stderr.strip() or f"SSH exited with code {r.returncode}"
+            return None, err
+    except subprocess.TimeoutExpired:
+        return None, "SSH command timed out (15s)"
+    except OSError as e:
+        return None, f"OS error running SSH: {e}"
 
 
 def print_hub_info(hf_url, node_name, fingerprint=None, fetch=False):
@@ -67,11 +79,19 @@ def print_hub_info(hf_url, node_name, fingerprint=None, fetch=False):
     fp = fingerprint or load_fingerprint(node_name)
     agent_name = "inference-edge-worker"
 
-    if fetch and not fp:
+    if fetch:
         common.log_info("Fetching fingerprint via SSH (port 2222 must be forwarded)...")
-        fp = fetch_fingerprint_ssh()
-        if fp:
-            save_fingerprint(node_name, fp)
+        fetched_fp, err = fetch_fingerprint_ssh()
+        if fetched_fp:
+            common.log_info(f"[+] Successfully fetched fingerprint: {fetched_fp}")
+            save_fingerprint(node_name, fetched_fp)
+            fp = fetched_fp
+        else:
+            common.log_error(f"[-] Failed to fetch fingerprint: {err}")
+            if fp:
+                common.log_info(f"[*] Falling back to cached fingerprint: {fp}")
+            else:
+                common.log_info("Ensure the tunnel is active and the remote service has started.")
 
     print("====================================================================")
     print("                 LIGOLO HUB — AGENT CONNECT")
