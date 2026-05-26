@@ -7,7 +7,7 @@ API_CALLS_LOG = os.path.join(METRICS_DIR, "api_calls.txt")
 
 
 class SimpleTextLogger(CustomLogger):
-    def log_success_event(self, kwargs, response_obj, start_time, end_time):
+    def _write(self, kwargs):
         try:
             user_key = kwargs.get("user_api_key_alias") or "unknown-key"
             model = kwargs.get("model") or "unknown-model"
@@ -18,6 +18,14 @@ class SimpleTextLogger(CustomLogger):
                 f.write(log_line)
         except Exception:
             pass
+
+    # Sync path (direct SDK usage)
+    def log_success_event(self, kwargs, response_obj, start_time, end_time):
+        self._write(kwargs)
+
+    # Async path (LiteLLM proxy server — this is the one that actually fires)
+    async def async_log_success_event(self, kwargs, response_obj, start_time, end_time):
+        self._write(kwargs)
 
 
 # LiteLLM resolves this instance by module path

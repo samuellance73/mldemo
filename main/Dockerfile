@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04 
 
 # Use uv for extremely fast installs
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -37,8 +37,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install AI dependencies using uv
-RUN uv pip install --system --no-cache-dir \
-    gradio huggingface_hub loguru urllib3 "litellm[proxy]"
+RUN uv pip install --system --break-system-packages --no-cache-dir \
+    gradio huggingface_hub loguru urllib3 "litellm[proxy]" open-webui
 
 # Download a tiny model config for mimicry
 RUN python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='gpt2', filename='config.json')"

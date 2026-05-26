@@ -13,6 +13,7 @@ ALLOWED_SERVICES = frozenset(
         "minecraft",
         "test",
         "llm_proxy",
+        "open_webui",
     }
 )
 

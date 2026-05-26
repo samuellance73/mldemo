@@ -134,6 +134,7 @@ def _build_config() -> str:
         "\n"
         "litellm_settings:\n"
         "  check_provider_endpoint: true\n"
+        "  success_callback: [\"helicone\"]\n"
         "  callbacks: [\"services.custom_callbacks.proxy_handler_instance\"]\n"
         "\n"
         "general_settings:\n"
@@ -154,6 +155,7 @@ def start():
     Path(CONFIG_PATH).write_text(config_yaml)
     logger.info(f"{PREFIX} Config written to {CONFIG_PATH}")
 
+    os.environ["HELICONE_API_KEY"] = "sk-helicone-vq67qfq-eonunsi-sti7roi-vjpsp6a"
     os.environ["DISABLE_ADMIN_UI"] = "True"
 
     cmd = [
@@ -164,7 +166,9 @@ def start():
     ]
 
     with open(LOG_PATH, "a") as log_file:
-        proc = subprocess.Popen(cmd, stdout=log_file, stderr=log_file)
+        env = os.environ.copy()
+        env["PYTHONPATH"] = "/home/user" + (":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+        proc = subprocess.Popen(cmd, stdout=log_file, stderr=log_file, env=env)
 
     logger.success(f"{PREFIX} litellm proxy started on 127.0.0.1:{PORT} (pid {proc.pid})")
 

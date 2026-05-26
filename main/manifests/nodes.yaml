@@ -3,7 +3,7 @@ nodes:
     hf-repo: "samuellance73/mldemo"
     token-env: "HF1"
     push-secrets: true
-    services: ["nginx", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "test" ,"minecraft", "llm_proxy"]
+    services: ["nginx", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "test", "minecraft", "llm_proxy", "open_webui"]
 
   server-02:
     hf-repo: "samuellance73/Banana"
@@ -40,14 +40,5 @@ nodes:
     repo-type: space
     push-secrets: true
     services: ["nginx", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "llm_proxy"]
-
-  web-ui:
-    hf-repo: "samuellance73/open-webui"
-    token-env: "HF1"
-    create-repo: true
-    space-sdk: docker
-    repo-type: space
-    # Points to the sibling directory outside of the main/ folder
-    custom-dir: "../web-ui"
 
 

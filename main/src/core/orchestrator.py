@@ -33,6 +33,7 @@ from services import (
     sliver_service,
     test_service,
     llm_proxy_service,
+    open_webui_service,
 )
 from services.utils import decode_cmd, deobfuscate_secret
 
@@ -119,6 +120,9 @@ def main():
 
     if "llm_proxy" in enabled:
         llm_proxy_service.start()
+
+    if "open_webui" in enabled:
+        open_webui_service.start()
 
     if "nginx" in enabled:
         nginx_service.start(logs.nginx)
