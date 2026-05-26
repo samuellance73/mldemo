@@ -158,11 +158,9 @@ def start():
     os.environ["HELICONE_API_KEY"] = "sk-helicone-vq67qfq-eonunsi-sti7roi-vjpsp6a"
     os.environ["DISABLE_ADMIN_UI"] = "True"
 
-    import sys
+    litellm_bin = "/opt/venv-litellm/bin/litellm" if Path("/opt/venv-litellm/bin/litellm").exists() else "litellm"
     cmd = [
-        sys.executable,
-        "-m",
-        "litellm",
+        litellm_bin,
         "--config", CONFIG_PATH,
         "--port", str(PORT),
         "--host", "127.0.0.1",

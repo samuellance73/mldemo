@@ -122,11 +122,12 @@ http {
             proxy_send_timeout 86400s;
         }
 
-        # Open WebUI — localhost-only chat interface.
-        # Listening on 127.0.0.1:3000; only reachable through this path
-        # or directly via Tailscale at http://<ts-ip>:3000.
-        location /open-webui {
-            proxy_pass http://127.0.0.1:3000;
+        location = /open-webui {
+            return 301 /open-webui/;
+        }
+
+        location /open-webui/ {
+            proxy_pass http://127.0.0.1:3000/;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection $cu;
@@ -136,6 +137,63 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
             proxy_read_timeout 86400s;
             proxy_send_timeout 86400s;
+        }
+
+        # Open WebUI SvelteKit and static assets
+        location /_app/ {
+            proxy_pass http://127.0.0.1:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
+
+        location /static/ {
+            proxy_pass http://127.0.0.1:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
+
+        # Open WebUI WebSockets (Socket.IO)
+        location /ws/ {
+            proxy_pass http://127.0.0.1:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $cu;
+            proxy_set_header Host $host;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+
+        # Open WebUI API routes (excluding Gradio endpoints)
+        location /api/ {
+            location /api/predict {
+                proxy_pass http://127.0.0.1:7861;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+            }
+            location /api/info {
+                proxy_pass http://127.0.0.1:7861;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+            }
+            # Fallback to Open WebUI backend
+            proxy_pass http://127.0.0.1:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+
+        # Open WebUI uploads & oauth routes
+        location /uploads/ {
+            proxy_pass http://127.0.0.1:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
+
+        location /oauth/ {
+            proxy_pass http://127.0.0.1:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
         }
 
     }

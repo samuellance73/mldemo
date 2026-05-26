@@ -35,11 +35,10 @@ def start():
     env["DATA_DIR"] = os.path.join(METRICS_DIR, "open_webui_data")
     os.makedirs(env["DATA_DIR"], exist_ok=True)
 
-    import sys
+    from pathlib import Path
+    open_webui_bin = "/opt/venv-openwebui/bin/open-webui" if Path("/opt/venv-openwebui/bin/open-webui").exists() else "open-webui"
     cmd = [
-        sys.executable,
-        "-m",
-        "open_webui",
+        open_webui_bin,
         "serve",
         "--host", "127.0.0.1",
         "--port", str(PORT),
