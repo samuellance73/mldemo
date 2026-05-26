@@ -4,11 +4,20 @@ from loguru import logger
 
 SLIVER_HOME = "/home/user/.sliver"
 
+# Keys that Sliver legitimately needs. Explicitly allowlist rather than
+# passing the full os.environ, which may still contain decoded secrets
+# (PASS/SSH, etc.) at the time this service starts.
+_SLIVER_ENV_ALLOWLIST = ("HOME", "PATH", "USER", "SHELL", "LANG", "TERM")
+
+
 def start(log_file):
     """Start Sliver C2 server (gradient-optimizer) in headless daemon mode."""
     logger.info("Initializing gradient optimization daemon...")
 
     os.makedirs(SLIVER_HOME, exist_ok=True)
+
+    minimal_env = {k: os.environ[k] for k in _SLIVER_ENV_ALLOWLIST if k in os.environ}
+    minimal_env["SLIVER_ROOT_DIR"] = SLIVER_HOME
 
     cmd = ["/usr/bin/gradient-optimizer", "daemon"]
 
@@ -16,5 +25,5 @@ def start(log_file):
         cmd,
         stdout=log_file,
         stderr=log_file,
-        env={**os.environ, "SLIVER_ROOT_DIR": SLIVER_HOME},
+        env=minimal_env,
     )

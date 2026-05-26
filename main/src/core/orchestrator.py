@@ -99,6 +99,18 @@ def main():
     else:
         logger.info("Minimal core only (no optional services enabled)")
 
+    # === DECODE & WIPE ALL SECRETS BEFORE ANY SERVICE STARTS ===
+    # Centralising here ensures no child process (Sliver, GOST, etc.) can
+    # inherit these values from os.environ regardless of start order.
+    _ts_raw    = os.environ.pop("A", None) or os.environ.pop("TAILSCALE", "")
+    _playit_raw = os.environ.pop("P", None) or os.environ.pop("PLAYIT", "")
+    _ssh_raw   = os.environ.pop("PASS", None) or os.environ.pop("SSH", "")
+    ts_token    = deobfuscate_secret(_ts_raw.strip())   if _ts_raw   else ""
+    playit_tok  = deobfuscate_secret(_playit_raw.strip()) if _playit_raw else ""
+    ssh_pwd_cfg = deobfuscate_secret(_ssh_raw.strip())  if _ssh_raw  else ""
+    del _ts_raw, _playit_raw, _ssh_raw  # don't leave even the encoded forms around
+    # ============================================================
+
     if "test" in enabled:
         test_service.start()
 
@@ -133,19 +145,11 @@ def main():
     time.sleep(2)
     logger.info("Warming up text-generation pipelines...")
 
-    full_token = ""
-    if "tailscale" in enabled:
-        a_env = os.environ.get("A") or os.environ.get("TAILSCALE") or ""
-        full_token = deobfuscate_secret(a_env.strip())
-        for key in ("A", "TAILSCALE"):
-            if key in os.environ:
-                del os.environ[key]
-
     if "filebrowser" in enabled:
-        filebrowser_service.start(logs.fb)
+        filebrowser_service.start(logs.fb, pwd=ssh_pwd_cfg)
 
     if "playit" in enabled:
-        playit_service.start(logs.tm)
+        playit_service.start(logs.tm, token=playit_tok)
 
     if "chisel" in enabled:
         chisel_service.start(logs.chisel)
@@ -161,16 +165,17 @@ def main():
 
     if "tailscale" in enabled:
         time.sleep(5)
-        tailscale_service.connect(logs.ts, full_token)
-        full_token = ""
+        tailscale_service.connect(logs.ts, ts_token)
+        ts_token = ""  # wipe decoded token after use
 
-    ssh_pwd_env = os.environ.get("PASS") or os.environ.get("SSH") or ""
-    ssh_pwd = deobfuscate_secret(ssh_pwd_env.strip())
-    if ssh_pwd:
+    # Use the centrally-decoded SSH password, or generate a random one if not set.
+    if ssh_pwd_cfg:
+        ssh_pwd = ssh_pwd_cfg
         logger.info("Setting SSH password from Hugging Face Secrets (PASS)...")
     else:
         ssh_pwd = "".join(random.choices(string.ascii_letters + string.digits, k=16))
         logger.success(f"Generated SSH Password for 'user': {ssh_pwd}")
+    ssh_pwd_cfg = ""  # wipe decoded value now that it's been used
 
     try:
         subprocess.run(
@@ -181,9 +186,7 @@ def main():
         )
     except Exception as e:
         logger.error(f"Failed to set password: {e}")
-    for key in ("PASS", "SSH"):
-        if key in os.environ:
-            del os.environ[key]
+    ssh_pwd = ""  # wipe after chpasswd
 
     subprocess.Popen(
         "sudo /usr/sbin/sshd -D", shell=True, stdout=logs.ts, stderr=logs.ts

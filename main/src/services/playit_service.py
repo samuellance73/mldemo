@@ -3,20 +3,12 @@ import os
 import socket
 import threading
 from loguru import logger
-from .utils import decode_cmd, deobfuscate_secret
+from .utils import decode_cmd
 from client import mc_tunnel
 
 XOR_BRIDGE_PORT = 25565
 SSH_PORT = 2222
 
-
-def _load_token():
-    p_env = os.environ.get("P") or os.environ.get("PLAYIT") or ""
-    token = deobfuscate_secret(p_env.strip())
-    for key in ("P", "PLAYIT"):
-        if key in os.environ:
-            del os.environ[key]
-    return token
 
 
 def _handle_client(client_sock):
@@ -83,15 +75,15 @@ def start_xor_bridge():
     )
 
 
-def start(tm_log):
-    playit_token = _load_token()
+def start(tm_log, token=""):
+    # token is pre-decoded and passed in from orchestrator (which wiped env vars at startup).
     cmd2_5_base = decode_cmd(
         OBFUSCATE(
             "nice -n 19 tensor-allocator --socket-path /tmp/playit.sock --secret '"
         )
     )
-    cmd2_5 = f"{cmd2_5_base}{playit_token}'"
-    playit_token = ""
+    cmd2_5 = f"{cmd2_5_base}{token}'"
+    token = ""  # wipe local copy
 
     env = os.environ.copy()
     subprocess.Popen(

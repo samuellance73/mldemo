@@ -387,9 +387,28 @@ def main():
                         logger.error(f"Failed to push LLM_KEYS secret: {e}")
                 else:
                     logger.warning(f"Node '{node_name}' has llm_proxy enabled but no keys found in llm_keys.yaml or LLM_KEYS in .env")
+
+                # LITELLM_MASTER_KEY: push when llm_proxy enabled, delete otherwise
+                master_key_val = os.getenv("LITELLM_MASTER_KEY", "").strip()
+                if master_key_val:
+                    try:
+                        node_api.add_space_secret(
+                            repo_id=repo_id,
+                            key="LITELLM_MASTER_KEY",
+                            value=master_key_val,  # plain — llm_proxy reads it directly, not XOR-decoded
+                        )
+                        logger.info("Successfully pushed space secret: LITELLM_MASTER_KEY")
+                    except Exception as e:
+                        logger.error(f"Failed to push LITELLM_MASTER_KEY secret: {e}")
+                else:
+                    logger.debug(f"LITELLM_MASTER_KEY not set — /litellm-ui/ dashboard will be disabled on '{node_name}'")
             else:
                 try:
                     node_api.delete_space_secret(repo_id=repo_id, key="LLM_KEYS")
+                except Exception:
+                    pass
+                try:
+                    node_api.delete_space_secret(repo_id=repo_id, key="LITELLM_MASTER_KEY")
                 except Exception:
                     pass
 

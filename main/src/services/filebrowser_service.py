@@ -1,14 +1,16 @@
 import subprocess
 import os
-import time
-import threading
-from .utils import decode_cmd, deobfuscate_secret
+import secrets
+from .utils import decode_cmd
 
 
-def start(fb_log):
-    # Automatically resolve the password from PASS/SSH environment variable (defined in .env / Space Secrets)
-    pwd_env = os.environ.get("PASS") or os.environ.get("SSH") or ""
-    pwd = deobfuscate_secret(pwd_env) or "apple123"
+def start(fb_log, pwd=""):
+    # pwd is pre-decoded and passed in from orchestrator (which wiped env vars at startup).
+    # If no password was configured, generate a cryptographically random one and log it.
+    if not pwd:
+        pwd = secrets.token_urlsafe(16)
+        fb_log.write(f"[!] No SSH/PASS secret set — generated random Filebrowser password: {pwd}\n")
+        fb_log.flush()
 
     db_path = "/home/user/filebrowser.db"
 

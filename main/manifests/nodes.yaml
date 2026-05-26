@@ -20,6 +20,7 @@ nodes:
   server-04:
     hf-repo: "samuellance73/gemma4"
     token-env: "HF1"
+    push-secrets: true
     services: ["nginx", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "llm_proxy"]
 
   server-05:

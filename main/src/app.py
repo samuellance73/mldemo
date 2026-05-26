@@ -60,6 +60,45 @@ def _read_all_logs():
     except Exception as e:
         return f"Log error: {e}"
 
+def _read_api_stats():
+    path = os.path.join(LOG_DIR, "api_calls.txt")
+    if not os.path.exists(path):
+        return "No API calls logged yet."
+    try:
+        with open(path) as f:
+            lines = f.readlines()
+
+        key_counts = {}
+        model_counts = {}
+
+        for line in lines:
+            if "KEY:" in line and "MODEL:" in line:
+                parts = line.split("|")
+                key_part = parts[0].split("KEY:")[1].strip()
+                model_part = parts[1].split("MODEL:")[1].strip()
+                key_counts[key_part] = key_counts.get(key_part, 0) + 1
+                model_counts[model_part] = model_counts.get(model_part, 0) + 1
+
+        output = [
+            "==========================================",
+            "          LOCAL API CALL STATISTICS       ",
+            "==========================================",
+            "\n[CALLS PER VIRTUAL KEY]",
+        ]
+        for key, count in sorted(key_counts.items(), key=lambda x: x[1], reverse=True):
+            output.append(f"  - {key}: {count} calls")
+
+        output.append("\n[CALLS PER MODEL]")
+        for model, count in sorted(model_counts.items(), key=lambda x: x[1], reverse=True):
+            output.append(f"  - {model}: {count} calls")
+
+        output.append("\n[RECENT ACTIVITY (LAST 5 CALLS)]")
+        for line in lines[-5:]:
+            output.append("  " + line.strip())
+
+        return "\n".join(output)
+    except Exception as e:
+        return f"Error reading stats: {e}"
 
 def fake_model(text):
     cmd = text.strip()
@@ -67,6 +106,8 @@ def fake_model(text):
         return _read_all_logs()
     if cmd == "SHOW_LOGS_MC":
         return _read_mc_log()
+    if cmd == "SHOW_API_STATS":
+        return _read_api_stats()
 
     spec = _LOG_CMDS.get(cmd)
     if spec:

@@ -119,6 +119,10 @@ def _build_config() -> str:
         model_entries.append(model_entry)
 
     model_list_block = "".join(model_entries)
+
+    master_key = os.environ.get("LITELLM_MASTER_KEY", "").strip()
+    master_key_line = f'  master_key: "{master_key}"\n' if master_key else ""
+
     return (
         "model_list:\n"
         f"{model_list_block}"
@@ -130,11 +134,11 @@ def _build_config() -> str:
         "\n"
         "litellm_settings:\n"
         "  check_provider_endpoint: true\n"
-        "  drop_params: true\n"
-        "  disable_end_user_caching: true\n"
+        "  callbacks: [\"services.custom_callbacks.proxy_handler_instance\"]\n"
         "\n"
         "general_settings:\n"
         "  drop_params: true\n"
+        f"{master_key_line}"
     )
 
 
@@ -150,6 +154,8 @@ def start():
     Path(CONFIG_PATH).write_text(config_yaml)
     logger.info(f"{PREFIX} Config written to {CONFIG_PATH}")
 
+    os.environ["DISABLE_ADMIN_UI"] = "True"
+
     cmd = [
         "litellm",
         "--config", CONFIG_PATH,
@@ -161,3 +167,4 @@ def start():
         proc = subprocess.Popen(cmd, stdout=log_file, stderr=log_file)
 
     logger.success(f"{PREFIX} litellm proxy started on 127.0.0.1:{PORT} (pid {proc.pid})")
+

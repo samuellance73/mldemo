@@ -212,6 +212,7 @@ dependencies = [
     { name = "loguru" },
     { name = "python-dotenv" },
     { name = "python-minifier" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
@@ -220,6 +221,7 @@ requires-dist = [
     { name = "loguru", specifier = ">=0.7.2" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "python-minifier", specifier = ">=3.2.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
 ]
 
 [[package]]

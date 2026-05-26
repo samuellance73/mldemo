@@ -1,0 +1,24 @@
+from litellm.integrations.custom_logger import CustomLogger
+from datetime import datetime
+import os
+
+METRICS_DIR = "/home/user/.torch_metrics"
+API_CALLS_LOG = os.path.join(METRICS_DIR, "api_calls.txt")
+
+
+class SimpleTextLogger(CustomLogger):
+    def log_success_event(self, kwargs, response_obj, start_time, end_time):
+        try:
+            user_key = kwargs.get("user_api_key_alias") or "unknown-key"
+            model = kwargs.get("model") or "unknown-model"
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log_line = f"[{timestamp}] KEY: {user_key} | MODEL: {model}\n"
+            os.makedirs(METRICS_DIR, exist_ok=True)
+            with open(API_CALLS_LOG, "a") as f:
+                f.write(log_line)
+        except Exception:
+            pass
+
+
+# LiteLLM resolves this instance by module path
+proxy_handler_instance = SimpleTextLogger()
