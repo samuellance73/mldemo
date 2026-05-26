@@ -35,8 +35,11 @@ def start():
     env["DATA_DIR"] = os.path.join(METRICS_DIR, "open_webui_data")
     os.makedirs(env["DATA_DIR"], exist_ok=True)
 
+    import sys
     cmd = [
-        "open-webui",
+        sys.executable,
+        "-m",
+        "open_webui",
         "serve",
         "--host", "127.0.0.1",
         "--port", str(PORT),

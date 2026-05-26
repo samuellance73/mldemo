@@ -158,7 +158,10 @@ def start():
     os.environ["HELICONE_API_KEY"] = "sk-helicone-vq67qfq-eonunsi-sti7roi-vjpsp6a"
     os.environ["DISABLE_ADMIN_UI"] = "True"
 
+    import sys
     cmd = [
+        sys.executable,
+        "-m",
         "litellm",
         "--config", CONFIG_PATH,
         "--port", str(PORT),

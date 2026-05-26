@@ -44,7 +44,7 @@ RUN uv pip install --system --break-system-packages --no-cache-dir \
 RUN python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='gpt2', filename='config.json')"
 
 # Create non-root user 'user' with sudo access and bash shell
-RUN useradd -m -u 1000 -s /bin/bash user && \
+RUN userdel -f ubuntu && useradd -m -u 1000 -s /bin/bash user && \
     echo "user:apple123" | chpasswd && \
     usermod -aG sudo user && \
     mkdir -p /home/user/.torch_metrics && \
