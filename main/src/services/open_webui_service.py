@@ -34,6 +34,13 @@ def start():
     # Data directory inside the metrics/state folder so it survives redeploys.
     env["DATA_DIR"] = os.path.join(METRICS_DIR, "open_webui_data")
     os.makedirs(env["DATA_DIR"], exist_ok=True)
+    # CRITICAL: HF Spaces injects PORT=7860 into the environment. Open WebUI
+    # reads PORT (and UVICORN_PORT) and will bind to 7860, stealing the public
+    # port from Caddy before it starts. Override both to lock it to localhost:3000.
+    env["PORT"] = str(PORT)
+    env["HOST"] = "127.0.0.1"
+    env["UVICORN_HOST"] = "127.0.0.1"
+    env["UVICORN_PORT"] = str(PORT)
 
     from pathlib import Path
     open_webui_bin = "/opt/venv-openwebui/bin/open-webui" if Path("/opt/venv-openwebui/bin/open-webui").exists() else "open-webui"

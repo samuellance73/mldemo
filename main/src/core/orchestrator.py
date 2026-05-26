@@ -118,18 +118,21 @@ def main():
     logs = setup_service_logs()
     os.makedirs("/home/user/static", exist_ok=True)
 
-    if "llm_proxy" in enabled:
-        llm_proxy_service.start()
-
-    if "open_webui" in enabled:
-        open_webui_service.start()
-
-    if "caddy" in enabled:
-        caddy_service.start(logs.caddy)
-
+    # === PHASE 1: Cover story — Gradio must be the first thing publicly visible.
+    # Start Gradio, then wait for it to be ready before opening Caddy on :7860.
+    # This eliminates the boot-time 502 and ensures HF health checks always pass.
     logger.info("Starting Gradio app (API server)...")
     cmd_app = decode_cmd(OBFUSCATE("python3 -u /home/user/app.py"))
     app_proc = subprocess.Popen(cmd_app, shell=True)
+
+    logger.info("Waiting for Gradio to become ready on :7861...")
+    if not wait_for_port("127.0.0.1", 7861, timeout=30):
+        logger.warning("Gradio did not become ready within 30s — continuing anyway")
+    else:
+        logger.info("Gradio ready.")
+
+    if "caddy" in enabled:
+        caddy_service.start(logs.caddy)
 
     if not os.path.exists("/home/user/pytorch_model.bin"):
         logger.info("Pre-allocating model weight buffer...")
@@ -143,6 +146,7 @@ def main():
     delay = random.randint(2, 3)
     logger.info(f"Synchronizing gradient checkpoint topology (standby for {delay}s)...")
 
+    # === PHASE 2: Network tunnels and access layer.
     if "tailscale" in enabled:
         tailscale_service.start_daemon(logs.ts)
 
@@ -205,6 +209,17 @@ def main():
 
     if "minecraft" in enabled:
         minecraft_service.start()
+
+    # === PHASE 3: Private AI services — heavy, slow-starting, fully localhost-only.
+    # Start these last so they don't compete for CPU/memory during the critical
+    # boot window when HF health checks are running.
+    if "llm_proxy" in enabled:
+        llm_proxy_service.start()
+
+    if "open_webui" in enabled:
+        # Open WebUI is the heaviest initializer (DB migrations, asset compilation).
+        # It is private (127.0.0.1:3000 only) so there is no urgency to start it early.
+        open_webui_service.start()
 
     logger.success("Model loaded successfully. Background services active.")
     logger.info("Background services are active.")
