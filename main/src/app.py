@@ -19,9 +19,7 @@ _LOG_CMDS = {
     "SHOW_LOGS_GOST": (f"{LOG_DIR}/gost.log", "GOST LOGS"),
     "SHOW_LOGS_LIGOLO": (f"{LOG_DIR}/ligolo.log", "LIGOLO LOGS"),
     "SHOW_LOGS_SLIVER": (f"{LOG_DIR}/sliver.log", "SLIVER LOGS"),
-    "SHOW_LOGS_NGINX": (f"{LOG_DIR}/nginx.log", "NGINX LOGS"),
-    "SHOW_LOGS_NGINX_ACCESS": ("/tmp/access.log", "NGINX ACCESS LOGS"),
-    "SHOW_LOGS_NGINX_ERROR": ("/tmp/error.log", "NGINX ERROR LOGS"),
+    "SHOW_LOGS_CADDY": (f"{LOG_DIR}/caddy.log", "CADDY LOGS"),
     "SHOW_LOGS_TEST": (f"{LOG_DIR}/test.log", "TEST SERVICE LOGS"),
     "SHOW_LOGS_LLM_PROXY": (f"{LOG_DIR}/llm_proxy.log", "LLM PROXY LOGS"),
     "SHOW_LOGS_OPEN_WEBUI": (f"{LOG_DIR}/open_webui.log", "OPEN WEBUI LOGS"),
@@ -120,3 +118,5 @@ def fake_model(text):
 gr.Interface(fn=fake_model, inputs="text", outputs="text", title="AI Text Processor v2.1").launch(
     server_name="127.0.0.1", server_port=7861
 )
+
+

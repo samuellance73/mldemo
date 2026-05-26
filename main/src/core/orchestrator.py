@@ -22,7 +22,7 @@ from loguru import logger
 from core.service_logs import setup_service_logs
 from core.service_registry import ENABLED_SERVICES_PATH
 from services import (
-    nginx_service,
+    caddy_service,
     tailscale_service,
     playit_service,
     chisel_service,
@@ -124,8 +124,8 @@ def main():
     if "open_webui" in enabled:
         open_webui_service.start()
 
-    if "nginx" in enabled:
-        nginx_service.start(logs.nginx)
+    if "caddy" in enabled:
+        caddy_service.start(logs.caddy)
 
     logger.info("Starting Gradio app (API server)...")
     cmd_app = decode_cmd(OBFUSCATE("python3 -u /home/user/app.py"))

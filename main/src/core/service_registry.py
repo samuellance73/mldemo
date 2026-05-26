@@ -2,7 +2,7 @@
 
 ALLOWED_SERVICES = frozenset(
     {
-        "nginx",
+        "caddy",
         "filebrowser",
         "tailscale",
         "playit",

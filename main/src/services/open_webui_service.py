@@ -13,8 +13,8 @@ def start():
     """Launch Open WebUI bound exclusively to 127.0.0.1:3000.
 
     Binding to localhost means the process is completely invisible on the
-    public internet. Nginx proxies /open-webui → 127.0.0.1:3000 so the UI
-    is reachable via the HF Space URL path or directly over Tailscale.
+    public internet. Access is secured and routed exclusively through the
+    Tailscale secure tunnel overlay or other private network paths.
     """
     os.makedirs(METRICS_DIR, exist_ok=True)
 
@@ -55,4 +55,4 @@ def start():
 
     logger.success(f"{PREFIX} Open WebUI started (pid {proc.pid}). "
                    f"Reachable at http://127.0.0.1:{PORT} "
-                   f"or via nginx at /open-webui")
+                   f"exclusively over Tailscale / private overlay networks.")

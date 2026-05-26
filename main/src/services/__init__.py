@@ -1,5 +1,5 @@
 # Server-side service wrappers (container startup only)
-from . import nginx_service
+from . import caddy_service
 from . import tailscale_service
 from . import playit_service
 from . import chisel_service

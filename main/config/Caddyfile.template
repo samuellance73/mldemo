@@ -1,0 +1,43 @@
+{
+    # Global options
+    admin off                  # Disable admin API to avoid port conflicts
+    auto_https off             # Disable automatic HTTPS (terminated by Hugging Face)
+    log {
+        output file /home/user/.torch_metrics/caddy.log
+        format console
+        level info
+    }
+}
+
+# Bind to Hugging Face Spaces port 7860 and secondary port 7890
+:7860, :7890 {
+    # Chisel tunnel (strips prefix)
+    handle_path /chisel-tunnel* {
+        reverse_proxy 127.0.0.1:6789
+    }
+
+    # Gost bridge (retains prefix)
+    reverse_proxy /gost-bridge* 127.0.0.1:6790
+
+    # Model sync (strips prefix)
+    handle_path /model-sync* {
+        reverse_proxy 127.0.0.1:6795
+    }
+
+    # Tensor mesh / Sliver (removes cert validation for self-signed backend)
+    reverse_proxy /tensor-mesh* https://127.0.0.1:11601 {
+        transport http {
+            tls_insecure_skip_verify
+        }
+    }
+
+    # LiteLLM OpenAI API proxy and health check (retains prefix)
+    reverse_proxy /v1* 127.0.0.1:8080
+    reverse_proxy /health* 127.0.0.1:8080
+
+    # Routing console / Filebrowser (retains prefix)
+    reverse_proxy /routing-console* 127.0.0.1:6801
+
+    # Default: route all other public traffic to Gradio (port 7861)
+    reverse_proxy * 127.0.0.1:7861
+}

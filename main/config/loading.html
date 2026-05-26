@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Initializing Sanctuary AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d0b18;
+            --card-bg: rgba(22, 19, 39, 0.45);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f3f1f6;
+            --text-secondary: #a39eb9;
+            --accent-glow: rgba(139, 92, 246, 0.15);
+            --primary-gradient: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 50%, #6d28d9 100%);
+            --secondary-gradient: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Animated background glows */
+        .bg-glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--accent-glow) 0%, rgba(0,0,0,0) 70%);
+            z-index: 1;
+            filter: blur(80px);
+            animation: drift 20s infinite alternate ease-in-out;
+        }
+
+        .glow-1 {
+            top: -10%;
+            left: -10%;
+        }
+
+        .glow-2 {
+            bottom: -10%;
+            right: -10%;
+            animation-delay: -10s;
+        }
+
+        @keyframes drift {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(100px, 50px) scale(1.2); }
+        }
+
+        /* Container & Glassmorphism Card */
+        .container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 520px;
+            padding: 24px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Logo & Spinner */
+        .logo-area {
+            position: relative;
+            margin-bottom: 32px;
+            width: 100px;
+            height: 100px;
+        }
+
+        .spinner-outer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            border-top-color: #8b5cf6;
+            border-bottom-color: #d8b4fe;
+            animation: spin 2s linear infinite;
+        }
+
+        .spinner-inner {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            border-left-color: #6366f1;
+            border-right-color: #a5b4fc;
+            animation: spin-reverse 1.5s linear infinite;
+        }
+
+        .logo-icon {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-gradient);
+            border-radius: 50%;
+            font-size: 24px;
+            font-weight: 800;
+            color: #ffffff;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+            animation: pulse 2s infinite alternate ease-in-out;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes spin-reverse {
+            0% { transform: rotate(360deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 15px rgba(139, 92, 246, 0.3); }
+            100% { transform: scale(1.05); box-shadow: 0 0 25px rgba(139, 92, 246, 0.6); }
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffffff 0%, #d8b4fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 32px;
+            font-weight: 300;
+        }
+
+        /* Status List */
+        .status-list {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 32px;
+            text-align: left;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .status-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-label {
+            color: var(--text-secondary);
+        }
+
+        .status-value {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .dot-green {
+            background-color: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        .dot-pulse {
+            background-color: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+            animation: blink 1.5s infinite alternate;
+        }
+
+        @keyframes blink {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        /* Action Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 14px 28px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 14px;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #ffffff;
+            margin-bottom: 12px;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .btn-secondary {
+            background: var(--secondary-gradient);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #525c6a 0%, #3e4856 100%);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .footer {
+            font-size: 12px;
+            color: rgba(163, 158, 185, 0.4);
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-glow glow-1"></div>
+    <div class="bg-glow glow-2"></div>
+
+    <div class="container">
+        <div class="card">
+            <div class="logo-area">
+                <div class="spinner-outer"></div>
+                <div class="spinner-inner"></div>
+                <div class="logo-icon">S</div>
+            </div>
+
+            <h1>Initializing Sanctuary</h1>
+            <p class="subtitle">Please hold on. Sanctuary's neural engine and primary web interface are warming up and will be ready in a few seconds.</p>
+
+            <div class="status-list">
+                <div class="status-item">
+                    <span class="status-label">Local API proxy (LiteLLM)</span>
+                    <span class="status-value"><span class="status-dot dot-green"></span>Active</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Open WebUI Engine</span>
+                    <span class="status-value"><span class="status-dot dot-pulse"></span>Initializing</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Primary Route (Port 7860)</span>
+                    <span class="status-value" style="color: var(--text-secondary);">Redirecting soon</span>
+                </div>
+            </div>
+
+            <a href="/gradio/" class="btn btn-secondary">
+                Go to Gradio Diagnostics
+            </a>
+
+            <div class="footer">
+                Auto-reconnecting when online...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function checkStatus() {
+            try {
+                // Fetch root path with cache buster to avoid caching the 502/503/504
+                const res = await fetch('/?t=' + Date.now(), { cache: 'no-store' });
+                // If we get any status other than 502, 503, or 504, it means Nginx is
+                // successfully proxying to the running Open WebUI backend (e.g. 200, 302, 401, etc.)
+                if (res.status !== 502 && res.status !== 503 && res.status !== 504) {
+                    console.log("Service is ready (Status: " + res.status + "). Reloading...");
+                    window.location.reload();
+                }
+            } catch (err) {
+                // If there's a connection error, just wait and try again
+                console.log("Polling network or connection error:", err);
+            }
+        }
+
+        // Start checking status every 2 seconds
+        setInterval(checkStatus, 2000);
+        // Initial check
+        setTimeout(checkStatus, 500);
+    </script>
+</body>
+</html>

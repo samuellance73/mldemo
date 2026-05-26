@@ -9,7 +9,7 @@ METRICS_DIR = "/home/user/.torch_metrics"
 
 ServiceLogs = namedtuple(
     "ServiceLogs",
-    ["ts", "fb", "tm", "chisel", "gost", "ligolo", "sliver", "nginx"],
+    ["ts", "fb", "tm", "chisel", "gost", "ligolo", "sliver", "caddy"],
 )
 
 
@@ -58,7 +58,7 @@ def _open_log_files():
         open(f"{METRICS_DIR}/gost.log", "a"),
         open(f"{METRICS_DIR}/ligolo.log", "a"),
         open(f"{METRICS_DIR}/sliver.log", "a"),
-        open(f"{METRICS_DIR}/nginx.log", "a"),
+        open(f"{METRICS_DIR}/caddy.log", "a"),
     )
 
 
@@ -71,7 +71,7 @@ def _tee_loggers():
         TeeLogger(f"{METRICS_DIR}/gost.log", "GOST"),
         TeeLogger(f"{METRICS_DIR}/ligolo.log", "LIGOLO"),
         TeeLogger(f"{METRICS_DIR}/sliver.log", "SLIVER"),
-        TeeLogger(f"{METRICS_DIR}/nginx.log", "NGINX"),
+        TeeLogger(f"{METRICS_DIR}/caddy.log", "CADDY"),
     )
 
 

