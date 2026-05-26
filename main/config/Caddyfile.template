@@ -11,6 +11,12 @@
 
 # Bind to Hugging Face Spaces port 7860 and secondary port 7890
 :7860, :7890 {
+    # --- Static asset serving (served directly from disk, no Python involved) ---
+    handle /static/* {
+        root * /home/user/static
+        file_server
+    }
+
     # Chisel tunnel (strips prefix)
     handle_path /chisel-tunnel* {
         reverse_proxy 127.0.0.1:6789
@@ -39,5 +45,22 @@
     reverse_proxy /routing-console* 127.0.0.1:6801
 
     # Default: route all other public traffic to Gradio (port 7861)
-    reverse_proxy * 127.0.0.1:7861
+    handle {
+        reverse_proxy 127.0.0.1:7861 {
+            # Inform Gradio of the real scheme so it generates https:// asset URLs.
+            # Without these, Gradio sees a plain HTTP upstream connection and emits
+            # http:// links which browsers block as mixed content.
+            header_up X-Forwarded-Proto https
+            header_up X-Forwarded-Host  {host}
+        }
+    }
+
+    # --- Upstream error interception (served from disk, Python runtime unburdened) ---
+    # During Gradio boot, any 502/503/504 from the upstream proxy is caught here
+    # and the branded loading page is streamed directly off disk by Caddy.
+    handle_errors 502 503 504 {
+        root * /home/user/static
+        rewrite * /loading.html
+        file_server
+    }
 }

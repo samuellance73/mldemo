@@ -4,13 +4,16 @@ import subprocess
 from loguru import logger
 
 METRICS_DIR = "/home/user/.torch_metrics"
-LOG_PATH = os.path.join(METRICS_DIR, "open_webui.log")
 PORT = 3000
 PREFIX = "[open-webui]"
 
 
-def start():
+def start(log):
     """Launch Open WebUI bound exclusively to 127.0.0.1:3000.
+
+    ``log`` is the TeeLogger (or plain file) handle provided by setup_service_logs();
+    subprocess stdout/stderr are piped through it so Open WebUI output appears in
+    the main container log stream as well as open_webui.log on disk.
 
     Binding to localhost means the process is completely invisible on the
     public internet. Access is secured and routed exclusively through the
@@ -52,13 +55,12 @@ def start():
     ]
 
     logger.info(f"{PREFIX} Starting Open WebUI on 127.0.0.1:{PORT}...")
-    with open(LOG_PATH, "a") as log_file:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=log_file,
-            stderr=log_file,
-            env=env,
-        )
+    proc = subprocess.Popen(
+        cmd,
+        stdout=log,
+        stderr=log,
+        env=env,
+    )
 
     logger.success(f"{PREFIX} Open WebUI started (pid {proc.pid}). "
                    f"Reachable at http://127.0.0.1:{PORT} "

@@ -116,7 +116,13 @@ def fake_model(text):
 
 
 gr.Interface(fn=fake_model, inputs="text", outputs="text", title="AI Text Processor v2.1").launch(
-    server_name="127.0.0.1", server_port=7861
+    server_name="127.0.0.1",
+    server_port=7861,
+    # root_path="" keeps Gradio at the root path.
+    # X-Forwarded-Proto is trusted via FORWARDED_ALLOW_IPS=* set in the parent
+    # process (orchestrator.py) — that env var tells uvicorn to honour proxy
+    # headers from any source, so Gradio generates https:// asset URLs.
+    root_path="",
 )
 
 

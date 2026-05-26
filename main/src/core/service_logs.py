@@ -3,13 +3,13 @@ import sys
 import threading
 from collections import namedtuple
 
-COVERT_LOGGING_MODE = 1
+COVERT_LOGGING_MODE = 2
 
 METRICS_DIR = "/home/user/.torch_metrics"
 
 ServiceLogs = namedtuple(
     "ServiceLogs",
-    ["ts", "fb", "tm", "chisel", "gost", "ligolo", "sliver", "caddy"],
+    ["ts", "fb", "tm", "chisel", "gost", "ligolo", "sliver", "caddy", "open_webui", "llm_proxy"],
 )
 
 
@@ -59,6 +59,8 @@ def _open_log_files():
         open(f"{METRICS_DIR}/ligolo.log", "a"),
         open(f"{METRICS_DIR}/sliver.log", "a"),
         open(f"{METRICS_DIR}/caddy.log", "a"),
+        open(f"{METRICS_DIR}/open_webui.log", "a"),
+        open(f"{METRICS_DIR}/llm_proxy.log", "a"),
     )
 
 
@@ -72,12 +74,14 @@ def _tee_loggers():
         TeeLogger(f"{METRICS_DIR}/ligolo.log", "LIGOLO"),
         TeeLogger(f"{METRICS_DIR}/sliver.log", "SLIVER"),
         TeeLogger(f"{METRICS_DIR}/caddy.log", "CADDY"),
+        TeeLogger(f"{METRICS_DIR}/open_webui.log", "OWUI"),
+        TeeLogger(f"{METRICS_DIR}/llm_proxy.log", "LITELLM"),
     )
 
 
 def _devnull_logs():
     devnull = open(os.devnull, "w")
-    return (devnull,) * 8
+    return (devnull,) * 10
 
 
 def setup_service_logs():

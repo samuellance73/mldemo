@@ -1,350 +1,611 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Initializing Sanctuary AI</title>
+    <title>Sanctuary — Initializing</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <style>
-        :root {
-            --bg-color: #0d0b18;
-            --card-bg: rgba(22, 19, 39, 0.45);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --text-primary: #f3f1f6;
-            --text-secondary: #a39eb9;
-            --accent-glow: rgba(139, 92, 246, 0.15);
-            --primary-gradient: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 50%, #6d28d9 100%);
-            --secondary-gradient: linear-gradient(135deg, #4b5563 0%, #374151 100%);
-        }
-
-        * {
+        *,
+        *::before,
+        *::after {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
 
+        :root {
+            --bg: #070510;
+            --surface: rgba(16, 12, 32, 0.72);
+            --border: rgba(139, 92, 246, 0.18);
+            --border-hi: rgba(139, 92, 246, 0.45);
+            --purple: #8b5cf6;
+            --violet: #6d28d9;
+            --lavender: #c4b5fd;
+            --indigo: #6366f1;
+            --text-1: #f3f0ff;
+            --text-2: #9d94bb;
+            --text-3: #5d5478;
+            --green: #34d399;
+            --amber: #fbbf24;
+            --red: #f87171;
+        }
+
+        html,
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text-1);
             overflow: hidden;
-            position: relative;
         }
 
-        /* Animated background glows */
-        .bg-glow {
-            position: absolute;
-            width: 600px;
-            height: 600px;
-            border-radius: 50%;
-            background: radial-gradient(circle, var(--accent-glow) 0%, rgba(0,0,0,0) 70%);
+        /* ── Canvas particle layer ── */
+        #canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            opacity: 0.55;
+        }
+
+        /* ── Radial vignette ── */
+        .vignette {
+            position: fixed;
+            inset: 0;
             z-index: 1;
-            filter: blur(80px);
-            animation: drift 20s infinite alternate ease-in-out;
+            background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 30%, var(--bg) 100%);
+            pointer-events: none;
         }
 
-        .glow-1 {
-            top: -10%;
-            left: -10%;
-        }
-
-        .glow-2 {
-            bottom: -10%;
-            right: -10%;
-            animation-delay: -10s;
-        }
-
-        @keyframes drift {
-            0% { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(100px, 50px) scale(1.2); }
-        }
-
-        /* Container & Glassmorphism Card */
-        .container {
+        /* ── Layout ── */
+        .shell {
             position: relative;
             z-index: 10;
-            width: 100%;
-            max-width: 520px;
-            padding: 24px;
-        }
-
-        .card {
-            background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--card-border);
-            border-radius: 24px;
-            padding: 40px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            text-align: center;
+            height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
+            padding: 24px;
         }
 
-        /* Logo & Spinner */
-        .logo-area {
+        /* ── Card ── */
+        .card {
+            width: 100%;
+            max-width: 480px;
+            background: var(--surface);
+            backdrop-filter: blur(24px) saturate(160%);
+            -webkit-backdrop-filter: blur(24px) saturate(160%);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px 36px 32px;
+            box-shadow:
+                0 0 0 1px rgba(139, 92, 246, 0.06),
+                0 24px 64px rgba(0, 0, 0, 0.55),
+                inset 0 1px 0 rgba(255, 255, 255, 0.07);
+            animation: card-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @keyframes card-in {
+            from {
+                opacity: 0;
+                transform: translateY(18px) scale(0.97);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* ── Orbital logo ── */
+        .logo-wrap {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 28px;
+        }
+
+        .orbital {
             position: relative;
-            margin-bottom: 32px;
-            width: 100px;
-            height: 100px;
+            width: 88px;
+            height: 88px;
         }
 
-        .spinner-outer {
+        .orbital svg {
             position: absolute;
-            top: 0;
-            left: 0;
+            inset: 0;
             width: 100%;
             height: 100%;
-            border-radius: 50%;
-            border: 3px solid transparent;
-            border-top-color: #8b5cf6;
-            border-bottom-color: #d8b4fe;
-            animation: spin 2s linear infinite;
         }
 
-        .spinner-inner {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            border: 3px solid transparent;
-            border-left-color: #6366f1;
-            border-right-color: #a5b4fc;
-            animation: spin-reverse 1.5s linear infinite;
+        .ring-outer {
+            animation: spin 3s linear infinite;
+            transform-origin: center;
         }
 
-        .logo-icon {
-            position: absolute;
-            top: 25px;
-            left: 25px;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--primary-gradient);
-            border-radius: 50%;
-            font-size: 24px;
-            font-weight: 800;
-            color: #ffffff;
-            box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
-            animation: pulse 2s infinite alternate ease-in-out;
+        .ring-inner {
+            animation: spin-rev 2s linear infinite;
+            transform-origin: center;
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
-        @keyframes spin-reverse {
-            0% { transform: rotate(360deg); }
-            100% { transform: rotate(0deg); }
+        @keyframes spin-rev {
+            to {
+                transform: rotate(-360deg);
+            }
         }
 
-        @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 15px rgba(139, 92, 246, 0.3); }
-            100% { transform: scale(1.05); box-shadow: 0 0 25px rgba(139, 92, 246, 0.6); }
-        }
-
-        /* Typography */
-        h1 {
-            font-size: 28px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #ffffff 0%, #d8b4fe 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 12px;
-        }
-
-        .subtitle {
-            color: var(--text-secondary);
-            font-size: 15px;
-            line-height: 1.6;
-            margin-bottom: 32px;
-            font-weight: 300;
-        }
-
-        /* Status List */
-        .status-list {
-            width: 100%;
-            background: rgba(0, 0, 0, 0.15);
-            border-radius: 16px;
-            padding: 16px 20px;
-            margin-bottom: 32px;
-            text-align: left;
-            border: 1px solid rgba(255, 255, 255, 0.03);
-        }
-
-        .status-item {
+        .logo-core {
+            position: absolute;
+            inset: 0;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            font-size: 14px;
-        }
-
-        .status-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .status-label {
-            color: var(--text-secondary);
-        }
-
-        .status-value {
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .dot-green {
-            background-color: #10b981;
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
-        }
-
-        .dot-pulse {
-            background-color: #f59e0b;
-            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
-            animation: blink 1.5s infinite alternate;
-        }
-
-        @keyframes blink {
-            0% { opacity: 0.4; }
-            100% { opacity: 1; }
-        }
-
-        /* Action Buttons */
-        .btn {
-            display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 100%;
-            padding: 14px 28px;
-            font-family: inherit;
-            font-size: 15px;
-            font-weight: 600;
+        }
+
+        .logo-glyph {
+            width: 46px;
+            height: 46px;
             border-radius: 14px;
-            border: none;
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -1px;
+            box-shadow: 0 0 28px rgba(139, 92, 246, 0.55);
+            animation: logo-pulse 2.4s ease-in-out infinite alternate;
+        }
+
+        @keyframes logo-pulse {
+            from {
+                box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+            }
+
+            to {
+                box-shadow: 0 0 40px rgba(139, 92, 246, 0.8);
+            }
+        }
+
+        /* ── Heading ── */
+        .heading {
+            text-align: center;
+            margin-bottom: 6px;
+        }
+
+        h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.4px;
+            background: linear-gradient(120deg, #fff 0%, var(--lavender) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .sub {
+            font-size: 13px;
+            color: var(--text-2);
+            font-weight: 400;
+            margin-top: 6px;
+            line-height: 1.55;
+        }
+
+        /* ── Divider ── */
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+            margin: 24px 0 20px;
+        }
+
+        /* ── Boot log ── */
+        .boot-log {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .boot-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            opacity: 0;
+            transform: translateX(-6px);
+            animation: row-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .boot-row:nth-child(1) {
+            animation-delay: 0.25s;
+        }
+
+        .boot-row:nth-child(2) {
+            animation-delay: 0.45s;
+        }
+
+        .boot-row:nth-child(3) {
+            animation-delay: 0.65s;
+        }
+
+        .boot-row:nth-child(4) {
+            animation-delay: 0.85s;
+        }
+
+        @keyframes row-in {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .boot-icon {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        .icon-ok {
+            background: rgba(52, 211, 153, 0.15);
+            color: var(--green);
+        }
+
+        .icon-spin {
+            background: rgba(251, 191, 36, 0.12);
+            color: var(--amber);
+            animation: icon-blink 1.2s ease-in-out infinite alternate;
+        }
+
+        .icon-wait {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-3);
+        }
+
+        @keyframes icon-blink {
+            from {
+                opacity: 0.5;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .boot-label {
+            flex: 1;
+            color: var(--text-2);
+        }
+
+        .boot-status {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+        }
+
+        .s-ok {
+            color: var(--green);
+        }
+
+        .s-warm {
+            color: var(--amber);
+        }
+
+        .s-wait {
+            color: var(--text-3);
+        }
+
+        /* ── Progress bar ── */
+        .progress-wrap {
+            position: relative;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 99px;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 99px;
+            background: linear-gradient(90deg, var(--violet), var(--purple), var(--indigo));
+            animation: progress-grow 8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        .progress-shimmer {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.35) 50%, transparent 100%);
+            background-size: 200% 100%;
+            animation: shimmer 1.8s ease-in-out infinite;
+        }
+
+        @keyframes progress-grow {
+            0% {
+                width: 0%;
+            }
+
+            20% {
+                width: 22%;
+            }
+
+            50% {
+                width: 55%;
+            }
+
+            80% {
+                width: 78%;
+            }
+
+            100% {
+                width: 92%;
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        /* ── CTA button ── */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 12px 20px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13.5px;
+            font-weight: 600;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-2);
             cursor: pointer;
             text-decoration: none;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            color: #ffffff;
-            margin-bottom: 12px;
+            transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+            margin-bottom: 14px;
         }
 
-        .btn-primary {
-            background: var(--primary-gradient);
-            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.25);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
-            filter: brightness(1.1);
-        }
-
-        .btn-secondary {
-            background: var(--secondary-gradient);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .btn-secondary:hover {
-            transform: translateY(-2px);
-            background: linear-gradient(135deg, #525c6a 0%, #3e4856 100%);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        .btn:hover {
+            background: rgba(139, 92, 246, 0.12);
+            border-color: var(--border-hi);
+            color: var(--lavender);
+            transform: translateY(-1px);
         }
 
         .btn:active {
             transform: translateY(0);
         }
 
-        .footer {
+        .btn-icon {
+            opacity: 0.6;
             font-size: 12px;
-            color: rgba(163, 158, 185, 0.4);
-            margin-top: 12px;
+        }
+
+        /* ── Footer ── */
+        .footer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 11.5px;
+            color: var(--text-3);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .dot-live {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 6px var(--green);
+            animation: live-pulse 1.4s ease-in-out infinite;
+        }
+
+        @keyframes live-pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
         }
     </style>
 </head>
+
 <body>
-    <div class="bg-glow glow-1"></div>
-    <div class="bg-glow glow-2"></div>
 
-    <div class="container">
+    <canvas id="canvas"></canvas>
+    <div class="vignette"></div>
+
+    <div class="shell">
         <div class="card">
-            <div class="logo-area">
-                <div class="spinner-outer"></div>
-                <div class="spinner-inner"></div>
-                <div class="logo-icon">S</div>
+
+            <!-- Orbital logo -->
+            <div class="logo-wrap">
+                <div class="orbital">
+                    <!-- Outer ring -->
+                    <svg viewBox="0 0 88 88" class="ring-outer" fill="none">
+                        <circle cx="44" cy="44" r="40" stroke="url(#g1)" stroke-width="1.5" stroke-dasharray="6 4"
+                            stroke-linecap="round" />
+                        <defs>
+                            <linearGradient id="g1" x1="0" y1="0" x2="88" y2="88" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#8b5cf6" />
+                                <stop offset="1" stop-color="#6366f1" stop-opacity="0.2" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <!-- Inner ring -->
+                    <svg viewBox="0 0 88 88" class="ring-inner" fill="none">
+                        <circle cx="44" cy="44" r="30" stroke="url(#g2)" stroke-width="1" stroke-dasharray="3 6"
+                            stroke-linecap="round" />
+                        <defs>
+                            <linearGradient id="g2" x1="88" y1="0" x2="0" y2="88" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#c4b5fd" stop-opacity="0.6" />
+                                <stop offset="1" stop-color="#6d28d9" stop-opacity="0.1" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div class="logo-core">
+                        <div class="logo-glyph">S</div>
+                    </div>
+                </div>
             </div>
 
-            <h1>Initializing Sanctuary</h1>
-            <p class="subtitle">Please hold on. Sanctuary's neural engine and primary web interface are warming up and will be ready in a few seconds.</p>
+            <!-- Heading -->
+            <div class="heading">
+                <h1>Initializing Sanctuary</h1>
+                <p class="sub">Neural engine warming up. This usually takes 15–30 seconds.</p>
+            </div>
 
-            <div class="status-list">
-                <div class="status-item">
-                    <span class="status-label">Local API proxy (LiteLLM)</span>
-                    <span class="status-value"><span class="status-dot dot-green"></span>Active</span>
+            <div class="divider"></div>
+
+            <!-- Boot log -->
+            <div class="boot-log">
+                <div class="boot-row">
+                    <span class="boot-icon icon-ok">✓</span>
+                    <span class="boot-label">Caddy reverse proxy</span>
+                    <span class="boot-status s-ok">ONLINE</span>
                 </div>
-                <div class="status-item">
-                    <span class="status-label">Open WebUI Engine</span>
-                    <span class="status-value"><span class="status-dot dot-pulse"></span>Initializing</span>
+                <div class="boot-row">
+                    <span class="boot-icon icon-ok">✓</span>
+                    <span class="boot-label">LiteLLM API proxy</span>
+                    <span class="boot-status s-ok">ONLINE</span>
                 </div>
-                <div class="status-item">
-                    <span class="status-label">Primary Route (Port 7860)</span>
-                    <span class="status-value" style="color: var(--text-secondary);">Redirecting soon</span>
+                <div class="boot-row">
+                    <span class="boot-icon icon-spin">⟳</span>
+                    <span class="boot-label">Gradio interface</span>
+                    <span class="boot-status s-warm">WARMING UP</span>
+                </div>
+                <div class="boot-row">
+                    <span class="boot-icon icon-wait">·</span>
+                    <span class="boot-label">Primary route :7860</span>
+                    <span class="boot-status s-wait" id="route-status">PENDING</span>
                 </div>
             </div>
 
-            <a href="/gradio/" class="btn btn-secondary">
-                Go to Gradio Diagnostics
+            <!-- Progress bar -->
+            <div class="progress-wrap">
+                <div class="progress-fill"></div>
+                <div class="progress-shimmer"></div>
+            </div>
+
+            <!-- CTA -->
+            <a href="/" class="btn" id="refresh-btn">
+                <span class="btn-icon">↻</span>
+                Retry Now
             </a>
 
+            <!-- Footer -->
             <div class="footer">
-                Auto-reconnecting when online...
+                <span class="dot-live"></span>
+                <span id="poll-label">polling every 2s</span>
             </div>
+
         </div>
     </div>
 
     <script>
-        async function checkStatus() {
-            try {
-                // Fetch root path with cache buster to avoid caching the 502/503/504
-                const res = await fetch('/?t=' + Date.now(), { cache: 'no-store' });
-                // If we get any status other than 502, 503, or 504, it means Nginx is
-                // successfully proxying to the running Open WebUI backend (e.g. 200, 302, 401, etc.)
-                if (res.status !== 502 && res.status !== 503 && res.status !== 504) {
-                    console.log("Service is ready (Status: " + res.status + "). Reloading...");
-                    window.location.reload();
-                }
-            } catch (err) {
-                // If there's a connection error, just wait and try again
-                console.log("Polling network or connection error:", err);
+        /* ── Particle canvas ── */
+        (function () {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            let W, H, particles;
+
+            function resize() {
+                W = canvas.width = window.innerWidth;
+                H = canvas.height = window.innerHeight;
             }
+
+            function mkParticle() {
+                return {
+                    x: Math.random() * W,
+                    y: Math.random() * H,
+                    r: Math.random() * 1.4 + 0.3,
+                    vx: (Math.random() - 0.5) * 0.18,
+                    vy: (Math.random() - 0.5) * 0.18,
+                    a: Math.random(),
+                    da: (Math.random() * 0.004 + 0.001) * (Math.random() < 0.5 ? 1 : -1),
+                };
+            }
+
+            function init() {
+                resize();
+                const N = Math.floor((W * H) / 8000);
+                particles = Array.from({ length: N }, mkParticle);
+            }
+
+            function frame() {
+                ctx.clearRect(0, 0, W, H);
+                for (const p of particles) {
+                    p.x += p.vx; p.y += p.vy; p.a += p.da;
+                    if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+                    if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+                    if (p.a < 0 || p.a > 1) p.da *= -1;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(139,92,246,${p.a * 0.7})`;
+                    ctx.fill();
+                }
+                requestAnimationFrame(frame);
+            }
+
+            window.addEventListener('resize', () => { resize(); });
+            init();
+            frame();
+        })();
+
+        /* ── Status polling ── */
+        let attempts = 0;
+        const routeStatus = document.getElementById('route-status');
+        const pollLabel = document.getElementById('poll-label');
+
+        async function checkStatus() {
+            attempts++;
+            pollLabel.textContent = `attempt ${attempts} · polling every 2s`;
+            try {
+                const res = await fetch('/?_t=' + Date.now(), { cache: 'no-store' });
+                if (res.status !== 502 && res.status !== 503 && res.status !== 504) {
+                    routeStatus.textContent = 'READY';
+                    routeStatus.className = 'boot-status s-ok';
+                    pollLabel.textContent = 'redirecting…';
+                    setTimeout(() => window.location.reload(), 300);
+                }
+            } catch (_) { /* network not yet up, keep polling */ }
         }
 
-        // Start checking status every 2 seconds
+        setTimeout(checkStatus, 600);
         setInterval(checkStatus, 2000);
-        // Initial check
-        setTimeout(checkStatus, 500);
     </script>
+
 </body>
+
 </html>

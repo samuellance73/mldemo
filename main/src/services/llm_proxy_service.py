@@ -8,7 +8,6 @@ from loguru import logger
 from services.utils import deobfuscate_secret
 
 METRICS_DIR = "/home/user/.torch_metrics"
-LOG_PATH = os.path.join(METRICS_DIR, "llm_proxy.log")
 
 # Dynamic config path: write to /home/user inside Docker, or local dir otherwise
 CONFIG_PATH = "/home/user/litellm.yaml" if Path("/home/user").exists() else "litellm.yaml"
@@ -143,8 +142,13 @@ def _build_config() -> str:
     )
 
 
-def start():
-    """Start the LiteLLM proxy server on 127.0.0.1:8080."""
+def start(log):
+    """Start the LiteLLM proxy server on 127.0.0.1:8080.
+
+    ``log`` is the TeeLogger (or plain file) handle provided by setup_service_logs();
+    subprocess stdout/stderr are piped through it so LiteLLM output appears in
+    the main container log stream as well as llm_proxy.log on disk.
+    """
     os.makedirs(METRICS_DIR, exist_ok=True)
 
     config_yaml = _build_config()
@@ -166,10 +170,9 @@ def start():
         "--host", "127.0.0.1",
     ]
 
-    with open(LOG_PATH, "a") as log_file:
-        env = os.environ.copy()
-        env["PYTHONPATH"] = "/home/user" + (":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
-        proc = subprocess.Popen(cmd, stdout=log_file, stderr=log_file, env=env)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = "/home/user" + (":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+    proc = subprocess.Popen(cmd, stdout=log, stderr=log, env=env)
 
     logger.success(f"{PREFIX} litellm proxy started on 127.0.0.1:{PORT} (pid {proc.pid})")
 

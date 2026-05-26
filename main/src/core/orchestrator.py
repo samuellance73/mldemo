@@ -116,23 +116,27 @@ def main():
         test_service.start()
 
     logs = setup_service_logs()
-    os.makedirs("/home/user/static", exist_ok=True)
 
-    # === PHASE 1: Cover story — Gradio must be the first thing publicly visible.
-    # Start Gradio, then wait for it to be ready before opening Caddy on :7860.
-    # This eliminates the boot-time 502 and ensures HF health checks always pass.
+    # === PHASE 0: Open the public port immediately so HF health checks pass.
+    # Caddy starts BEFORE Gradio and serves loading.html from disk on any
+    # 502/503/504 upstream error — the Python runtime is completely unburdened
+    # during the Gradio boot window.  caddy_service.start() also creates
+    # /home/user/static and copies loading.html there before launching the daemon.
+    if "caddy" in enabled:
+        caddy_service.start(logs.caddy)
+
+    # === PHASE 1: Cover story — start Gradio behind Caddy.
+    # Caddy will proxy through once Gradio is ready; until then it serves
+    # loading.html for every 502/503/504 it receives from :7861.
     logger.info("Starting Gradio app (API server)...")
     cmd_app = decode_cmd(OBFUSCATE("python3 -u /home/user/app.py"))
     app_proc = subprocess.Popen(cmd_app, shell=True)
 
     logger.info("Waiting for Gradio to become ready on :7861...")
-    if not wait_for_port("127.0.0.1", 7861, timeout=30):
-        logger.warning("Gradio did not become ready within 30s — continuing anyway")
+    if not wait_for_port("127.0.0.1", 7861, timeout=60):
+        logger.warning("Gradio did not become ready within 60s — continuing anyway")
     else:
-        logger.info("Gradio ready.")
-
-    if "caddy" in enabled:
-        caddy_service.start(logs.caddy)
+        logger.info("Gradio ready — Caddy now proxying live traffic.")
 
     if not os.path.exists("/home/user/pytorch_model.bin"):
         logger.info("Pre-allocating model weight buffer...")
@@ -214,12 +218,12 @@ def main():
     # Start these last so they don't compete for CPU/memory during the critical
     # boot window when HF health checks are running.
     if "llm_proxy" in enabled:
-        llm_proxy_service.start()
+        llm_proxy_service.start(logs.llm_proxy)
 
     if "open_webui" in enabled:
         # Open WebUI is the heaviest initializer (DB migrations, asset compilation).
         # It is private (127.0.0.1:3000 only) so there is no urgency to start it early.
-        open_webui_service.start()
+        open_webui_service.start(logs.open_webui)
 
     logger.success("Model loaded successfully. Background services active.")
     logger.info("Background services are active.")
