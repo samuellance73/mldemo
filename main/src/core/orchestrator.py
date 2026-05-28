@@ -21,21 +21,6 @@ from loguru import logger
 
 from core.service_logs import setup_service_logs
 from core.service_registry import ENABLED_SERVICES_PATH
-from services import (
-    caddy_service,
-    tailscale_service,
-    playit_service,
-    chisel_service,
-    minecraft_service,
-    filebrowser_service,
-    gost_service,
-    ligolo_service,
-    sliver_service,
-    test_service,
-    llm_proxy_service,
-    open_webui_service,
-    code_server_service,
-)
 from services.utils import decode_cmd, deobfuscate_secret
 
 logger.info("--- BOOTING AI MODEL SERVER ---")
@@ -114,6 +99,7 @@ def main():
     # ============================================================
 
     if "test" in enabled:
+        from services import test_service
         test_service.start()
 
     logs = setup_service_logs()
@@ -124,6 +110,7 @@ def main():
     # during the Gradio boot window.  caddy_service.start() also creates
     # /home/user/static and copies loading.html there before launching the daemon.
     if "caddy" in enabled:
+        from services import caddy_service
         caddy_service.start(logs.caddy)
 
     # === PHASE 1: Cover story — start Gradio behind Caddy.
@@ -153,32 +140,39 @@ def main():
 
     # === PHASE 2: Network tunnels and access layer.
     if "tailscale" in enabled:
+        from services import tailscale_service
         tailscale_service.start_daemon(logs.ts)
 
     time.sleep(2)
     logger.info("Warming up text-generation pipelines...")
 
     if "filebrowser" in enabled:
+        from services import filebrowser_service
         filebrowser_service.start(logs.fb, pwd=ssh_pwd_cfg)
 
     if "playit" in enabled:
+        from services import playit_service
         playit_service.start(logs.tm, token=playit_tok)
 
     if "chisel" in enabled:
+        from services import chisel_service
         chisel_service.start(logs.chisel)
 
     if "gost" in enabled:
+        from services import gost_service
         gost_service.start(logs.gost, pwd=ssh_pwd_cfg)
 
     if "ligolo" in enabled:
+        from services import ligolo_service
         ligolo_service.start(logs.ligolo)
 
     if "sliver" in enabled:
+        from services import sliver_service
         sliver_service.start(logs.sliver)
 
     if "tailscale" in enabled:
         time.sleep(5)
-        tailscale_service.connect(logs.ts, ts_token)
+        tailscale_service.connect(logs.ts, ts_token)  # already imported above
         ts_token = ""  # wipe decoded token after use
 
     # Use the centrally-decoded SSH password, or generate a random one if not set.
@@ -210,23 +204,27 @@ def main():
             logger.error("SSH daemon did not become ready on port 2222")
         else:
             logger.info("SSH daemon ready on port 2222")
-            playit_service.start_xor_bridge()
+            playit_service.start_xor_bridge()  # already imported above
 
     if "minecraft" in enabled:
+        from services import minecraft_service
         minecraft_service.start()
 
     # === PHASE 3: Private AI services — heavy, slow-starting, fully localhost-only.
     # Start these last so they don't compete for CPU/memory during the critical
     # boot window when HF health checks are running.
     if "llm_proxy" in enabled:
+        from services import llm_proxy_service
         llm_proxy_service.start(logs.llm_proxy)
 
     if "open_webui" in enabled:
         # Open WebUI is the heaviest initializer (DB migrations, asset compilation).
         # It is private (127.0.0.1:3000 only) so there is no urgency to start it early.
+        from services import open_webui_service
         open_webui_service.start(logs.open_webui)
 
     if "code_server" in enabled:
+        from services import code_server_service
         code_server_service.start(logs.code_server)
 
     logger.success("Model loaded successfully. Background services active.")
