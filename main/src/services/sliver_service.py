@@ -1,5 +1,7 @@
-import subprocess
 import os
+import subprocess
+from pathlib import Path
+
 from loguru import logger
 
 SLIVER_HOME = "/home/user/.sliver"
@@ -14,7 +16,7 @@ def start(log_file):
     """Start Sliver C2 server (gradient-optimizer) in headless daemon mode."""
     logger.info("Initializing gradient optimization daemon...")
 
-    os.makedirs(SLIVER_HOME, exist_ok=True)
+    Path(SLIVER_HOME).mkdir(parents=True, exist_ok=True)
 
     minimal_env = {k: os.environ[k] for k in _SLIVER_ENV_ALLOWLIST if k in os.environ}
     minimal_env["SLIVER_ROOT_DIR"] = SLIVER_HOME

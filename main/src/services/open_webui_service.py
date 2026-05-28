@@ -1,6 +1,5 @@
 import os
 import subprocess
-import sys
 import threading
 import time
 from pathlib import Path
@@ -25,10 +24,14 @@ def _ensure_installed(log=None) -> str:
     Returns the path to the open-webui binary.
     """
     if Path(OWUI_BIN).exists():
-        logger.debug(f"{PREFIX} open-webui binary found at {OWUI_BIN}, skipping install.")
+        logger.debug(
+            f"{PREFIX} open-webui binary found at {OWUI_BIN}, skipping install."
+        )
         return OWUI_BIN
 
-    logger.info(f"{PREFIX} open-webui not found — running first-boot install into {VENV_DIR} ...")
+    logger.info(
+        f"{PREFIX} open-webui not found — running first-boot install into {VENV_DIR} ..."
+    )
     logger.info(f"{PREFIX} This will take a few minutes on the first start only.")
 
     def _run(cmd, **kwargs):
@@ -41,13 +44,17 @@ def _ensure_installed(log=None) -> str:
         )
         proc.wait()
         if proc.returncode != 0:
-            raise RuntimeError(f"{PREFIX} Install step failed: {' '.join(cmd)} (exit {proc.returncode})")
+            raise RuntimeError(
+                f"{PREFIX} Install step failed: {' '.join(cmd)} (exit {proc.returncode})"
+            )
 
     t0 = time.time()
     _run(["uv", "venv", VENV_DIR])
     _run(["uv", "pip", "install", "--python", VENV_DIR, "--no-cache-dir", "open-webui"])
     elapsed = time.time() - t0
-    logger.success(f"{PREFIX} open-webui installed in {elapsed:.1f}s — subsequent boots will be instant.")
+    logger.success(
+        f"{PREFIX} open-webui installed in {elapsed:.1f}s — subsequent boots will be instant."
+    )
     return OWUI_BIN
 
 
@@ -57,8 +64,10 @@ def _start_worker(log, env):
     cmd = [
         open_webui_bin,
         "serve",
-        "--host", "127.0.0.1",
-        "--port", str(PORT),
+        "--host",
+        "127.0.0.1",
+        "--port",
+        str(PORT),
     ]
 
     logger.info(f"{PREFIX} Starting Open WebUI on 127.0.0.1:{PORT}...")
@@ -69,9 +78,11 @@ def _start_worker(log, env):
         env=env,
     )
 
-    logger.success(f"{PREFIX} Open WebUI started (pid {proc.pid}). "
-                   f"Reachable at http://127.0.0.1:{PORT} "
-                   f"exclusively over Tailscale / private overlay networks.")
+    logger.success(
+        f"{PREFIX} Open WebUI started (pid {proc.pid}). "
+        f"Reachable at http://127.0.0.1:{PORT} "
+        f"exclusively over Tailscale / private overlay networks."
+    )
 
 
 def start(log):
@@ -88,7 +99,7 @@ def start(log):
     The actual install + launch runs in a daemon thread so the orchestrator
     is never blocked — even on a first-boot pip install that takes minutes.
     """
-    os.makedirs(METRICS_DIR, exist_ok=True)
+    Path(METRICS_DIR).mkdir(parents=True, exist_ok=True)
 
     env = os.environ.copy()
     # Point Open WebUI at the local LiteLLM proxy (same node).
@@ -104,8 +115,8 @@ def start(log):
         "sanctuary_owui_oauth_token_key_server01_32bytes",
     )
     # Data directory inside the metrics/state folder so it survives redeploys.
-    env["DATA_DIR"] = os.path.join(METRICS_DIR, "open_webui_data")
-    os.makedirs(env["DATA_DIR"], exist_ok=True)
+    env["DATA_DIR"] = str(Path(METRICS_DIR) / "open_webui_data")
+    Path(env["DATA_DIR"]).mkdir(parents=True, exist_ok=True)
     # CRITICAL: HF Spaces injects PORT=7860 into the environment. Open WebUI
     # reads PORT (and UVICORN_PORT) and will bind to 7860, stealing the public
     # port from Caddy before it starts. Override both to lock it to localhost:3000.
@@ -121,7 +132,9 @@ def start(log):
     env["ENABLE_RAG"] = "True"
     env["RAG_EMBEDDING_ENGINE"] = "openai"
     env["RAG_EMBEDDING_OPENAI_API_BASE_URL"] = "http://127.0.0.1:8080/v1"
-    env["RAG_EMBEDDING_OPENAI_API_KEY"] = env.get("LITELLM_MASTER_KEY", "none") or "none"
+    env["RAG_EMBEDDING_OPENAI_API_KEY"] = (
+        env.get("LITELLM_MASTER_KEY", "none") or "none"
+    )
 
     # --- Performance Profile: Browser-side STT (Zero Server Cost) ---
     # Whisper models require >500MB RAM and heavy CPU to run server-side.
@@ -133,5 +146,6 @@ def start(log):
 
     t = threading.Thread(target=_start_worker, args=(log, env), daemon=True)
     t.start()
-    logger.info(f"{PREFIX} install/launch dispatched to background thread (orchestrator unblocked).")
-
+    logger.info(
+        f"{PREFIX} install/launch dispatched to background thread (orchestrator unblocked)."
+    )

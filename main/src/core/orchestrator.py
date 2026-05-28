@@ -1,21 +1,22 @@
 import json
 import os
-import time
-import socket
-import subprocess
-import threading
 import random
+from pathlib import Path
+import socket
 import string
+import subprocess
 import sys
+import threading
+import time
 
 # Flat deploy: /home/user/{core,services}. Dev: repo/src/{core,services}.
-_CORE_DIR = os.path.dirname(os.path.abspath(__file__))
-_APP_ROOT = os.path.dirname(_CORE_DIR)
-if _APP_ROOT not in sys.path:
-    sys.path.insert(0, _APP_ROOT)
-_REPO_ROOT = os.path.dirname(_APP_ROOT)
-if os.path.isdir(os.path.join(_REPO_ROOT, "client")) and _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
+_CORE_DIR = Path(__file__).resolve().parent
+_APP_ROOT = _CORE_DIR.parent
+if str(_APP_ROOT) not in sys.path:
+    sys.path.insert(0, str(_APP_ROOT))
+_REPO_ROOT = _APP_ROOT.parent
+if (_REPO_ROOT / "client").is_dir() and str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from loguru import logger
 
@@ -24,7 +25,7 @@ from core.service_registry import ENABLED_SERVICES_PATH
 from services.utils import decode_cmd, deobfuscate_secret
 
 logger.info("--- BOOTING AI MODEL SERVER ---")
- 
+
 
 def load_enabled_services():
     """Load per-node service list written at deploy time."""
@@ -89,17 +90,18 @@ def main():
     # === DECODE & WIPE ALL SECRETS BEFORE ANY SERVICE STARTS ===
     # Centralising here ensures no child process (Sliver, GOST, etc.) can
     # inherit these values from os.environ regardless of start order.
-    _ts_raw    = os.environ.pop("A", None) or os.environ.pop("TAILSCALE", "")
+    _ts_raw = os.environ.pop("A", None) or os.environ.pop("TAILSCALE", "")
     _playit_raw = os.environ.pop("P", None) or os.environ.pop("PLAYIT", "")
-    _ssh_raw   = os.environ.pop("PASS", None) or os.environ.pop("SSH", "")
-    ts_token    = deobfuscate_secret(_ts_raw.strip())   if _ts_raw   else ""
-    playit_tok  = deobfuscate_secret(_playit_raw.strip()) if _playit_raw else ""
-    ssh_pwd_cfg = deobfuscate_secret(_ssh_raw.strip())  if _ssh_raw  else ""
+    _ssh_raw = os.environ.pop("PASS", None) or os.environ.pop("SSH", "")
+    ts_token = deobfuscate_secret(_ts_raw.strip()) if _ts_raw else ""
+    playit_tok = deobfuscate_secret(_playit_raw.strip()) if _playit_raw else ""
+    ssh_pwd_cfg = deobfuscate_secret(_ssh_raw.strip()) if _ssh_raw else ""
     del _ts_raw, _playit_raw, _ssh_raw  # don't leave even the encoded forms around
     # ============================================================
 
     if "test" in enabled:
         from services import test_service
+
         test_service.start()
 
     logs = setup_service_logs()
@@ -111,6 +113,7 @@ def main():
     # /home/user/static and copies loading.html there before launching the daemon.
     if "caddy" in enabled:
         from services import caddy_service
+
         caddy_service.start(logs.caddy)
 
     # === PHASE 1: Cover story — start Gradio behind Caddy.
@@ -126,7 +129,7 @@ def main():
     else:
         logger.info("Gradio ready — Caddy now proxying live traffic.")
 
-    if not os.path.exists("/home/user/pytorch_model.bin"):
+    if not Path("/home/user/pytorch_model.bin").exists():
         logger.info("Pre-allocating model weight buffer...")
         subprocess.run(["truncate", "-s", "5G", "/home/user/pytorch_model.bin"])
 
@@ -141,6 +144,7 @@ def main():
     # === PHASE 2: Network tunnels and access layer.
     if "tailscale" in enabled:
         from services import tailscale_service
+
         tailscale_service.start_daemon(logs.ts)
 
     time.sleep(2)
@@ -148,26 +152,32 @@ def main():
 
     if "filebrowser" in enabled:
         from services import filebrowser_service
+
         filebrowser_service.start(logs.fb, pwd=ssh_pwd_cfg)
 
     if "playit" in enabled:
         from services import playit_service
+
         playit_service.start(logs.tm, token=playit_tok)
 
     if "chisel" in enabled:
         from services import chisel_service
+
         chisel_service.start(logs.chisel)
 
     if "gost" in enabled:
         from services import gost_service
+
         gost_service.start(logs.gost, pwd=ssh_pwd_cfg)
 
     if "ligolo" in enabled:
         from services import ligolo_service
+
         ligolo_service.start(logs.ligolo)
 
     if "sliver" in enabled:
         from services import sliver_service
+
         sliver_service.start(logs.sliver)
 
     if "tailscale" in enabled:
@@ -208,6 +218,7 @@ def main():
 
     if "minecraft" in enabled:
         from services import minecraft_service
+
         minecraft_service.start()
 
     # === PHASE 3: Private AI services — heavy, slow-starting, fully localhost-only.
@@ -215,16 +226,19 @@ def main():
     # boot window when HF health checks are running.
     if "llm_proxy" in enabled:
         from services import llm_proxy_service
+
         llm_proxy_service.start(logs.llm_proxy)
 
     if "open_webui" in enabled:
         # Open WebUI is the heaviest initializer (DB migrations, asset compilation).
         # It is private (127.0.0.1:3000 only) so there is no urgency to start it early.
         from services import open_webui_service
+
         open_webui_service.start(logs.open_webui)
 
     if "code_server" in enabled:
         from services import code_server_service
+
         code_server_service.start(logs.code_server)
 
     logger.success("Model loaded successfully. Background services active.")

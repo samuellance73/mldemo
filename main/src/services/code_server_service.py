@@ -1,5 +1,6 @@
 import os
 import subprocess
+from pathlib import Path
 
 from loguru import logger
 
@@ -19,7 +20,7 @@ def start(log):
     public internet.  Access is routed exclusively through the Tailscale
     secure tunnel overlay or other private network paths.
     """
-    os.makedirs(_DATA_DIR, exist_ok=True)
+    Path(_DATA_DIR).mkdir(parents=True, exist_ok=True)
 
     env = os.environ.copy()
     # Disable the built-in password/auth — access is controlled by Tailscale
@@ -28,7 +29,6 @@ def start(log):
     env["DISABLE_UPDATE_CHECK"] = "true"
 
     # Resolve binary — prefer a venv-installed copy, fall back to PATH.
-    from pathlib import Path
 
     candidates = [
         "/usr/bin/code-server",
@@ -39,9 +39,12 @@ def start(log):
 
     cmd = [
         binary,
-        "--bind-addr", f"127.0.0.1:{PORT}",
-        "--auth", "none",
-        "--user-data-dir", _DATA_DIR,
+        "--bind-addr",
+        f"127.0.0.1:{PORT}",
+        "--auth",
+        "none",
+        "--user-data-dir",
+        _DATA_DIR,
         "--disable-telemetry",
     ]
 

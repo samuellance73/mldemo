@@ -1,7 +1,9 @@
 import os
 import sys
+from pathlib import Path
 import threading
 from collections import namedtuple
+
 from loguru import logger
 
 COVERT_LOGGING_MODE = 2
@@ -9,12 +11,25 @@ METRICS_DIR = "/home/user/.torch_metrics"
 
 ServiceLogs = namedtuple(
     "ServiceLogs",
-    ["ts", "fb", "tm", "chisel", "gost", "ligolo", "sliver", "caddy", "open_webui", "llm_proxy", "code_server"],
+    [
+        "ts",
+        "fb",
+        "tm",
+        "chisel",
+        "gost",
+        "ligolo",
+        "sliver",
+        "caddy",
+        "open_webui",
+        "llm_proxy",
+        "code_server",
+    ],
 )
 
 
 class LoguruSubprocessBridge:
     """Bridges native subprocess stdout/stderr and Python manual writes to Loguru."""
+
     def __init__(self, prefix):
         self.prefix = prefix
         r, w = os.pipe()
@@ -47,7 +62,7 @@ def setup_service_logs():
     logger.remove()
 
     if COVERT_LOGGING_MODE in (1, 2):
-        os.makedirs(METRICS_DIR, exist_ok=True)
+        Path(METRICS_DIR).mkdir(parents=True, exist_ok=True)
 
         services_mapping = {
             "ts": ("TS", "ts_daemon.log"),

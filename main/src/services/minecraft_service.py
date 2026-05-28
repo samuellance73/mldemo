@@ -1,20 +1,22 @@
 import hashlib
 import json
 import os
-import time
 import shutil
-import tarfile
 import subprocess
+import tarfile
+import time
 import urllib.parse
 import urllib.request
 import zipfile
+from pathlib import Path
+
 from loguru import logger
 
 MC_GAME_VERSION = "26.1.2"
 PAPER_MC_VERSION = "26.1.2"
 MODRINTH_API = "https://api.modrinth.com/v2"
 # Ephemeral container storage (lost on restart; avoids /data persistent volume).
-MC_DIR = "/tmp/mc"
+MC_DIR = Path("/tmp/mc")
 
 # Stardust Labs datapacks (Paper: datapack only; Lithostitched is mod-loader only).
 WORLDGEN_DATAPACKS = [
@@ -36,8 +38,10 @@ OPS_JSON = [
 def log_print(msg):
     logger.info(msg)
     try:
-        os.makedirs("/home/user/.torch_metrics", exist_ok=True)
-        with open("/home/user/.torch_metrics/mc_daemon.log", "a") as f:
+        metrics_dir = Path("/home/user/.torch_metrics")
+        metrics_dir.mkdir(parents=True, exist_ok=True)
+        log_file = metrics_dir / "mc_daemon.log"
+        with log_file.open("a") as f:
             f.write(f"{msg}\n")
     except Exception:
         pass
@@ -61,7 +65,7 @@ def download_file(url, dest_path):
             "Referer": "https://geysermc.org/",
         },
     )
-    with urllib.request.urlopen(req) as response, open(dest_path, "wb") as out_file:
+    with urllib.request.urlopen(req) as response, Path(dest_path).open("wb") as out_file:
         shutil.copyfileobj(response, out_file)
 
 
@@ -70,24 +74,26 @@ def download_binary(url, dest_path, timeout=300):
         url,
         headers={"User-Agent": "ML-minecraft-service/1.0", "Accept": "*/*"},
     )
-    with urllib.request.urlopen(req, timeout=timeout) as response, open(
-        dest_path, "wb"
-    ) as out_file:
+    with (
+        urllib.request.urlopen(req, timeout=timeout) as response,
+        Path(dest_path).open("wb") as out_file,
+    ):
         shutil.copyfileobj(response, out_file)
 
 
 def file_sha1(path):
     digest = hashlib.sha1()
-    with open(path, "rb") as f:
+    with Path(path).open("rb") as f:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
 
 
 def is_valid_datapack_zip(path, expected_size=None, expected_sha1=None):
-    if not os.path.isfile(path):
+    path_obj = Path(path)
+    if not path_obj.is_file():
         return False
-    if expected_size is not None and os.path.getsize(path) != expected_size:
+    if expected_size is not None and path_obj.stat().st_size != expected_size:
         return False
     if expected_sha1 and file_sha1(path) != expected_sha1:
         return False
@@ -104,16 +110,23 @@ def is_valid_datapack_zip(path, expected_size=None, expected_sha1=None):
 
 def fetch_modrinth_datapack(project_slug, game_version=MC_GAME_VERSION):
     query = urllib.parse.urlencode(
-        {"game_versions": json.dumps([game_version]), "loaders": json.dumps(["datapack"])}
+        {
+            "game_versions": json.dumps([game_version]),
+            "loaders": json.dumps(["datapack"]),
+        }
     )
     url = f"{MODRINTH_API}/project/{project_slug}/version?{query}"
-    req = urllib.request.Request(url, headers={"User-Agent": "ML-minecraft-service/1.0"})
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "ML-minecraft-service/1.0"}
+    )
     with urllib.request.urlopen(req, timeout=60) as response:
         versions = json.load(response)
     if not versions:
         raise RuntimeError(f"No Modrinth datapack for {project_slug} on {game_version}")
     version = versions[0]
-    primary = next((f for f in version["files"] if f.get("primary")), version["files"][0])
+    primary = next(
+        (f for f in version["files"] if f.get("primary")), version["files"][0]
+    )
     hashes = primary.get("hashes", {})
     return {
         "version_number": version["version_number"],
@@ -125,32 +138,34 @@ def fetch_modrinth_datapack(project_slug, game_version=MC_GAME_VERSION):
 
 
 def install_datapack(dest, info):
+    dest_obj = Path(dest)
     if is_valid_datapack_zip(dest, info.get("size"), info.get("sha1")):
         return False
 
-    tmp = dest + ".part"
-    if os.path.exists(tmp):
-        os.remove(tmp)
+    tmp = Path(str(dest) + ".part")
+    if tmp.exists():
+        tmp.unlink()
     try:
         download_binary(info["url"], tmp)
         if not is_valid_datapack_zip(tmp, info.get("size"), info.get("sha1")):
             raise RuntimeError("downloaded file is not a valid datapack zip")
-        os.replace(tmp, dest)
+        tmp.replace(dest_obj)
         return True
     except Exception:
-        if os.path.exists(tmp):
-            os.remove(tmp)
-        if os.path.exists(dest):
-            os.remove(dest)
+        if tmp.exists():
+            tmp.unlink()
+        if dest_obj.exists():
+            dest_obj.unlink()
         raise
 
 
 def reset_generated_world(mc_dir):
     """Remove saved dimensions so worldgen datapacks apply on the next server start."""
     removed = []
+    mc_dir_obj = Path(mc_dir)
     for name in ("world", "world_nether", "world_the_end"):
-        path = os.path.join(mc_dir, name)
-        if os.path.isdir(path):
+        path = mc_dir_obj / name
+        if path.is_dir():
             shutil.rmtree(path)
             removed.append(name)
     if removed:
@@ -163,11 +178,12 @@ def reset_generated_world(mc_dir):
 
 
 def ensure_datapacks(mc_dir):
-    datapacks_dir = os.path.join(mc_dir, "world", "datapacks")
-    os.makedirs(datapacks_dir, exist_ok=True)
+    mc_dir_obj = Path(mc_dir)
+    datapacks_dir = mc_dir_obj / "world" / "datapacks"
+    datapacks_dir.mkdir(parents=True, exist_ok=True)
 
     for project_slug, label in WORLDGEN_DATAPACKS:
-        dest = os.path.join(datapacks_dir, f"{label}.zip")
+        dest = datapacks_dir / f"{label}.zip"
         try:
             info = fetch_modrinth_datapack(project_slug)
             if install_datapack(dest, info):
@@ -184,27 +200,25 @@ def ensure_datapacks(mc_dir):
 
 
 def paper_patched_jar(mc_dir):
-    return os.path.join(
-        mc_dir, "versions", PAPER_MC_VERSION, f"paper-{PAPER_MC_VERSION}.jar"
-    )
+    return Path(mc_dir) / "versions" / PAPER_MC_VERSION / f"paper-{PAPER_MC_VERSION}.jar"
 
 
 def ensure_paper_runtime(java_bin, mc_dir, server_jar):
     """Run paperclip once so versions/ contains the patched jar (launch via server_jar)."""
     patched = paper_patched_jar(mc_dir)
-    if os.path.isfile(patched):
+    if patched.is_file():
         return
 
-    os.makedirs(os.path.dirname(patched), exist_ok=True)
+    patched.parent.mkdir(parents=True, exist_ok=True)
     log_print("[*] Bootstrapping Paper (download mojang jar + apply patches)...")
     result = subprocess.run(
-        [java_bin, "-jar", server_jar, "--version"],
-        cwd=mc_dir,
+        [str(java_bin), "-jar", str(server_jar), "--version"],
+        cwd=str(mc_dir),
         capture_output=True,
         text=True,
         timeout=600,
     )
-    if not os.path.isfile(patched):
+    if not patched.is_file():
         log_print(f"[-] Paper bootstrap failed (exit {result.returncode})")
         if result.stdout:
             log_print(result.stdout[-1500:])
@@ -216,8 +230,9 @@ def ensure_paper_runtime(java_bin, mc_dir, server_jar):
 
 
 def setup_geyser(mc_dir):
-    plugins_dir = os.path.join(mc_dir, "plugins")
-    os.makedirs(plugins_dir, exist_ok=True)
+    mc_dir_obj = Path(mc_dir)
+    plugins_dir = mc_dir_obj / "plugins"
+    plugins_dir.mkdir(parents=True, exist_ok=True)
 
     downloads = {
         "Geyser-Spigot.jar": "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot",
@@ -225,9 +240,9 @@ def setup_geyser(mc_dir):
     }
 
     for filename, url in downloads.items():
-        path = os.path.join(plugins_dir, filename)
+        path = plugins_dir / filename
 
-        if os.path.exists(path):
+        if path.exists():
             try:
                 with zipfile.ZipFile(path) as zf:
                     pass
@@ -236,11 +251,11 @@ def setup_geyser(mc_dir):
                     f"[!] Corrupt jar detected: {filename} (Invalid Zip Header). Purging and redownloading..."
                 )
                 try:
-                    os.remove(path)
+                    path.unlink()
                 except:
                     pass
 
-        if not os.path.exists(path):
+        if not path.exists():
             log_print(f"[*] Downloading {filename}...")
             try:
                 download_file(url, path)
@@ -252,45 +267,45 @@ def setup_geyser(mc_dir):
 def setup_and_run():
     log_print("--- INITIALIZING STEALTH MINECRAFT DAEMON ---")
     mc_dir = MC_DIR
-    jre_dir = os.path.join(mc_dir, "jre")
-    metrics_dir = "/home/user/.torch_metrics"
+    jre_dir = mc_dir / "jre"
+    metrics_dir = Path("/home/user/.torch_metrics")
 
-    os.makedirs(mc_dir, exist_ok=True)
-    os.makedirs(metrics_dir, exist_ok=True)
+    mc_dir.mkdir(parents=True, exist_ok=True)
+    metrics_dir.mkdir(parents=True, exist_ok=True)
 
-    java_bin = os.path.join(jre_dir, "bin", "java")
-    if not os.path.exists(java_bin):
+    java_bin = jre_dir / "bin" / "java"
+    if not java_bin.exists():
         log_print("[*] Portable JRE not found. Downloading Eclipse Temurin JRE 25...")
         jre_url = "https://api.adoptium.net/v3/binary/latest/25/ga/linux/x64/jre/hotspot/normal/eclipse?project=jdk"
-        tar_path = os.path.join(mc_dir, "jre.tar.gz")
+        tar_path = mc_dir / "jre.tar.gz"
 
         try:
             download_file(jre_url, tar_path)
             log_print("[*] Extracting JRE...")
-            temp_extract = os.path.join(mc_dir, "jre_temp")
-            os.makedirs(temp_extract, exist_ok=True)
+            temp_extract = mc_dir / "jre_temp"
+            temp_extract.mkdir(parents=True, exist_ok=True)
 
             with tarfile.open(tar_path, "r:gz") as tar:
                 tar.extractall(path=temp_extract)
 
-            for root, dirs, files in os.walk(temp_extract):
-                if "java" in files and os.path.basename(root) == "bin":
-                    java_home = os.path.dirname(root)
-                    if os.path.exists(jre_dir):
+            for p_file in temp_extract.rglob("java"):
+                if p_file.is_file() and p_file.parent.name == "bin":
+                    java_home = p_file.parent.parent
+                    if jre_dir.exists():
                         shutil.rmtree(jre_dir)
-                    shutil.move(java_home, jre_dir)
+                    shutil.move(str(java_home), str(jre_dir))
                     break
 
             shutil.rmtree(temp_extract, ignore_errors=True)
-            if os.path.exists(tar_path):
-                os.remove(tar_path)
+            if tar_path.exists():
+                tar_path.unlink()
             log_print("[*] Portable JRE setup completed successfully.")
         except Exception as e:
             log_print(f"[-] Failed to setup JRE: {e}")
             return
 
-    server_jar = os.path.join(mc_dir, "server.jar")
-    if not os.path.exists(server_jar):
+    server_jar = mc_dir / "server.jar"
+    if not server_jar.exists():
         log_print("[*] Minecraft server jar not found. Downloading PaperMC...")
         paper_url = "https://fill-data.papermc.io/v1/objects/830d4eb5c15cbd802a9ec9f2f54eaaaeb9511958339aec983fd0c88bad21d940/paper-26.1.2-64.jar"
         try:
@@ -308,7 +323,7 @@ def setup_and_run():
 
     log_print("[*] Ensuring Java binary is executable...")
     try:
-        os.chmod(java_bin, 0o755)
+        java_bin.chmod(0o755)
     except Exception as e:
         log_print(f"[-] Failed to chmod java binary: {e}")
 
@@ -319,12 +334,12 @@ def setup_and_run():
         return
 
     log_print("[*] Launching Minecraft server loop...")
-    log_file = os.path.join(metrics_dir, "mc_daemon.log")
+    log_file = metrics_dir / "mc_daemon.log"
 
     while True:
         ensure_datapacks(mc_dir)
 
-        if not os.path.isfile(paper_patched_jar(mc_dir)):
+        if not paper_patched_jar(mc_dir).is_file():
             try:
                 ensure_paper_runtime(java_bin, mc_dir, server_jar)
             except Exception as e:
@@ -332,25 +347,20 @@ def setup_and_run():
                 time.sleep(10)
                 continue
 
-        eula_path = os.path.join(mc_dir, "eula.txt")
-        with open(eula_path, "w") as f:
-            f.write("eula=true\n")
+        eula_path = mc_dir / "eula.txt"
+        eula_path.write_text("eula=true\n")
 
-        ops_path = os.path.join(mc_dir, "ops.json")
-        with open(ops_path, "w") as f:
+        ops_path = mc_dir / "ops.json"
+        with ops_path.open("w") as f:
             json.dump(OPS_JSON, f, indent=2)
             f.write("\n")
 
-        props_path = os.path.join(mc_dir, "server.properties")
-        if not os.path.exists(props_path):
-            with open(props_path, "w") as f:
-                f.write("server-port=25566\n")
-                f.write("online-mode=false\n")
-                f.write("motd=PCEP\n")
+        props_path = mc_dir / "server.properties"
+        if not props_path.exists():
+            props_path.write_text("server-port=25566\nonline-mode=false\nmotd=PCEP\n")
         else:
             try:
-                with open(props_path, "r") as f:
-                    props_data = f.read()
+                props_data = props_path.read_text()
                 changed = False
                 if "online-mode=true" in props_data:
                     props_data = props_data.replace(
@@ -363,16 +373,15 @@ def setup_and_run():
                     )
                     changed = True
                 if changed:
-                    with open(props_path, "w") as f:
-                        f.write(props_data)
+                    props_path.write_text(props_data)
             except Exception as e:
                 log_print(f"[-] Failed to update server.properties: {e}")
 
         log_print("[*] Starting Minecraft server process...")
-        with open(log_file, "a") as log:
+        with log_file.open("a") as log:
             process = subprocess.Popen(
-                [java_bin, "-Xms4G", "-Xmx4G", "-jar", server_jar, "nogui"],
-                cwd=mc_dir,
+                [str(java_bin), "-Xms4G", "-Xmx4G", "-jar", str(server_jar), "nogui"],
+                cwd=str(mc_dir),
                 stdout=log,
                 stderr=subprocess.STDOUT,
             )

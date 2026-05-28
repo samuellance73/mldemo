@@ -3,7 +3,6 @@ Minecraft 1.20.2 (protocol 763) login-phase framing for SSH tunnel disguise.
 Payload is XOR-scrambled (see utils.XOR_KEY) inside Login Plugin messages on channel bungeecord:main.
 """
 
-import socket
 import struct
 import threading
 import uuid
@@ -234,7 +233,12 @@ def server_dispatch(client_sock, timeout=10.0):
     proxy_header = _skip_proxy_header(reader)
     if proxy_header:
         import sys
-        print(f"[mc_tunnel] skipped PROXY header: {proxy_header}", file=sys.stderr, flush=True)
+
+        print(
+            f"[mc_tunnel] skipped PROXY header: {proxy_header}",
+            file=sys.stderr,
+            flush=True,
+        )
     pkt_id, payload = reader.read_packet()
     if pkt_id != PKT_HANDSHAKE:
         raise ValueError(f"expected handshake, got {pkt_id:#x}")
@@ -376,4 +380,3 @@ def relay_server(mc_reader, ssh_sock, mc_sock):
                 s.close()
             except OSError:
                 pass
-

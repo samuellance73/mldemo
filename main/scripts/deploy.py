@@ -1,18 +1,20 @@
-import os
-import sys
-import yaml
 import argparse
 import json
+import os
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
+
+import yaml
+from dotenv import load_dotenv
 from huggingface_hub import HfApi
 from loguru import logger
-from dotenv import load_dotenv
 
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_SRC_ROOT = os.path.join(_REPO_ROOT, "src")
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_SRC_ROOT = _REPO_ROOT / "src"
 for _p in (_SRC_ROOT, _REPO_ROOT):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 from client.crypto import XOR_KEY
 from core.service_registry import ALLOWED_SERVICES
@@ -29,9 +31,9 @@ def resolve_node_services(node_info):
 
 
 def write_enabled_services(dist_dir, node_name, enabled):
-    path = os.path.join(dist_dir, "config", "enabled_services.json")
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as f:
+    path = Path(dist_dir) / "config" / "enabled_services.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w") as f:
         json.dump({"services": enabled, "node": node_name}, f)
 
 
@@ -89,9 +91,10 @@ def update_state(
         direct_url = f"https://{subdomain}.hf.space"
 
     state = {}
-    if os.path.exists(state_path):
+    state_path_obj = Path(state_path)
+    if state_path_obj.exists():
         try:
-            with open(state_path, "r") as f:
+            with state_path_obj.open("r") as f:
                 state = json.load(f)
         except Exception as e:
             logger.warning(f"Failed to read existing state.json: {e}")
@@ -121,8 +124,8 @@ def update_state(
         node_state.pop("commit_url", None)
 
     try:
-        os.makedirs(os.path.dirname(os.path.abspath(state_path)), exist_ok=True)
-        with open(state_path, "w") as f:
+        state_path_obj.resolve().parent.mkdir(parents=True, exist_ok=True)
+        with state_path_obj.open("w") as f:
             json.dump(state, f, indent=2)
         logger.debug(f"Saved state for '{node_name}' to '{state_path}'")
     except Exception as e:
@@ -173,14 +176,16 @@ def main():
         os.environ["PASS"] = args.ssh_password
 
     # Ensure working directory is repository root
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    repo_root = Path(__file__).resolve().parent.parent
     os.chdir(repo_root)
 
-    if not os.path.exists(args.nodes):
+    nodes_path = Path(args.nodes)
+    if not nodes_path.exists():
         logger.error(f"Nodes manifest '{args.nodes}' not found.")
         sys.exit(1)
 
-    if not os.path.exists(args.dist):
+    dist_path = Path(args.dist)
+    if not dist_path.exists():
         logger.error(
             f"Distribution directory '{args.dist}' not found. Please run 'uv run python scripts/build.py' or 'make build' first."
         )
@@ -188,7 +193,7 @@ def main():
 
     logger.info(f"Loading nodes configuration from '{args.nodes}'...")
     try:
-        with open(args.nodes, "r") as f:
+        with nodes_path.open("r") as f:
             config = yaml.safe_load(f)
     except Exception as e:
         logger.error(f"Failed to parse '{args.nodes}': {e}")
@@ -200,9 +205,7 @@ def main():
         sys.exit(0)
 
     logger.info(f"Starting deployment of '{args.dist}' to {len(nodes)} node(s)...")
-    state_path = os.path.join(
-        os.path.dirname(os.path.abspath(args.nodes)), "state.json"
-    )
+    state_path = nodes_path.resolve().parent / "state.json"
 
     for node_name, node_info in nodes.items():
         repo_id = node_info.get("hf-repo")
@@ -315,18 +318,20 @@ def main():
                 else:
                     # Secret is not defined/empty; delete it from HF Space to ensure it doesn't linger
                     try:
-                        node_api.delete_space_secret(
-                            repo_id=repo_id, key=target_key
-                        )
+                        node_api.delete_space_secret(repo_id=repo_id, key=target_key)
                         deleted_keys.append(target_key)
                     except Exception as e:
                         # Silently ignore if secret didn't exist on the space
-                        logger.debug(f"Secret '{target_key}' did not exist or could not be deleted: {e}")
+                        logger.debug(
+                            f"Secret '{target_key}' did not exist or could not be deleted: {e}"
+                        )
             if pushed_keys:
                 summary = [f"{k}->{v}" for k, v in pushed_keys.items()]
                 logger.info(f"Successfully pushed space secrets: {', '.join(summary)}")
             if deleted_keys:
-                logger.info(f"Successfully deleted/cleared stale space secrets: {', '.join(deleted_keys)}")
+                logger.info(
+                    f"Successfully deleted/cleared stale space secrets: {', '.join(deleted_keys)}"
+                )
 
             # Clear secrets for services not enabled on this node
             for target_key in ["A", "P"]:
@@ -342,10 +347,10 @@ def main():
             # LLM_KEYS: push when llm_proxy is enabled, delete otherwise
             if "llm_proxy" in enabled_set:
                 llm_keys_raw = ""
-                yaml_path = os.path.join(_REPO_ROOT, "llm_keys.yaml")
-                if os.path.exists(yaml_path):
+                yaml_path = _REPO_ROOT / "llm_keys.yaml"
+                if yaml_path.exists():
                     try:
-                        with open(yaml_path, "r") as f:
+                        with yaml_path.open("r") as f:
                             data = yaml.safe_load(f) or {}
                         providers = data.get("providers", {})
                         entries = []
@@ -354,23 +359,31 @@ def main():
                             if isinstance(keys, list):
                                 for k in keys:
                                     if isinstance(k, str) and k:
-                                        entries.append(f"{provider_clean}:*:{k.strip()}")
+                                        entries.append(
+                                            f"{provider_clean}:*:{k.strip()}"
+                                        )
                                     elif isinstance(k, dict):
                                         model = k.get("model")
                                         specific_keys = k.get("keys", [])
                                         if model and isinstance(specific_keys, list):
                                             for sk in specific_keys:
                                                 if sk and isinstance(sk, str):
-                                                    entries.append(f"{provider_clean}:{model.strip()}:{sk.strip()}")
+                                                    entries.append(
+                                                        f"{provider_clean}:{model.strip()}:{sk.strip()}"
+                                                    )
                                         elif model and isinstance(k.get("keys"), str):
                                             sk = k.get("keys")
                                             if sk:
-                                                entries.append(f"{provider_clean}:{model.strip()}:{sk.strip()}")
+                                                entries.append(
+                                                    f"{provider_clean}:{model.strip()}:{sk.strip()}"
+                                                )
                             elif isinstance(keys, str):
                                 entries.append(f"{provider_clean}:*:{keys.strip()}")
                         llm_keys_raw = ",".join(entries)
                     except Exception as e:
-                        logger.error(f"Error compiling llm_keys.yaml for deployment: {e}")
+                        logger.error(
+                            f"Error compiling llm_keys.yaml for deployment: {e}"
+                        )
 
                 if not llm_keys_raw:
                     llm_keys_raw = os.getenv("LLM_KEYS", "").strip()
@@ -382,11 +395,15 @@ def main():
                             key="LLM_KEYS",
                             value=obfuscate_secret(llm_keys_raw),
                         )
-                        logger.info(f"Successfully pushed space secret: LLM_KEYS ({len(llm_keys_raw.split(','))} key(s))")
+                        logger.info(
+                            f"Successfully pushed space secret: LLM_KEYS ({len(llm_keys_raw.split(','))} key(s))"
+                        )
                     except Exception as e:
                         logger.error(f"Failed to push LLM_KEYS secret: {e}")
                 else:
-                    logger.warning(f"Node '{node_name}' has llm_proxy enabled but no keys found in llm_keys.yaml or LLM_KEYS in .env")
+                    logger.warning(
+                        f"Node '{node_name}' has llm_proxy enabled but no keys found in llm_keys.yaml or LLM_KEYS in .env"
+                    )
 
                 # LITELLM_MASTER_KEY: push when llm_proxy enabled, delete otherwise
                 master_key_val = os.getenv("LITELLM_MASTER_KEY", "").strip()
@@ -397,18 +414,24 @@ def main():
                             key="LITELLM_MASTER_KEY",
                             value=master_key_val,  # plain — llm_proxy reads it directly, not XOR-decoded
                         )
-                        logger.info("Successfully pushed space secret: LITELLM_MASTER_KEY")
+                        logger.info(
+                            "Successfully pushed space secret: LITELLM_MASTER_KEY"
+                        )
                     except Exception as e:
                         logger.error(f"Failed to push LITELLM_MASTER_KEY secret: {e}")
                 else:
-                    logger.debug(f"LITELLM_MASTER_KEY not set — /litellm-ui/ dashboard will be disabled on '{node_name}'")
+                    logger.debug(
+                        f"LITELLM_MASTER_KEY not set — /litellm-ui/ dashboard will be disabled on '{node_name}'"
+                    )
             else:
                 try:
                     node_api.delete_space_secret(repo_id=repo_id, key="LLM_KEYS")
                 except Exception:
                     pass
                 try:
-                    node_api.delete_space_secret(repo_id=repo_id, key="LITELLM_MASTER_KEY")
+                    node_api.delete_space_secret(
+                        repo_id=repo_id, key="LITELLM_MASTER_KEY"
+                    )
                 except Exception:
                     pass
 
@@ -419,16 +442,15 @@ def main():
 
         custom_dir = node_info.get("custom-dir")
         if custom_dir:
-            upload_path = os.path.abspath(os.path.join(repo_root, custom_dir))
+            upload_path = (repo_root / custom_dir).resolve()
         else:
-            upload_path = os.path.abspath(args.dist)
+            upload_path = dist_path.resolve()
 
         # Per-node runtime config injected immediately before upload (only for backend configurations)
         if not custom_dir:
-            whoami_path = os.path.join(upload_path, "whoami.txt")
+            whoami_path = upload_path / "whoami.txt"
             try:
-                with open(whoami_path, "w") as f:
-                    f.write(node_name + "\n")
+                whoami_path.write_text(node_name + "\n")
             except Exception as e:
                 logger.warning(f"Failed to write whoami.txt: {e}")
 
@@ -439,7 +461,7 @@ def main():
 
         try:
             commit_info = node_api.upload_folder(
-                folder_path=upload_path,
+                folder_path=str(upload_path),
                 repo_id=repo_id,
                 repo_type=repo_type,
                 commit_message=args.commit_message,

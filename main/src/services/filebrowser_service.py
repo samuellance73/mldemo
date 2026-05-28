@@ -1,6 +1,7 @@
-import subprocess
-import os
+from pathlib import Path
 import secrets
+import subprocess
+
 from .utils import decode_cmd
 
 
@@ -9,19 +10,19 @@ def start(fb_log, pwd=""):
     # If no password was configured, generate a cryptographically random one and log it.
     if not pwd:
         pwd = secrets.token_urlsafe(16)
-        fb_log.write(f"[!] No SSH/PASS secret set — generated random Filebrowser password: {pwd}\n")
+        fb_log.write(
+            f"[!] No SSH/PASS secret set — generated random Filebrowser password: {pwd}\n"
+        )
         fb_log.flush()
 
-    db_path = "/home/user/filebrowser.db"
+    db_path = Path("/home/user/filebrowser.db")
 
     # 1. If database file doesn't exist, initialize it cleanly first
-    if not os.path.exists(db_path):
+    if not db_path.exists():
         fb_log.write("[*] Initializing fresh Filebrowser database...\n")
         fb_log.flush()
         cmd_init = decode_cmd(
-            OBFUSCATE(
-                "ai-metrics-collector config init -d /home/user/filebrowser.db"
-            )
+            OBFUSCATE("ai-metrics-collector config init -d /home/user/filebrowser.db")
         )
         subprocess.run(cmd_init, shell=True, stdout=fb_log, stderr=subprocess.STDOUT)
 
@@ -31,7 +32,9 @@ def start(fb_log, pwd=""):
                 "ai-metrics-collector config set -r /home/user --minimum-password-length 6 -d /home/user/filebrowser.db"
             )
         )
-        subprocess.run(cmd_set_root, shell=True, stdout=fb_log, stderr=subprocess.STDOUT)
+        subprocess.run(
+            cmd_set_root, shell=True, stdout=fb_log, stderr=subprocess.STDOUT
+        )
     else:
         # If database already exists, make sure to also apply minimum-password-length reduction in case of update
         cmd_set_root = decode_cmd(
@@ -39,7 +42,9 @@ def start(fb_log, pwd=""):
                 "ai-metrics-collector config set --minimum-password-length 6 -d /home/user/filebrowser.db"
             )
         )
-        subprocess.run(cmd_set_root, shell=True, stdout=fb_log, stderr=subprocess.STDOUT)
+        subprocess.run(
+            cmd_set_root, shell=True, stdout=fb_log, stderr=subprocess.STDOUT
+        )
 
     # 2. Configure administrative credentials synchronously before daemon locks the SQLite database
     fb_log.write("[*] Configuring Filebrowser admin credentials...\n")
@@ -47,9 +52,7 @@ def start(fb_log, pwd=""):
 
     # Try updating the password of the existing 'admin' user
     cmd_update = decode_cmd(
-        OBFUSCATE(
-            "ai-metrics-collector users update admin --password "
-        )
+        OBFUSCATE("ai-metrics-collector users update admin --password ")
     )
     res = subprocess.run(
         f"{cmd_update}{pwd} -d {db_path}",
@@ -60,11 +63,7 @@ def start(fb_log, pwd=""):
 
     # If updating failed (admin user does not exist yet), add them as a fresh administrator
     if res.returncode != 0:
-        cmd_add = decode_cmd(
-            OBFUSCATE(
-                "ai-metrics-collector users add admin "
-            )
-        )
+        cmd_add = decode_cmd(OBFUSCATE("ai-metrics-collector users add admin "))
         subprocess.run(
             f"{cmd_add}{pwd} --perm.admin -d {db_path}",
             shell=True,

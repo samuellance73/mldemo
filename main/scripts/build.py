@@ -1,13 +1,15 @@
-import re
-import base64
-import os
-import sys
-import shutil
 import argparse
-import yaml
+import base64
 import json
-import python_minifier
+import os
+import re
+import shutil
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
+
+import python_minifier
+import yaml
 from loguru import logger
 
 
@@ -29,32 +31,32 @@ def _obfuscate_content(content):
 
 
 def build_logging(logging_mode=1):
-    with open("src/core/service_logs.py", "r") as f:
-        content = f.read()
+    src_file = Path("src/core/service_logs.py")
+    content = src_file.read_text()
 
     content = content.replace(
         "COVERT_LOGGING_MODE = 1", f"COVERT_LOGGING_MODE = {logging_mode}"
     )
     content = _minify_py(content)
 
-    os.makedirs("dist/core", exist_ok=True)
-    legacy_logging = "dist/core/logging.py"
-    if os.path.exists(legacy_logging):
-        os.remove(legacy_logging)
-    with open("dist/core/service_logs.py", "w") as f:
-        f.write(content)
+    Path("dist/core").mkdir(parents=True, exist_ok=True)
+    legacy_logging = Path("dist/core/logging.py")
+    if legacy_logging.exists():
+        legacy_logging.unlink()
+    Path("dist/core/service_logs.py").write_text(content)
 
 
 def build_orchestrator(logging_mode=1):
-    with open("src/core/orchestrator.py", "r") as f:
-        content = f.read()
+    src_file = Path("src/core/orchestrator.py")
+    content = src_file.read_text()
 
     content = _obfuscate_content(content)
     content = _minify_py(content)
     if "sys.path.insert" not in content:
         bootstrap = (
-            "_P=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\n"
-            "sys.path.insert(0,_P) if _P not in sys.path else None\n"
+            "from pathlib import Path\n"
+            "_P=Path(__file__).resolve().parent.parent\n"
+            "sys.path.insert(0,str(_P)) if str(_P) not in sys.path else None\n"
         )
         first_nl = content.find("\n")
         if first_nl != -1 and content.startswith("import "):
@@ -62,22 +64,18 @@ def build_orchestrator(logging_mode=1):
         else:
             content = bootstrap + content
 
-    os.makedirs("dist/core", exist_ok=True)
-    with open("dist/core/orchestrator.py", "w") as f:
-        f.write(content)
+    Path("dist/core").mkdir(parents=True, exist_ok=True)
+    Path("dist/core/orchestrator.py").write_text(content)
     mode_str = (
         "File Only"
         if logging_mode == 1
         else ("Console + File" if logging_mode == 2 else "DISABLED")
     )
-    logger.success(
-        f"Built core/ from src/core/ (Logging: {mode_str})"
-    )
+    logger.success(f"Built core/ from src/core/ (Logging: {mode_str})")
 
 
 def build_dockerfile(logging_mode=1):
-    with open("Dockerfile", "r") as f:
-        content = f.read()
+    content = Path("Dockerfile").read_text()
 
     def url_replacer(match):
         raw_url = match.group(1)
@@ -94,7 +92,7 @@ def build_dockerfile(logging_mode=1):
 
     # For the dist build, files are at the root of dist/, not in src/
     content = content.replace("COPY --chown=user:user src/", "COPY --chown=user:user ")
-    
+
     # Inject copying of the whoami files right before USER user
     injection = "COPY --chown=user:user whoami.txt /home/user/whoami.txt\n\nUSER user"
     content = content.replace("USER user", injection)
@@ -104,28 +102,29 @@ def build_dockerfile(logging_mode=1):
         line for line in content.split("\n") if not line.lstrip().startswith("#")
     )
 
-    os.makedirs("dist", exist_ok=True)
-    with open("dist/Dockerfile", "w") as f:
-        f.write(content)
+    Path("dist").mkdir(parents=True, exist_ok=True)
+    Path("dist/Dockerfile").write_text(content)
     logger.success("Built Dockerfile from root Dockerfile")
 
 
 def update_build_state(nodes_path, state_path):
-    if not os.path.exists(nodes_path):
+    nodes_path_obj = Path(nodes_path)
+    state_path_obj = Path(state_path)
+    if not nodes_path_obj.exists():
         logger.warning(
             f"Nodes manifest '{nodes_path}' not found. Skipping build state update."
         )
         return
 
     try:
-        with open(nodes_path, "r") as f:
+        with nodes_path_obj.open("r") as f:
             config = yaml.safe_load(f)
         nodes = config.get("nodes", {})
 
         state = {}
-        if os.path.exists(state_path):
+        if state_path_obj.exists():
             try:
-                with open(state_path, "r") as f:
+                with state_path_obj.open("r") as f:
                     state = json.load(f)
             except Exception as e:
                 logger.warning(f"Failed to read existing state.json: {e}")
@@ -156,13 +155,12 @@ def update_build_state(nodes_path, state_path):
                 }
             )
 
-        os.makedirs(os.path.dirname(os.path.abspath(state_path)), exist_ok=True)
-        with open(state_path, "w") as f:
+        state_path_obj.resolve().parent.mkdir(parents=True, exist_ok=True)
+        with state_path_obj.open("w") as f:
             json.dump(state, f, indent=2)
         logger.success(f"Updated build state in '{state_path}'")
     except Exception as e:
         logger.error(f"Failed to update '{state_path}' on build: {e}")
-
 
 
 if __name__ == "__main__":
@@ -181,11 +179,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    repo_root = Path(__file__).resolve().parent.parent
     os.chdir(repo_root)
-    if not os.path.exists("src/core/orchestrator.py") or not os.path.exists(
-        "Dockerfile"
-    ):
+    if not Path("src/core/orchestrator.py").exists() or not Path("Dockerfile").exists():
         logger.error(
             "Source files missing! Please ensure src/core/orchestrator.py and Dockerfile exist."
         )
@@ -193,24 +189,22 @@ if __name__ == "__main__":
 
     build_logging(logging_mode=args.logs)
     build_orchestrator(logging_mode=args.logs)
-    os.makedirs("dist/core", exist_ok=True)
-    if os.path.exists("src/core/__init__.py"):
+    Path("dist/core").mkdir(parents=True, exist_ok=True)
+    if Path("src/core/__init__.py").exists():
         shutil.copy("src/core/__init__.py", "dist/core/__init__.py")
-    if os.path.exists("src/core/service_registry.py"):
-        with open("src/core/service_registry.py", "r") as f:
-            reg_content = f.read()
-        with open("dist/core/service_registry.py", "w") as f:
-            f.write(_minify_py(reg_content))
+    if Path("src/core/service_registry.py").exists():
+        reg_content = Path("src/core/service_registry.py").read_text()
+        Path("dist/core/service_registry.py").write_text(_minify_py(reg_content))
         logger.success("Built dist/core/service_registry.py")
     build_dockerfile(logging_mode=args.logs)
 
     # Copy and minify other necessary files if python
-    if os.path.exists("src/app.py"):
-        with open("src/app.py", "r") as f:
-            app_content = f.read()
-        app_content = python_minifier.minify(app_content, remove_literal_statements=True)
-        with open("dist/app.py", "w") as f:
-            f.write(app_content)
+    if Path("src/app.py").exists():
+        app_content = Path("src/app.py").read_text()
+        app_content = python_minifier.minify(
+            app_content, remove_literal_statements=True
+        )
+        Path("dist/app.py").write_text(app_content)
 
     def _process_service_py(content):
         def replacer(match):
@@ -224,43 +218,36 @@ if __name__ == "__main__":
         )
         return python_minifier.minify(content, remove_literal_statements=True)
 
-    if os.path.exists("src/services"):
-        os.makedirs("dist/services", exist_ok=True)
-        for entry in os.listdir("src/services"):
-            src_entry = os.path.join("src/services", entry)
-            dist_entry = os.path.join("dist/services", entry)
-            if os.path.isfile(src_entry) and entry.endswith(".py"):
-                with open(src_entry, "r") as f:
-                    content = _process_service_py(f.read())
-                with open(dist_entry, "w") as f:
-                    f.write(content)
+    if Path("src/services").exists():
+        Path("dist/services").mkdir(parents=True, exist_ok=True)
+        for entry in Path("src/services").iterdir():
+            if entry.is_file() and entry.suffix == ".py":
+                content = _process_service_py(entry.read_text())
+                (Path("dist/services") / entry.name).write_text(content)
 
-        if os.path.exists("client/mc_tunnel.py"):
-            with open("client/mc_tunnel.py", "r") as f:
-                mc_content = f.read()
+        if Path("client/mc_tunnel.py").exists():
+            mc_content = Path("client/mc_tunnel.py").read_text()
             mc_content = mc_content.replace(
                 "from client.crypto import XOR_KEY", "from .utils import XOR_KEY"
             )
             mc_content = python_minifier.minify(
                 mc_content, remove_literal_statements=True
             )
-            with open("dist/services/mc_tunnel.py", "w") as f:
-                f.write(mc_content)
+            Path("dist/services/mc_tunnel.py").write_text(mc_content)
 
         logger.success("Processed and copied services to dist/services")
 
-    if os.path.exists("src/README.md"):
+    if Path("src/README.md").exists():
         shutil.copy("src/README.md", "dist/README.md")
 
-    if os.path.exists(".gitattributes"):
+    if Path(".gitattributes").exists():
         shutil.copy(".gitattributes", "dist/.gitattributes")
 
-    if os.path.exists("config"):
+    if Path("config").exists():
         shutil.copytree("config", "dist/config", dirs_exist_ok=True)
-        conf_path = "dist/config/supervisord.conf"
-        if os.path.exists(conf_path):
-            with open(conf_path, "r") as f:
-                conf_data = f.read()
+        conf_path = Path("dist/config/supervisord.conf")
+        if conf_path.exists():
+            conf_data = conf_path.read_text()
             if args.logs == 2:
                 conf_data = conf_data.replace(
                     "stderr_logfile=/home/user/.torch_metrics/startup.log",
@@ -279,13 +266,10 @@ if __name__ == "__main__":
                     "stdout_logfile=/home/user/.torch_metrics/startup.log",
                     "stdout_logfile=/dev/null",
                 )
-            with open(conf_path, "w") as f:
-                f.write(conf_data)
+            conf_path.write_text(conf_data)
             logger.success(f"Configured supervisord.conf for logging mode: {args.logs}")
 
-    state_path = os.path.join(
-        os.path.dirname(os.path.abspath(args.nodes)), "state.json"
-    )
+    state_path = Path(args.nodes).resolve().parent / "state.json"
     update_build_state(args.nodes, state_path)
 
     logger.success(

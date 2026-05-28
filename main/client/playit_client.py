@@ -50,7 +50,9 @@ def run_probe(host, port, plain=False):
                     mid, _ = mc_tunnel.read_varint_from_buf(payload, 0)
                     sock.sendall(mc_tunnel.frame_login_plugin_response(mid, b""))
             sock.sendall(
-                mc_tunnel.wrap_tunnel_client(mc_tunnel.xor_bytes(b"SSH-2.0-cc-probe\r\n"))
+                mc_tunnel.wrap_tunnel_client(
+                    mc_tunnel.xor_bytes(b"SSH-2.0-cc-probe\r\n")
+                )
             )
 
             while True:
@@ -152,7 +154,9 @@ def start_playit_bridge(host, port, local_port, remote_target_port=2222, plain=F
         if plain:
             log_info(f"Playit plain bridge 127.0.0.1:{local_port} -> {host}:{port}")
         else:
-            log_info(f"Playit MC-disguised bridge 127.0.0.1:{local_port} -> {host}:{port}")
+            log_info(
+                f"Playit MC-disguised bridge 127.0.0.1:{local_port} -> {host}:{port}"
+            )
             log_info(
                 f"Traffic: SSH -> XOR -> Login Plugin ({mc_tunnel.TUNNEL_CHANNEL})"
             )

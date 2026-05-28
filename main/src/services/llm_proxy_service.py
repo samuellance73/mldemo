@@ -1,6 +1,5 @@
 import os
 import subprocess
-import json
 from pathlib import Path
 
 from loguru import logger
@@ -10,7 +9,9 @@ from services.utils import deobfuscate_secret
 METRICS_DIR = "/home/user/.torch_metrics"
 
 # Dynamic config path: write to /home/user inside Docker, or local dir otherwise
-CONFIG_PATH = "/home/user/litellm.yaml" if Path("/home/user").exists() else "litellm.yaml"
+CONFIG_PATH = (
+    "/home/user/litellm.yaml" if Path("/home/user").exists() else "litellm.yaml"
+)
 PORT = 8080
 PREFIX = "[llm-proxy]"
 
@@ -26,9 +27,10 @@ def _load_keys() -> list[tuple[str, str, str]]:
         if path.exists():
             try:
                 import yaml
-                with open(path) as f:
+
+                with path.open() as f:
                     data = yaml.safe_load(f) or {}
-                
+
                 # Schema expectation:
                 # providers:
                 #   groq:
@@ -50,11 +52,19 @@ def _load_keys() -> list[tuple[str, str, str]]:
                                 if model and isinstance(specific_keys, list):
                                     for sk in specific_keys:
                                         if sk and isinstance(sk, str):
-                                            entries.append((provider_clean, model.strip(), sk.strip()))
+                                            entries.append(
+                                                (
+                                                    provider_clean,
+                                                    model.strip(),
+                                                    sk.strip(),
+                                                )
+                                            )
                                 elif model and isinstance(k.get("keys"), str):
                                     sk = k.get("keys")
                                     if sk:
-                                        entries.append((provider_clean, model.strip(), sk.strip()))
+                                        entries.append(
+                                            (provider_clean, model.strip(), sk.strip())
+                                        )
                     elif isinstance(keys, str):
                         entries.append((provider_clean, "*", keys.strip()))
                 if entries:
@@ -76,7 +86,7 @@ def _load_keys() -> list[tuple[str, str, str]]:
             continue
         provider, model_name, api_key = parts
         entries.append((provider.lower().strip(), model_name.strip(), api_key.strip()))
-    
+
     if entries:
         logger.info(f"{PREFIX} Parsed {len(entries)} keys from LLM_KEYS env variable")
     return entries
@@ -93,12 +103,12 @@ def _build_config() -> str:
         # Wildcard routing enables dynamic prefix matching (e.g. deepseek/*)
         if model_name == "*" or model_name == f"{provider}/*":
             model_entry = (
-                f"  - model_name: \"{provider}/*\"\n"
+                f'  - model_name: "{provider}/*"\n'
                 f"    litellm_params:\n"
                 f"      model: {provider}/*\n"
                 f'      api_key: "{api_key}"\n'
                 f"    model_info:\n"
-                f"      owned_by: \"{provider}\"\n"
+                f'      owned_by: "{provider}"\n'
             )
         else:
             # Backwards compatibility / specific named model mapping
@@ -108,12 +118,12 @@ def _build_config() -> str:
                 model_path = f"{provider}/{model_name}"
 
             model_entry = (
-                f"  - model_name: \"{model_name}\"\n"
+                f'  - model_name: "{model_name}"\n'
                 f"    litellm_params:\n"
                 f"      model: {model_path}\n"
                 f'      api_key: "{api_key}"\n'
                 f"    model_info:\n"
-                f"      owned_by: \"{provider}\"\n"
+                f'      owned_by: "{provider}"\n'
             )
         model_entries.append(model_entry)
 
@@ -133,8 +143,8 @@ def _build_config() -> str:
         "\n"
         "litellm_settings:\n"
         "  check_provider_endpoint: true\n"
-        "  success_callback: [\"helicone\"]\n"
-        "  callbacks: [\"services.custom_callbacks.proxy_handler_instance\"]\n"
+        '  success_callback: ["helicone"]\n'
+        '  callbacks: ["services.custom_callbacks.proxy_handler_instance"]\n'
         "\n"
         "general_settings:\n"
         "  drop_params: true\n"
@@ -149,11 +159,13 @@ def start(log):
     subprocess stdout/stderr are piped through it so LiteLLM output appears in
     the main container log stream as well as llm_proxy.log on disk.
     """
-    os.makedirs(METRICS_DIR, exist_ok=True)
+    Path(METRICS_DIR).mkdir(parents=True, exist_ok=True)
 
     config_yaml = _build_config()
     if not config_yaml:
-        logger.warning(f"{PREFIX} No API keys loaded or LLM_KEYS not set — skipping llm_proxy")
+        logger.warning(
+            f"{PREFIX} No API keys loaded or LLM_KEYS not set — skipping llm_proxy"
+        )
         return
 
     Path(CONFIG_PATH).write_text(config_yaml)
@@ -162,17 +174,27 @@ def start(log):
     os.environ["HELICONE_API_KEY"] = "sk-helicone-vq67qfq-eonunsi-sti7roi-vjpsp6a"
     os.environ["DISABLE_ADMIN_UI"] = "True"
 
-    litellm_bin = "/opt/venv-litellm/bin/litellm" if Path("/opt/venv-litellm/bin/litellm").exists() else "litellm"
+    litellm_bin = (
+        "/opt/venv-litellm/bin/litellm"
+        if Path("/opt/venv-litellm/bin/litellm").exists()
+        else "litellm"
+    )
     cmd = [
         litellm_bin,
-        "--config", CONFIG_PATH,
-        "--port", str(PORT),
-        "--host", "127.0.0.1",
+        "--config",
+        CONFIG_PATH,
+        "--port",
+        str(PORT),
+        "--host",
+        "127.0.0.1",
     ]
 
     env = os.environ.copy()
-    env["PYTHONPATH"] = "/home/user" + (":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+    env["PYTHONPATH"] = "/home/user" + (
+        ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
+    )
     proc = subprocess.Popen(cmd, stdout=log, stderr=log, env=env)
 
-    logger.success(f"{PREFIX} litellm proxy started on 127.0.0.1:{PORT} (pid {proc.pid})")
-
+    logger.success(
+        f"{PREFIX} litellm proxy started on 127.0.0.1:{PORT} (pid {proc.pid})"
+    )

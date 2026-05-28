@@ -1,48 +1,53 @@
 import os
 import sys
+from pathlib import Path
+
 import yaml
 from dotenv import load_dotenv
 from huggingface_hub import HfApi
 
 # Stage label → emoji + description
 _STAGE_LABELS = {
-    "RUNNING":       ("🟢", "Running"),
-    "SLEEPING":      ("💤", "Sleeping"),
-    "PAUSED":        ("⏸ ", "Paused"),
-    "BUILDING":      ("🔨", "Building"),
-    "APP_STARTING":  ("🔄", "App starting"),
-    "STOPPED":       ("⛔", "Stopped"),
-    "DELETING":      ("🗑 ", "Deleting"),
-    "ERROR":         ("🔴", "Error"),
+    "RUNNING": ("🟢", "Running"),
+    "SLEEPING": ("💤", "Sleeping"),
+    "PAUSED": ("⏸ ", "Paused"),
+    "BUILDING": ("🔨", "Building"),
+    "APP_STARTING": ("🔄", "App starting"),
+    "STOPPED": ("⛔", "Stopped"),
+    "DELETING": ("🗑 ", "Deleting"),
+    "ERROR": ("🔴", "Error"),
 }
 
 _HARDWARE_LABELS = {
-    "cpu-basic":      "CPU Basic",
-    "cpu-upgrade":    "CPU Upgrade",
-    "t4-small":       "T4 Small (GPU)",
-    "t4-medium":      "T4 Medium (GPU)",
-    "a10g-small":     "A10G Small (GPU)",
-    "a10g-large":     "A10G Large (GPU)",
-    "a100-large":     "A100 Large (GPU)",
+    "cpu-basic": "CPU Basic",
+    "cpu-upgrade": "CPU Upgrade",
+    "t4-small": "T4 Small (GPU)",
+    "t4-medium": "T4 Medium (GPU)",
+    "a10g-small": "A10G Small (GPU)",
+    "a10g-large": "A10G Large (GPU)",
+    "a100-large": "A100 Large (GPU)",
 }
 
 
 def _load_nodes_config():
     from client._repo import REPO_ROOT as repo_root
-    nodes_path = os.path.join(repo_root, "manifests", "nodes.yaml")
-    if not os.path.exists(nodes_path):
+
+    nodes_path = Path(repo_root) / "manifests" / "nodes.yaml"
+    if not nodes_path.exists():
         print(f"[-] nodes.yaml not found at '{nodes_path}'", file=sys.stderr)
         sys.exit(1)
-    with open(nodes_path, "r") as f:
+    with nodes_path.open("r") as f:
         config = yaml.safe_load(f)
     return config.get("nodes", {}), repo_root
 
 
 def _get_api(node_info, repo_root):
     """Return an authenticated HfApi for the given node."""
-    load_dotenv(os.path.join(repo_root, ".env"))
+    load_dotenv(Path(repo_root) / ".env")
     token_env_key = node_info.get("token-env")
-    token = (os.getenv(token_env_key) if token_env_key else None) or os.getenv("HF_TOKEN")
+    token = (os.getenv(token_env_key) if token_env_key else None) or os.getenv(
+        "HF_TOKEN"
+    )
     return HfApi(token=token)
 
 
@@ -65,7 +70,11 @@ def _get_repo_id(api, node_info):
 
 def _format_runtime(runtime):
     stage = getattr(runtime, "stage", "UNKNOWN")
-    hw = getattr(runtime, "hardware", None) or getattr(runtime, "requested_hardware", None) or "unknown"
+    hw = (
+        getattr(runtime, "hardware", None)
+        or getattr(runtime, "requested_hardware", None)
+        or "unknown"
+    )
     emoji, label = _STAGE_LABELS.get(stage, ("❓", stage))
     hw_label = _HARDWARE_LABELS.get(hw, hw)
     return f"{emoji} {label}  [{hw_label}]"
@@ -77,7 +86,10 @@ def _resolve_nodes(node_name_arg, nodes):
         return list(nodes.items())
     if node_name_arg not in nodes:
         available = ", ".join(nodes.keys())
-        print(f"[-] Node '{node_name_arg}' not found. Available: {available}", file=sys.stderr)
+        print(
+            f"[-] Node '{node_name_arg}' not found. Available: {available}",
+            file=sys.stderr,
+        )
         sys.exit(1)
     return [(node_name_arg, nodes[node_name_arg])]
 
@@ -85,6 +97,7 @@ def _resolve_nodes(node_name_arg, nodes):
 # ─────────────────────────────────────────────────────────
 # Public actions
 # ─────────────────────────────────────────────────────────
+
 
 def cmd_status(node_name):
     nodes, repo_root = _load_nodes_config()
@@ -230,9 +243,7 @@ def cmd_logs(node_name, follow=False, build=False):
         print(
             "[i] Node has 'test' enabled: look for lines starting with [TEST SERVICE] below."
         )
-        print(
-            "[i] File-only detail: .torch_metrics/test.log — Gradio: SHOW_LOGS_TEST"
-        )
+        print("[i] File-only detail: .torch_metrics/test.log — Gradio: SHOW_LOGS_TEST")
     print("────────────────────────────────────────────────────────────")
     saw_test = False
     try:
@@ -259,7 +270,9 @@ def cmd_dev(node_name, disable=False):
     nodes, repo_root = _load_nodes_config()
     targets = _resolve_nodes(node_name, nodes)
     if len(targets) > 1:
-        print("[-] --dev/--undev only works on a single node, not 'all'", file=sys.stderr)
+        print(
+            "[-] --dev/--undev only works on a single node, not 'all'", file=sys.stderr
+        )
         sys.exit(1)
 
     name, info = targets[0]
@@ -278,13 +291,17 @@ def cmd_dev(node_name, disable=False):
             runtime = api.enable_space_dev_mode(repo_id)
             raw = runtime.raw if hasattr(runtime, "raw") else {}
             dev_info = raw.get("devMode") or raw.get("dev_mode") or {}
-            ssh_url = dev_info.get("sshUrl") or dev_info.get("ssh_url") or "ssh.hf.space"
+            ssh_url = (
+                dev_info.get("sshUrl") or dev_info.get("ssh_url") or "ssh.hf.space"
+            )
             ssh_port = dev_info.get("port", 22)
 
             print(f"[+] {name}: Dev mode ENABLED → {repo_id}")
             print(f"    Stage:  {runtime.stage}")
             print()
-            print("    ⚠️  Your app is NOT running. The container is in a persistent shell.")
+            print(
+                "    ⚠️  Your app is NOT running. The container is in a persistent shell."
+            )
             print()
             print("    Connect via SSH (requires your HF SSH key):")
             print(f"      ssh -p {ssh_port} {ssh_url}")

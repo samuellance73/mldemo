@@ -1,19 +1,22 @@
-import subprocess
 import os
 import socket
+import subprocess
 import threading
+
 from loguru import logger
-from .utils import decode_cmd
+
 from client import mc_tunnel
+
+from .utils import decode_cmd
 
 XOR_BRIDGE_PORT = 25565
 SSH_PORT = 2222
 
 
-
 def _handle_client(client_sock):
-    import traceback
     import sys
+    import traceback
+
     try:
         mode, reader, target_port = mc_tunnel.server_dispatch(client_sock)
         backend_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -42,7 +45,9 @@ def _handle_client(client_sock):
         except Exception:
             pass
     except Exception as e:
-        logger.warning("Playit MC tunnel client dropped unexpectedly: {} - {}", type(e).__name__, e)
+        logger.warning(
+            "Playit MC tunnel client dropped unexpectedly: {} - {}", type(e).__name__, e
+        )
         traceback.print_exc(file=sys.stderr)
         try:
             client_sock.close()

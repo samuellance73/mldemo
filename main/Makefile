@@ -1,4 +1,4 @@
-.PHONY: all build deploy clean
+.PHONY: all build deploy clean lint lint-fix format
 
 # 0 = Disabled, 1 = File Only (default), 2 = Console + File
 LOGS ?= 2
@@ -13,6 +13,18 @@ build:
 # Deploy the dist/ directory to configured Hugging Face nodes
 deploy: build
 	uv run python scripts/deploy.py
+
+# Lint checking
+lint:
+	uv run ruff check .
+
+# Auto-fix linting issues
+lint-fix:
+	uv run ruff check --fix .
+
+# Code formatting
+format:
+	uv run ruff format .
 
 # Remove generated files inside dist/ but preserve dist/.git repository
 clean:

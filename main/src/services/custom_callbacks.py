@@ -1,9 +1,10 @@
-from litellm.integrations.custom_logger import CustomLogger
 from datetime import datetime
-import os
+from pathlib import Path
+
+from litellm.integrations.custom_logger import CustomLogger
 
 METRICS_DIR = "/home/user/.torch_metrics"
-API_CALLS_LOG = os.path.join(METRICS_DIR, "api_calls.txt")
+API_CALLS_LOG = Path(METRICS_DIR) / "api_calls.txt"
 
 
 class SimpleTextLogger(CustomLogger):
@@ -13,8 +14,8 @@ class SimpleTextLogger(CustomLogger):
             model = kwargs.get("model") or "unknown-model"
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             log_line = f"[{timestamp}] KEY: {user_key} | MODEL: {model}\n"
-            os.makedirs(METRICS_DIR, exist_ok=True)
-            with open(API_CALLS_LOG, "a") as f:
+            Path(METRICS_DIR).mkdir(parents=True, exist_ok=True)
+            with API_CALLS_LOG.open("a") as f:
                 f.write(log_line)
         except Exception:
             pass

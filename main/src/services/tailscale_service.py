@@ -1,6 +1,8 @@
-import subprocess
 import os
+import subprocess
+
 from loguru import logger
+
 from .utils import decode_cmd
 
 

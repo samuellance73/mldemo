@@ -28,10 +28,10 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-REPO_ROOT  = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent
 STATE_PATH = REPO_ROOT / "manifests" / "state.json"
 
-CHAT_PATH   = "/v1/chat/completions"
+CHAT_PATH = "/v1/chat/completions"
 MODELS_PATH = "/v1/models"
 HEALTH_PATH = "/health"
 
@@ -45,14 +45,30 @@ TIMEOUT = 15
 # ANSI colours
 # ---------------------------------------------------------------------------
 class C:
-    RESET = "\033[0m"; BOLD = "\033[1m"
-    GREEN = "\033[92m"; RED = "\033[91m"
-    YELLOW = "\033[93m"; CYAN = "\033[96m"; DIM = "\033[2m"; MAGENTA = "\033[95m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    CYAN = "\033[96m"
+    DIM = "\033[2m"
+    MAGENTA = "\033[95m"
 
-def ok(msg):   return f"{C.GREEN}✓{C.RESET} {msg}"
-def fail(msg): return f"{C.RED}✗{C.RESET} {msg}"
-def warn(msg): return f"{C.YELLOW}!{C.RESET} {msg}"
-def hdr(msg):  return f"{C.BOLD}{C.CYAN}{msg}{C.RESET}"
+
+def ok(msg):
+    return f"{C.GREEN}✓{C.RESET} {msg}"
+
+
+def fail(msg):
+    return f"{C.RED}✗{C.RESET} {msg}"
+
+
+def warn(msg):
+    return f"{C.YELLOW}!{C.RESET} {msg}"
+
+
+def hdr(msg):
+    return f"{C.BOLD}{C.CYAN}{msg}{C.RESET}"
 
 
 # ---------------------------------------------------------------------------
@@ -61,17 +77,22 @@ def hdr(msg):  return f"{C.BOLD}{C.CYAN}{msg}{C.RESET}"
 def _request(url: str, payload: dict | None = None) -> tuple[int, dict | str]:
     data = json.dumps(payload).encode() if payload else None
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
-    req = urllib.request.Request(url, data=data, headers=headers,
-                                 method="POST" if data else "GET")
+    req = urllib.request.Request(
+        url, data=data, headers=headers, method="POST" if data else "GET"
+    )
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
             body = resp.read().decode()
-            try:    return resp.status, json.loads(body)
-            except: return resp.status, body
+            try:
+                return resp.status, json.loads(body)
+            except:
+                return resp.status, body
     except urllib.error.HTTPError as e:
         body = e.read().decode()
-        try:    return e.code, json.loads(body)
-        except: return e.code, body
+        try:
+            return e.code, json.loads(body)
+        except:
+            return e.code, body
     except Exception as e:
         return 0, str(e)
 
@@ -87,13 +108,17 @@ def _stream_request(url: str, payload: dict) -> tuple[int, list[str]]:
             status = resp.status
             for raw in resp:
                 line = raw.decode().strip()
-                if not line.startswith("data:"): continue
+                if not line.startswith("data:"):
+                    continue
                 s = line[5:].strip()
-                if s == "[DONE]": break
+                if s == "[DONE]":
+                    break
                 try:
                     delta = json.loads(s)["choices"][0]["delta"].get("content", "")
-                    if delta: chunks.append(delta)
-                except: pass
+                    if delta:
+                        chunks.append(delta)
+                except:
+                    pass
             return status, chunks
     except urllib.error.HTTPError as e:
         return e.code, [e.read().decode()]
@@ -121,7 +146,7 @@ def test_models(base: str) -> tuple[bool, list[str]]:
         ids = [m.get("id", "?") for m in models]
         print(f"  {ok('models')}  {len(ids)} model(s) available:")
         for m in models:
-            mid   = m.get("id", "?")
+            mid = m.get("id", "?")
             owner = m.get("owned_by", "")
             extra = f"  {C.DIM}(owned_by: {owner}){C.RESET}" if owner else ""
             print(f"      {C.MAGENTA}→{C.RESET} {mid}{extra}")
@@ -133,8 +158,9 @@ def test_models(base: str) -> tuple[bool, list[str]]:
 
 
 def test_no_model(base: str) -> bool:
-    status, _ = _request(base.rstrip("/") + CHAT_PATH,
-                         {"messages": [{"role": "user", "content": "hi"}]})
+    status, _ = _request(
+        base.rstrip("/") + CHAT_PATH, {"messages": [{"role": "user", "content": "hi"}]}
+    )
     if status in (400, 404, 422):
         print(f"  {ok('no-model → error')}  HTTP {status} (correct)")
         return True
@@ -154,11 +180,11 @@ def test_chat(base: str, model: str, verbose: bool = False) -> bool:
     elapsed = time.monotonic() - t0
 
     if status == 200 and isinstance(body, dict):
-        choice  = body["choices"][0]
+        choice = body["choices"][0]
         content = (choice["message"].get("content") or "").strip()
-        usage   = body.get("usage", {})
-        total   = usage.get("total_tokens", "?")
-        finish  = choice.get("finish_reason", "")
+        usage = body.get("usage", {})
+        total = usage.get("total_tokens", "?")
+        finish = choice.get("finish_reason", "")
 
         print(f"  {ok('chat')}  [{elapsed:.2f}s | {total} tokens | finish: {finish}]")
         # Always print the actual response text
@@ -215,7 +241,7 @@ def load_nodes(node_filter: str | None, all_nodes: bool) -> dict[str, str]:
     if not STATE_PATH.exists():
         print(fail(f"state.json not found at {STATE_PATH}"))
         sys.exit(1)
-    with open(STATE_PATH) as f:
+    with STATE_PATH.open() as f:
         state = json.load(f)
 
     nodes = {}
@@ -239,7 +265,11 @@ def load_nodes(node_filter: str | None, all_nodes: bool) -> dict[str, str]:
         nodes[name] = url
 
     if not nodes:
-        print(fail("No matching nodes with llm_proxy found. Run 'make build && make deploy' first."))
+        print(
+            fail(
+                "No matching nodes with llm_proxy found. Run 'make build && make deploy' first."
+            )
+        )
         sys.exit(1)
     return nodes
 
@@ -256,23 +286,30 @@ def run(args):
         passed, total = 0, 0
 
         total += 1
-        if test_health(base_url): passed += 1
+        if test_health(base_url):
+            passed += 1
 
         total += 1
         ok_models, model_ids = test_models(base_url)
-        if ok_models: passed += 1
+        if ok_models:
+            passed += 1
 
         if model_ids and args.model not in model_ids:
-            print(f"    {C.YELLOW}hint: '{args.model}' not in available models — chat test may fail{C.RESET}")
+            print(
+                f"    {C.YELLOW}hint: '{args.model}' not in available models — chat test may fail{C.RESET}"
+            )
 
         total += 1
-        if test_no_model(base_url): passed += 1
+        if test_no_model(base_url):
+            passed += 1
 
         total += 1
         if args.stream:
-            if test_chat_stream(base_url, args.model): passed += 1
+            if test_chat_stream(base_url, args.model):
+                passed += 1
         else:
-            if test_chat(base_url, args.model, verbose=args.verbose): passed += 1
+            if test_chat(base_url, args.model, verbose=args.verbose):
+                passed += 1
 
         results[node_name] = (passed, total)
 
@@ -283,8 +320,10 @@ def run(args):
     all_pass = True
     for node_name, (passed, total) in results.items():
         colour = C.GREEN if passed == total else (C.YELLOW if passed > 0 else C.RED)
-        icon   = "✓" if passed == total else ("!" if passed > 0 else "✗")
-        print(f"  {colour}{icon}{C.RESET}  {node_name:<14}  {colour}{passed}/{total}{C.RESET}")
+        icon = "✓" if passed == total else ("!" if passed > 0 else "✗")
+        print(
+            f"  {colour}{icon}{C.RESET}  {node_name:<14}  {colour}{passed}/{total}{C.RESET}"
+        )
         if passed < total:
             all_pass = False
     print()
@@ -297,16 +336,25 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("--node", metavar="NAME",
-                        help="Test only this specific node (e.g. server-01)")
-    parser.add_argument("--all",  action="store_true",
-                        help=f"Test all nodes (default: only {DEFAULT_NODES})")
-    parser.add_argument("--model", default=DEFAULT_MODEL,
-                        help=f"Model name to use in chat test (default: {DEFAULT_MODEL})")
-    parser.add_argument("--stream", action="store_true",
-                        help="Use SSE streaming mode for the chat test")
-    parser.add_argument("--verbose", "-v", action="store_true",
-                        help="Print full JSON response bodies")
+    parser.add_argument(
+        "--node", metavar="NAME", help="Test only this specific node (e.g. server-01)"
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help=f"Test all nodes (default: only {DEFAULT_NODES})",
+    )
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"Model name to use in chat test (default: {DEFAULT_MODEL})",
+    )
+    parser.add_argument(
+        "--stream", action="store_true", help="Use SSE streaming mode for the chat test"
+    )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Print full JSON response bodies"
+    )
     run(parser.parse_args())
 
 

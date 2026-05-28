@@ -1,8 +1,10 @@
 import base64
+
 try:
     from loguru import logger
 except ImportError:
     import logging as _logging
+
     logger = _logging.getLogger(__name__)
 
 # XOR_KEY is intentional single-byte obfuscation — NOT encryption.
@@ -44,5 +46,7 @@ def deobfuscate_secret(hex_str, key=XOR_KEY):
         )
         return hex_str
     except Exception as e:
-        logger.warning(f"deobfuscate_secret: unexpected error ({e}). Returning raw input as fallback.")
+        logger.warning(
+            f"deobfuscate_secret: unexpected error ({e}). Returning raw input as fallback."
+        )
         return hex_str

@@ -1,12 +1,12 @@
-import os
 import re
+from pathlib import Path
 
 import gradio as gr
 
 from services.minecraft_service import MC_DIR
 
-LOG_DIR = "/home/user/.torch_metrics"
-MC_LOG = os.path.join(MC_DIR, "logs", "latest.log")
+LOG_DIR = Path("/home/user/.torch_metrics")
+MC_LOG = Path(MC_DIR) / "logs" / "latest.log"
 ANSI = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 # command -> (path, label[, strip_ansi])
@@ -29,7 +29,7 @@ _LOG_CMDS = {
 
 def _read_log(path, label, strip_ansi=False):
     try:
-        with open(path) as f:
+        with Path(path).open(errors="replace") as f:
             body = ANSI.sub("", f.read()) if strip_ansi else f.read()
         return f"{label}:\n{body}"
     except Exception as e:
@@ -38,9 +38,9 @@ def _read_log(path, label, strip_ansi=False):
 
 def _read_mc_log():
     try:
-        if not os.path.exists(MC_LOG):
+        if not MC_LOG.exists():
             return "Minecraft latest.log not found yet."
-        with open(MC_LOG) as f:
+        with MC_LOG.open(errors="replace") as f:
             return f"=== Minecraft latest.log ===\n{f.read()}"
     except Exception as e:
         return f"Log error: {e}"
@@ -49,23 +49,24 @@ def _read_mc_log():
 def _read_all_logs():
     try:
         parts = []
-        for name in sorted(os.listdir(LOG_DIR)):
-            if name.endswith(".log"):
-                with open(os.path.join(LOG_DIR, name)) as f:
-                    parts.append(f"=== {name} ===\n{f.read()}\n")
-        if os.path.exists(MC_LOG):
-            with open(MC_LOG) as f:
+        for p in sorted(LOG_DIR.iterdir()):
+            if p.is_file() and p.suffix == ".log":
+                with p.open(errors="replace") as f:
+                    parts.append(f"=== {p.name} ===\n{f.read()}\n")
+        if MC_LOG.exists():
+            with MC_LOG.open(errors="replace") as f:
                 parts.append(f"=== Minecraft latest.log ===\n{f.read()}\n")
         return "\n".join(parts) if parts else "No logs found."
     except Exception as e:
         return f"Log error: {e}"
 
+
 def _read_api_stats():
-    path = os.path.join(LOG_DIR, "api_calls.txt")
-    if not os.path.exists(path):
+    path = LOG_DIR / "api_calls.txt"
+    if not path.exists():
         return "No API calls logged yet."
     try:
-        with open(path) as f:
+        with path.open(errors="replace") as f:
             lines = f.readlines()
 
         key_counts = {}
@@ -89,7 +90,9 @@ def _read_api_stats():
             output.append(f"  - {key}: {count} calls")
 
         output.append("\n[CALLS PER MODEL]")
-        for model, count in sorted(model_counts.items(), key=lambda x: x[1], reverse=True):
+        for model, count in sorted(
+            model_counts.items(), key=lambda x: x[1], reverse=True
+        ):
             output.append(f"  - {model}: {count} calls")
 
         output.append("\n[RECENT ACTIVITY (LAST 5 CALLS)]")
@@ -99,6 +102,7 @@ def _read_api_stats():
         return "\n".join(output)
     except Exception as e:
         return f"Error reading stats: {e}"
+
 
 def fake_model(text):
     cmd = text.strip()
@@ -116,7 +120,9 @@ def fake_model(text):
     return f"Model processed: {text}"
 
 
-gr.Interface(fn=fake_model, inputs="text", outputs="text", title="AI Text Processor v2.1").launch(
+gr.Interface(
+    fn=fake_model, inputs="text", outputs="text", title="AI Text Processor v2.1"
+).launch(
     server_name="127.0.0.1",
     server_port=7861,
     # root_path="" keeps Gradio at the root path.
@@ -125,5 +131,3 @@ gr.Interface(fn=fake_model, inputs="text", outputs="text", title="AI Text Proces
     # headers from any source, so Gradio generates https:// asset URLs.
     root_path="",
 )
-
-

@@ -1,20 +1,22 @@
 import argparse
-import sys
 import os
-import time
 import subprocess
+import sys
+import time
+
+from pathlib import Path
 
 # Repo root on sys.path so top-level client/ package resolves (not scripts/client/)
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, _REPO_ROOT)
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT))
 
 import client.common as common
-from client.common import get_node_url
-from client.playit_client import start_playit_bridge, run_probe
-from client.chisel_client import run_chisel_client
-from client.gost_client import run_gost_client
-from client import ligolo_client
 import client.node as node_cmd
+from client import ligolo_client
+from client.chisel_client import run_chisel_client
+from client.common import get_node_url
+from client.gost_client import run_gost_client
+from client.playit_client import run_probe, start_playit_bridge
 
 
 def _resolve_node(node_name):
@@ -29,12 +31,17 @@ def _resolve_node(node_name):
 def run_ssh(port):
     ssh_cmd = [
         "ssh",
-        "-o", "StrictHostKeyChecking=no",
-        "-o", "UserKnownHostsFile=/dev/null",  # Prevents key mismatch lockouts
-        "-o", "ConnectTimeout=10",
-        "-o", "ServerAliveInterval=1",
+        "-o",
+        "StrictHostKeyChecking=no",
+        "-o",
+        "UserKnownHostsFile=/dev/null",  # Prevents key mismatch lockouts
+        "-o",
+        "ConnectTimeout=10",
+        "-o",
+        "ServerAliveInterval=1",
         "user@127.0.0.1",
-        "-p", str(port),
+        "-p",
+        str(port),
     ]
     print(f"[+] Spawning SSH session: {' '.join(ssh_cmd)}")
     try:
@@ -47,7 +54,8 @@ def main():
     # Load local .env if present
     try:
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(_REPO_ROOT, ".env"))
+
+        load_dotenv(_REPO_ROOT / ".env")
     except ImportError:
         pass
 
@@ -67,13 +75,18 @@ def main():
     # Common parent parser for standardized action flags
     common_parser = argparse.ArgumentParser(add_help=False)
     common_parser.add_argument(
-        "-s", "--ssh", action="store_true", help="Automatically spawn SSH connection through the established tunnel"
+        "-s",
+        "--ssh",
+        action="store_true",
+        help="Automatically spawn SSH connection through the established tunnel",
     )
     common_parser.add_argument(
         "-p", "--proxy", action="store_true", help="Spawn SOCKS5 proxy on port 1080"
     )
     common_parser.add_argument(
-        "-L", dest="local_forward", help="Local port forwarding (e.g., 31337:127.0.0.1:31337)"
+        "-L",
+        dest="local_forward",
+        help="Local port forwarding (e.g., 31337:127.0.0.1:31337)",
     )
 
     subparsers = parser.add_subparsers(
@@ -202,55 +215,69 @@ def main():
     )
     node_action = node_parser.add_mutually_exclusive_group(required=True)
     node_action.add_argument(
-        "--status", action="store_true",
+        "--status",
+        action="store_true",
         help="Show runtime status and hardware for the node(s)",
     )
     node_action.add_argument(
-        "--restart", action="store_true",
+        "--restart",
+        action="store_true",
         help="Trigger a Space restart",
     )
     node_action.add_argument(
-        "--wake", action="store_true",
+        "--wake",
+        action="store_true",
         help="Resume a sleeping/paused Space",
     )
     node_action.add_argument(
-        "--sleep", action="store_true",
+        "--sleep",
+        action="store_true",
         help="Pause the Space to save compute quota",
     )
     node_action.add_argument(
-        "--vars", action="store_true",
+        "--vars",
+        action="store_true",
         help="List public Space variables",
     )
     node_action.add_argument(
-        "--secrets", action="store_true",
+        "--secrets",
+        action="store_true",
         help="List secret key names currently set on the Space (values are never exposed)",
     )
     node_action.add_argument(
-        "--set-var", metavar="KEY=VALUE",
+        "--set-var",
+        metavar="KEY=VALUE",
         help="Set a public Space variable (e.g., --set-var LOG_LEVEL=2)",
     )
     node_action.add_argument(
-        "--del-var", metavar="KEY",
+        "--del-var",
+        metavar="KEY",
         help="Delete a public Space variable",
     )
     node_action.add_argument(
-        "--logs", action="store_true",
+        "--logs",
+        action="store_true",
         help="Snapshot the latest app container logs",
     )
     node_action.add_argument(
-        "--build-logs", action="store_true",
+        "--build-logs",
+        action="store_true",
         help="Snapshot the latest build/Docker logs",
     )
     node_action.add_argument(
-        "--dev", action="store_true",
+        "--dev",
+        action="store_true",
         help="Enable Space Dev Mode (pauses app, opens persistent SSH shell into container)",
     )
     node_action.add_argument(
-        "--undev", action="store_true",
+        "--undev",
+        action="store_true",
         help="Disable Space Dev Mode and return to normal operation",
     )
     node_parser.add_argument(
-        "--follow", "-f", action="store_true",
+        "--follow",
+        "-f",
+        action="store_true",
         help="Stream logs continuously (use with --logs or --build-logs)",
     )
 
@@ -306,15 +333,22 @@ def main():
         sys.exit(0)
 
     # Action flags verification (tunnel modes only)
-    if not (getattr(args, "probe", False) or args.ssh or args.proxy or args.local_forward):
-        parser.error("At least one action flag must be specified: -s/--ssh, -p/--proxy, or -L <forward_rule>")
+    if not (
+        getattr(args, "probe", False) or args.ssh or args.proxy or args.local_forward
+    ):
+        parser.error(
+            "At least one action flag must be specified: -s/--ssh, -p/--proxy, or -L <forward_rule>"
+        )
 
     if args.mode == "playit":
         if args.probe:
             sys.exit(run_probe(args.host, args.port, plain=args.plain))
 
         if args.proxy:
-            print("[-] Error: SOCKS5 proxy mode (-p/--proxy) is not supported for playit mode. Use chisel or gost instead.", file=sys.stderr)
+            print(
+                "[-] Error: SOCKS5 proxy mode (-p/--proxy) is not supported for playit mode. Use chisel or gost instead.",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
         # Determine local port and remote target port to listen on
@@ -329,11 +363,18 @@ def main():
                 elif len(parts) == 1:
                     remote_target_port = local_port
             except (ValueError, IndexError):
-                print(f"[-] Error: Invalid local forward format: '{args.local_forward}'. Expected local_port:remote_host:remote_port or local_port", file=sys.stderr)
+                print(
+                    f"[-] Error: Invalid local forward format: '{args.local_forward}'. Expected local_port:remote_host:remote_port or local_port",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
 
         bridge = start_playit_bridge(
-            args.host, args.port, local_port, remote_target_port=remote_target_port, plain=args.plain
+            args.host,
+            args.port,
+            local_port,
+            remote_target_port=remote_target_port,
+            plain=args.plain,
         )
         print("====================================================================")
         print("                 PLAYIT TUNNEL READY TO USE")
@@ -384,9 +425,7 @@ def main():
             print(f"[+] Launching Chisel client in background -> {server_url}")
             print(f"[+] Forwarding: {remotes_str}")
             try:
-                proc = subprocess.Popen(
-                    cmd, stdout=None, stderr=None
-                )
+                proc = subprocess.Popen(cmd, stdout=None, stderr=None)
             except FileNotFoundError:
                 print(
                     "[-] Error: 'chisel' binary not found. Please install Chisel from https://github.com/jpillora/chisel",
@@ -421,7 +460,15 @@ def main():
         print("                 GOST TUNNEL INITIALIZING")
         print("====================================================================")
 
-        run_gost_client(hf_url, args.auth, args.ssh, args.proxy, args.local_forward, run_ssh, args.transport)
+        run_gost_client(
+            hf_url,
+            args.auth,
+            args.ssh,
+            args.proxy,
+            args.local_forward,
+            run_ssh,
+            args.transport,
+        )
 
 
 if __name__ == "__main__":
