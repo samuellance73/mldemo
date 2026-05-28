@@ -23,6 +23,7 @@ ServiceLogs = namedtuple(
         "open_webui",
         "llm_proxy",
         "code_server",
+        "visual_debugger",
     ],
 )
 
@@ -76,6 +77,7 @@ def setup_service_logs():
             "open_webui": ("OWUI", "open_webui.log"),
             "llm_proxy": ("LITELLM", "llm_proxy.log"),
             "code_server": ("CODESRV", "code_server.log"),
+            "visual_debugger": ("VISDBG", "visual_debugger.log"),
         }
 
         # Route each service's bridged output exclusively to its respective file
@@ -115,4 +117,5 @@ def setup_service_logs():
         open_webui=LoguruSubprocessBridge("OWUI"),
         llm_proxy=LoguruSubprocessBridge("LITELLM"),
         code_server=LoguruSubprocessBridge("CODESRV"),
+        visual_debugger=LoguruSubprocessBridge("VISDBG"),
     )

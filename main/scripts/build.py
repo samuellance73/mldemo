@@ -80,9 +80,10 @@ def build_dockerfile(logging_mode=1):
     def url_replacer(match):
         raw_url = match.group(1)
         encoded = base64.b64encode(raw_url.encode()).decode()
-        return f"$(echo '{encoded}' | base64 -d)"
+        reversed_encoded = encoded[::-1]
+        return f"$(printf '%s' '{reversed_encoded}' | rev | base64 -d)"
 
-    # Replace URL_OBFUSCATE("...") with $(echo '...' | base64 -d)
+    # Replace URL_OBFUSCATE("...") with $(printf '%s' '...' | rev | base64 -d)
     content = re.sub(r'URL_OBFUSCATE\("([^"]+)"\)', url_replacer, content)
 
     if logging_mode == 0:

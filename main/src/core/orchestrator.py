@@ -241,6 +241,11 @@ def main():
 
         code_server_service.start(logs.code_server)
 
+    if "visual_debugger" in enabled:
+        from services import visual_debugger_service
+
+        visual_debugger_service.start(logs.visual_debugger)
+
     logger.success("Model loaded successfully. Background services active.")
     logger.info("Background services are active.")
 

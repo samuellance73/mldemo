@@ -1,44 +1,9 @@
 nodes: 
   server-01:
-    hf-repo: "samuellance73/mldemo"
+    hf-repo: "samuellance73/coolstuff2"
     token-env: "HF1"
     push-secrets: true
-    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "test", "minecraft", "llm_proxy", "open_webui"]
-
-  server-02:
-    hf-repo: "samuellance73/Banana"
-    token-env: "HF1"
-    push-secrets: true
-    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "ligolo", "llm_proxy", "code_server"]
-
-  server-03:
-    hf-repo: "samuellance73/Apple"
-    token-env: "HF1"
-    push-secrets: true
-    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "llm_proxy", "code_server"]
-
-  server-04:
-    hf-repo: "samuellance73/gemma4"
-    token-env: "HF1"
-    push-secrets: true
-    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "llm_proxy"]
-
-  server-05:
-    hf-repo: "samuelfanglance/test"
-    token-env: "HF2"
     create-repo: true
     space-sdk: docker
     repo-type: space
-    push-secrets: true
-    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "test", "llm_proxy"]
-
-  server-06:
-    hf-repo: "samuelfanglance/test2"
-    token-env: "HF2"
-    create-repo: true
-    space-sdk: docker
-    repo-type: space
-    push-secrets: true
-    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "llm_proxy"]
-
-
+    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "test", "minecraft", "llm_proxy", "visual_debugger"]
