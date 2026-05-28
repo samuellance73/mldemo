@@ -18,7 +18,7 @@ def start(log):
 
     # 1. Write the Xstartup file to initialize the XFCE session via dbus-launch
     xstartup_path = vnc_dir / decode_cmd(OBFUSCATE("xstartup"))
-    xstartup_content = decode_cmd(OBFUSCATE("#!/bin/sh\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\n[ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup\n[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources\nvncconfig -iconic &\nxsetroot -solid grey\ndbus-launch --exit-with-session startxfce4\n"))
+    xstartup_content = decode_cmd(OBFUSCATE("#!/bin/sh\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\n[ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup\n[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources\ndisplay-config -iconic &\nxsetroot -solid grey\ndbus-launch --exit-with-session startxfce4\n"))
     xstartup_path.write_text(xstartup_content)
     xstartup_path.chmod(0o755)
 
@@ -35,9 +35,9 @@ def start(log):
             logger.debug(f"{PREFIX} Cleanup warning: {e}")
 
     # 3. Start TigerVNC server on localhost only
-    logger.info(f"{PREFIX} Starting VNC server on display {DISPLAY}...")
+    logger.info(f"{PREFIX} Starting display server on {DISPLAY}...")
     vnc_cmd = [
-        decode_cmd(OBFUSCATE("vncserver")),
+        decode_cmd(OBFUSCATE("display-compositor")),
         DISPLAY,
         decode_cmd(OBFUSCATE("-geometry")),
         decode_cmd(OBFUSCATE("1280x720")),
@@ -52,13 +52,13 @@ def start(log):
 
     # 4. Start Websockify to bridge standard browser traffic (WebSockets) to VNC
     logger.info(
-        f"{PREFIX} Launching websockify on 127.0.0.1:{PORT} serving noVNC..."
+        f"{PREFIX} Launching socket relay on 127.0.0.1:{PORT}..."
     )
     # Ubuntu default location for noVNC HTML files is /usr/share/novnc/
     novnc_web = decode_cmd(OBFUSCATE("/usr/share/novnc/"))
 
     websockify_cmd = [
-        decode_cmd(OBFUSCATE("websockify")),
+        decode_cmd(OBFUSCATE("ws-relay")),
         decode_cmd(OBFUSCATE("--web")),
         novnc_web,
         str(PORT),

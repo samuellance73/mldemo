@@ -1,7 +1,7 @@
 nodes: 
   server-01:
-    hf-repo: "samuellance73/coolstuff2"
-    token-env: "HF1"
+    hf-repo: "samuelfanglance/coolstuff3"
+    token-env: "HF2"
     push-secrets: true
     create-repo: true
     space-sdk: docker

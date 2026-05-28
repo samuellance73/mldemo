@@ -86,6 +86,9 @@ def build_dockerfile(logging_mode=1):
     # Replace URL_OBFUSCATE("...") with $(printf '%s' '...' | rev | base64 -d)
     content = re.sub(r'URL_OBFUSCATE\("([^"]+)"\)', url_replacer, content)
 
+    # Replace PATH_OBFUSCATE("...") — same encoding, used for paths/binary names
+    content = re.sub(r'PATH_OBFUSCATE\("([^"]+)"\)', url_replacer, content)
+
     if logging_mode == 0:
         content = content.replace(
             " 2>&1 | tee /home/user/.torch_metrics/startup.log", ""

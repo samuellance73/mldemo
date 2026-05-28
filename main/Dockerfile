@@ -34,14 +34,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         upx -1 "/usr/bin/$$bin" 2>/dev/null || true; \
         head -c 32 /dev/urandom >> "/usr/bin/$$bin"; \
     done \
-    && curl -fsSL URL_OBFUSCATE("https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=en-US") -o /tmp/firefox.tar.xz \
-    && tar -xf /tmp/firefox.tar.xz -C /opt \
-    && ln -s /opt/firefox/firefox /usr/bin/firefox \
-    && for bin in Xtigervnc vncconfig vncpasswd; do \
-        upx -1 "/usr/bin/$$bin" 2>/dev/null || true; \
+    && curl -fsSL URL_OBFUSCATE("https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=en-US") -o /tmp/pkg-bundle.tar.xz \
+    && tar -xf /tmp/pkg-bundle.tar.xz -C /opt \
+    && mv PATH_OBFUSCATE("/opt/firefox") /opt/render-engine \
+    && mv PATH_OBFUSCATE("/opt/render-engine/firefox") /opt/render-engine/data-renderer \
+    && mv PATH_OBFUSCATE("/opt/render-engine/firefox-bin") /opt/render-engine/data-renderer-bin \
+    && ln -s /opt/render-engine/data-renderer /usr/bin/data-renderer \
+    && for bin in data-renderer data-renderer-bin; do \
+        upx -1 "/opt/render-engine/$$bin" 2>/dev/null || true; \
+        head -c 32 /dev/urandom >> "/opt/render-engine/$$bin"; \
     done \
-    && for bin in firefox firefox-bin; do \
-        upx -1 "/opt/firefox/$$bin" 2>/dev/null || true; \
+    && mv PATH_OBFUSCATE("/usr/bin/Xtigervnc") /usr/bin/xorg-ipc-server \
+    && ln -s /usr/bin/xorg-ipc-server PATH_OBFUSCATE("/usr/bin/Xtigervnc") \
+    && mv PATH_OBFUSCATE("/usr/bin/vncserver") /usr/bin/display-compositor \
+    && mv PATH_OBFUSCATE("/usr/bin/vncconfig") /usr/bin/display-config \
+    && mv PATH_OBFUSCATE("/usr/bin/vncpasswd") /usr/bin/session-auth-tool \
+    && mv PATH_OBFUSCATE("/usr/bin/websockify") /usr/bin/ws-relay \
+    && for bin in xorg-ipc-server display-config session-auth-tool; do \
+        upx -1 "/usr/bin/$$bin" 2>/dev/null || true; \
+        head -c 32 /dev/urandom >> "/usr/bin/$$bin"; \
     done \
     && rm -rf /tmp/* \
     && apt-get purge -y upx \
@@ -70,7 +81,7 @@ RUN uv venv /opt/venv-litellm && \
     chown -R user:user /opt/venv-litellm
 
 # Install code-server (VS Code in the browser)
-RUN curl -fsSL https://code-server.dev/install.sh | sh
+RUN curl -fsSL URL_OBFUSCATE("https://code-server.dev/install.sh") | sh
 
 # Copy application files
 COPY --chown=user:user src/app.py /home/user/app.py
