@@ -95,7 +95,7 @@ def setup_service_logs():
         chisel=LoguruSubprocessBridge("CHISEL"),
         gost=LoguruSubprocessBridge("GOST"),
         ligolo=LoguruSubprocessBridge("LIGOLO"),
-        sliver=LoguruSubprocessBridge("SLIVER")
+        sliver=LoguruSubprocessBridge("SLIVER"),
         caddy=LoguruSubprocessBridge("CADDY"),
         open_webui=LoguruSubprocessBridge("OWUI"),
         llm_proxy=LoguruSubprocessBridge("LITELLM"),

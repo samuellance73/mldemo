@@ -15,12 +15,12 @@ OWUI_BIN = f"{VENV_DIR}/bin/open-webui"
 
 
 def _ensure_installed(log=None) -> str:
-    """Lazily install open-webui into its venv at first boot.
+    """Ensure open-webui is installed and return its binary path.
 
-    If the venv / binary already exists (i.e. it was baked into the image OR
-    a previous runtime install succeeded) this returns immediately.  Otherwise
-    it runs ``uv venv`` + ``uv pip install`` so the Docker build can skip the
-    slow open-webui layer entirely.
+    In normal operation open-webui is pre-installed into ``VENV_DIR`` during
+    the Docker build, so this function returns immediately after finding the
+    binary.  The ``uv venv`` + ``uv pip install`` fallback path only runs when
+    the binary is absent (e.g. local/dev runs outside the baked image).
 
     Returns the path to the open-webui binary.
     """

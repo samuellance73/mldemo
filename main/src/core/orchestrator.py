@@ -24,7 +24,7 @@ from core.service_registry import ENABLED_SERVICES_PATH
 from services.utils import decode_cmd, deobfuscate_secret
 
 logger.info("--- BOOTING AI MODEL SERVER ---")
-
+ 
 
 def load_enabled_services():
     """Load per-node service list written at deploy time."""
