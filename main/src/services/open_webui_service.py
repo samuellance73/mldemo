@@ -1,11 +1,77 @@
 import os
 import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
 
 from loguru import logger
 
 METRICS_DIR = "/home/user/.torch_metrics"
 PORT = 3000
 PREFIX = "[open-webui]"
+VENV_DIR = "/home/user/.venv-openwebui"
+OWUI_BIN = f"{VENV_DIR}/bin/open-webui"
+
+
+def _ensure_installed(log=None) -> str:
+    """Lazily install open-webui into its venv at first boot.
+
+    If the venv / binary already exists (i.e. it was baked into the image OR
+    a previous runtime install succeeded) this returns immediately.  Otherwise
+    it runs ``uv venv`` + ``uv pip install`` so the Docker build can skip the
+    slow open-webui layer entirely.
+
+    Returns the path to the open-webui binary.
+    """
+    if Path(OWUI_BIN).exists():
+        logger.debug(f"{PREFIX} open-webui binary found at {OWUI_BIN}, skipping install.")
+        return OWUI_BIN
+
+    logger.info(f"{PREFIX} open-webui not found — running first-boot install into {VENV_DIR} ...")
+    logger.info(f"{PREFIX} This will take a few minutes on the first start only.")
+
+    def _run(cmd, **kwargs):
+        """Run a command, streaming output to log handle if provided."""
+        proc = subprocess.Popen(
+            cmd,
+            stdout=log if log else subprocess.PIPE,
+            stderr=log if log else subprocess.STDOUT,
+            **kwargs,
+        )
+        proc.wait()
+        if proc.returncode != 0:
+            raise RuntimeError(f"{PREFIX} Install step failed: {' '.join(cmd)} (exit {proc.returncode})")
+
+    t0 = time.time()
+    _run(["uv", "venv", VENV_DIR])
+    _run(["uv", "pip", "install", "--python", VENV_DIR, "--no-cache-dir", "open-webui"])
+    elapsed = time.time() - t0
+    logger.success(f"{PREFIX} open-webui installed in {elapsed:.1f}s — subsequent boots will be instant.")
+    return OWUI_BIN
+
+
+def _start_worker(log, env):
+    """Background worker: install if needed, then launch Open WebUI."""
+    open_webui_bin = _ensure_installed(log)
+    cmd = [
+        open_webui_bin,
+        "serve",
+        "--host", "127.0.0.1",
+        "--port", str(PORT),
+    ]
+
+    logger.info(f"{PREFIX} Starting Open WebUI on 127.0.0.1:{PORT}...")
+    proc = subprocess.Popen(
+        cmd,
+        stdout=log,
+        stderr=log,
+        env=env,
+    )
+
+    logger.success(f"{PREFIX} Open WebUI started (pid {proc.pid}). "
+                   f"Reachable at http://127.0.0.1:{PORT} "
+                   f"exclusively over Tailscale / private overlay networks.")
 
 
 def start(log):
@@ -18,6 +84,9 @@ def start(log):
     Binding to localhost means the process is completely invisible on the
     public internet. Access is secured and routed exclusively through the
     Tailscale secure tunnel overlay or other private network paths.
+
+    The actual install + launch runs in a daemon thread so the orchestrator
+    is never blocked — even on a first-boot pip install that takes minutes.
     """
     os.makedirs(METRICS_DIR, exist_ok=True)
 
@@ -45,23 +114,24 @@ def start(log):
     env["UVICORN_HOST"] = "127.0.0.1"
     env["UVICORN_PORT"] = str(PORT)
 
-    from pathlib import Path
-    open_webui_bin = "/opt/venv-openwebui/bin/open-webui" if Path("/opt/venv-openwebui/bin/open-webui").exists() else "open-webui"
-    cmd = [
-        open_webui_bin,
-        "serve",
-        "--host", "127.0.0.1",
-        "--port", str(PORT),
-    ]
+    # --- Performance Profile: Offloaded Embeddings (RAG) ---
+    # Instead of loading all-MiniLM-L6-v2 (~500MB) directly into Open WebUI's
+    # memory, delegate all embedding calls to the local LiteLLM proxy on :8080.
+    # Open WebUI becomes a thin HTTP client; zero ML weights are loaded in-process.
+    env["ENABLE_RAG"] = "True"
+    env["RAG_EMBEDDING_ENGINE"] = "openai"
+    env["RAG_EMBEDDING_OPENAI_API_BASE_URL"] = "http://127.0.0.1:8080/v1"
+    env["RAG_EMBEDDING_OPENAI_API_KEY"] = env.get("LITELLM_MASTER_KEY", "none") or "none"
 
-    logger.info(f"{PREFIX} Starting Open WebUI on 127.0.0.1:{PORT}...")
-    proc = subprocess.Popen(
-        cmd,
-        stdout=log,
-        stderr=log,
-        env=env,
-    )
+    # --- Performance Profile: Browser-side STT (Zero Server Cost) ---
+    # Whisper models require >500MB RAM and heavy CPU to run server-side.
+    # Setting AUDIO_STT_ENGINE=webapi delegates speech-to-text entirely to the
+    # user's browser (Web Speech API) — consuming 0 bytes of HF node RAM.
+    # TTS is cleared so Open WebUI does not attempt a local TTS engine either.
+    env["AUDIO_STT_ENGINE"] = "webapi"
+    env["AUDIO_TTS_ENGINE"] = ""
 
-    logger.success(f"{PREFIX} Open WebUI started (pid {proc.pid}). "
-                   f"Reachable at http://127.0.0.1:{PORT} "
-                   f"exclusively over Tailscale / private overlay networks.")
+    t = threading.Thread(target=_start_worker, args=(log, env), daemon=True)
+    t.start()
+    logger.info(f"{PREFIX} install/launch dispatched to background thread (orchestrator unblocked).")
+

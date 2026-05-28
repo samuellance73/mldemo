@@ -44,7 +44,7 @@ def obfuscate_secret(val, key=XOR_KEY):
 
 def resolve_mapped_secret(target_key, node_name):
     """Resolves mapped secrets standardizing to node-specific or global keys."""
-    prefix_map = {"A": "TAILSCALE", "P": "PLAYIT", "PASS": "SSH"}
+    prefix_map = {"A": "TAILSCALE", "P": "PLAYIT", "PASS": "PASS"}
     prefix = prefix_map.get(target_key)
     if not prefix:
         return None, None
@@ -52,14 +52,14 @@ def resolve_mapped_secret(target_key, node_name):
     # Suffix from node name: e.g. "server-01" -> "01"
     suffix = "".join(c for c in reversed(node_name) if c.isdigit())[::-1]
 
-    # 1. Try node-specific: e.g. PLAYIT_01
+    # 1. Try node-specific: e.g. PLAYIT_01, PASS_01
     if suffix:
         node_key = f"{prefix}_{suffix}"
         val = os.getenv(node_key)
         if val is not None:
             return val, node_key
 
-    # 2. Try global/fallback prefix: e.g. PLAYIT
+    # 2. Try global/fallback prefix: e.g. PLAYIT, PASS
     val = os.getenv(prefix)
     if val is not None:
         return val, prefix
@@ -170,7 +170,7 @@ def main():
     if args.tailscale_key:
         os.environ["TAILSCALE"] = args.tailscale_key
     if args.ssh_password:
-        os.environ["SSH"] = args.ssh_password
+        os.environ["PASS"] = args.ssh_password
 
     # Ensure working directory is repository root
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

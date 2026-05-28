@@ -59,9 +59,8 @@ RUN uv venv /opt/venv-litellm && \
     uv pip install --python /opt/venv-litellm --no-cache-dir "litellm[proxy]" && \
     chown -R user:user /opt/venv-litellm
 
-RUN uv venv /opt/venv-openwebui && \
-    uv pip install --python /opt/venv-openwebui --no-cache-dir open-webui && \
-    chown -R user:user /opt/venv-openwebui
+# Install code-server (VS Code in the browser)
+RUN curl -fsSL https://code-server.dev/install.sh | sh
 
 # Copy application files
 COPY --chown=user:user src/app.py /home/user/app.py

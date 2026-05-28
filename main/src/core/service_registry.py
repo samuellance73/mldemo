@@ -14,6 +14,7 @@ ALLOWED_SERVICES = frozenset(
         "test",
         "llm_proxy",
         "open_webui",
+        "code_server",
     }
 )
 

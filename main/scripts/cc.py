@@ -44,6 +44,17 @@ def run_ssh(port):
 
 
 def main():
+    # Load local .env if present
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(_REPO_ROOT, ".env"))
+    except ImportError:
+        pass
+
+    # Retrieve configured password from PASS or fallback to apple123
+    default_ssh_pwd = os.environ.get("PASS", "apple123")
+    default_auth = f"user:{default_ssh_pwd}"
+
     parser = argparse.ArgumentParser(
         description="Sanctuary Tunnel CLI (scripts/cc.py) - Connection Manager ONLY",
         formatter_class=argparse.RawTextHelpFormatter,
@@ -118,8 +129,8 @@ def main():
     )
     gost_parser.add_argument(
         "--auth",
-        default="user:apple123",
-        help="GOST authentication credentials (default: user:apple123)",
+        default=default_auth,
+        help=f"GOST authentication credentials (default: {default_auth})",
     )
     gost_parser.add_argument(
         "--transport",
@@ -165,8 +176,8 @@ def main():
     )
     hub_parser.add_argument(
         "--auth",
-        default="user:apple123",
-        help="GOST auth when --via gost (default: user:apple123)",
+        default=default_auth,
+        help=f"GOST auth when --via gost (default: {default_auth})",
     )
     hub_parser.add_argument(
         "--transport",

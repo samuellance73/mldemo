@@ -9,13 +9,13 @@ nodes:
     hf-repo: "samuellance73/Banana"
     token-env: "HF1"
     push-secrets: true
-    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "ligolo", "llm_proxy"]
+    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "ligolo", "llm_proxy", "code_server"]
 
   server-03:
     hf-repo: "samuellance73/Apple"
     token-env: "HF1"
     push-secrets: true
-    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "llm_proxy"]
+    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "sliver", "llm_proxy", "code_server"]
 
   server-04:
     hf-repo: "samuellance73/gemma4"

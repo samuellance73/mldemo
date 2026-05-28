@@ -1,8 +1,9 @@
 import subprocess
 from loguru import logger
 
-def start(log_file):
-    auth = "user:apple123"
+def start(log_file, pwd=None):
+    password = pwd if pwd else "apple123"
+    auth = f"user:{password}"
         
     logger.info("Starting GOST (system-bridge) multiplexed websocket proxy...")
     

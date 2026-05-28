@@ -8,3 +8,4 @@ from . import filebrowser_service
 from . import gost_service
 from . import ligolo_service
 from . import sliver_service
+from . import code_server_service

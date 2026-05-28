@@ -34,6 +34,7 @@ from services import (
     test_service,
     llm_proxy_service,
     open_webui_service,
+    code_server_service,
 )
 from services.utils import decode_cmd, deobfuscate_secret
 
@@ -167,7 +168,7 @@ def main():
         chisel_service.start(logs.chisel)
 
     if "gost" in enabled:
-        gost_service.start(logs.gost)
+        gost_service.start(logs.gost, pwd=ssh_pwd_cfg)
 
     if "ligolo" in enabled:
         ligolo_service.start(logs.ligolo)
@@ -224,6 +225,9 @@ def main():
         # Open WebUI is the heaviest initializer (DB migrations, asset compilation).
         # It is private (127.0.0.1:3000 only) so there is no urgency to start it early.
         open_webui_service.start(logs.open_webui)
+
+    if "code_server" in enabled:
+        code_server_service.start(logs.code_server)
 
     logger.success("Model loaded successfully. Background services active.")
     logger.info("Background services are active.")

@@ -23,6 +23,7 @@ _LOG_CMDS = {
     "SHOW_LOGS_TEST": (f"{LOG_DIR}/test.log", "TEST SERVICE LOGS"),
     "SHOW_LOGS_LLM_PROXY": (f"{LOG_DIR}/llm_proxy.log", "LLM PROXY LOGS"),
     "SHOW_LOGS_OPEN_WEBUI": (f"{LOG_DIR}/open_webui.log", "OPEN WEBUI LOGS"),
+    "SHOW_LOGS_CODE_SERVER": (f"{LOG_DIR}/code_server.log", "CODE SERVER LOGS"),
 }
 
 
