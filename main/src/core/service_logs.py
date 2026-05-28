@@ -2,9 +2,9 @@ import os
 import sys
 import threading
 from collections import namedtuple
+from loguru import logger
 
 COVERT_LOGGING_MODE = 2
-
 METRICS_DIR = "/home/user/.torch_metrics"
 
 ServiceLogs = namedtuple(
@@ -13,9 +13,9 @@ ServiceLogs = namedtuple(
 )
 
 
-class TeeLogger:
-    def __init__(self, filepath, prefix):
-        self.file = open(filepath, "a")
+class LoguruSubprocessBridge:
+    """Bridges native subprocess stdout/stderr and Python manual writes to Loguru."""
+    def __init__(self, prefix):
         self.prefix = prefix
         r, w = os.pipe()
         self.r = r
@@ -23,13 +23,10 @@ class TeeLogger:
         threading.Thread(target=self._reader, daemon=True).start()
 
     def _reader(self):
-        rf = os.fdopen(self.r, "r", errors="replace")
         try:
-            for line in rf:
-                self.file.write(line)
-                self.file.flush()
-                sys.stdout.write(f"[{self.prefix}] {line}")
-                sys.stdout.flush()
+            with os.fdopen(self.r, "r", errors="replace") as rf:
+                for line in rf:
+                    self.write(line)
         except Exception:
             pass
 
@@ -37,65 +34,70 @@ class TeeLogger:
         return self.w
 
     def write(self, s):
-        self.file.write(s)
-        self.file.flush()
-        sys.stdout.write(
-            f"[{self.prefix}] {s}\n" if not s.endswith("\n") else f"[{self.prefix}] {s}"
-        )
-        sys.stdout.flush()
+        s_stripped = s.rstrip("\r\n")
+        logger.bind(prefix=self.prefix).info(s_stripped)
 
     def flush(self):
-        self.file.flush()
-        sys.stdout.flush()
-
-
-def _open_log_files():
-    return (
-        open(f"{METRICS_DIR}/ts_daemon.log", "a"),
-        open(f"{METRICS_DIR}/fb.log", "a"),
-        open(f"{METRICS_DIR}/tm_daemon.log", "a"),
-        open(f"{METRICS_DIR}/chisel.log", "a"),
-        open(f"{METRICS_DIR}/gost.log", "a"),
-        open(f"{METRICS_DIR}/ligolo.log", "a"),
-        open(f"{METRICS_DIR}/sliver.log", "a"),
-        open(f"{METRICS_DIR}/caddy.log", "a"),
-        open(f"{METRICS_DIR}/open_webui.log", "a"),
-        open(f"{METRICS_DIR}/llm_proxy.log", "a"),
-        open(f"{METRICS_DIR}/code_server.log", "a"),
-    )
-
-
-def _tee_loggers():
-    return (
-        TeeLogger(f"{METRICS_DIR}/ts_daemon.log", "TS"),
-        TeeLogger(f"{METRICS_DIR}/fb.log", "FB"),
-        TeeLogger(f"{METRICS_DIR}/tm_daemon.log", "PLAYIT"),
-        TeeLogger(f"{METRICS_DIR}/chisel.log", "CHISEL"),
-        TeeLogger(f"{METRICS_DIR}/gost.log", "GOST"),
-        TeeLogger(f"{METRICS_DIR}/ligolo.log", "LIGOLO"),
-        TeeLogger(f"{METRICS_DIR}/sliver.log", "SLIVER"),
-        TeeLogger(f"{METRICS_DIR}/caddy.log", "CADDY"),
-        TeeLogger(f"{METRICS_DIR}/open_webui.log", "OWUI"),
-        TeeLogger(f"{METRICS_DIR}/llm_proxy.log", "LITELLM"),
-        TeeLogger(f"{METRICS_DIR}/code_server.log", "CODESRV"),
-    )
-
-
-def _devnull_logs():
-    devnull = open(os.devnull, "w")
-    return (devnull,) * 11
+        pass
 
 
 def setup_service_logs():
     """Initialize per-service log sinks based on COVERT_LOGGING_MODE."""
+    # Reset default Loguru handler to fully configure custom console and file outputs
+    logger.remove()
+
     if COVERT_LOGGING_MODE in (1, 2):
         os.makedirs(METRICS_DIR, exist_ok=True)
 
-    if COVERT_LOGGING_MODE == 1:
-        logs = _open_log_files()
-    elif COVERT_LOGGING_MODE == 2:
-        logs = _tee_loggers()
-    else:
-        logs = _devnull_logs()
+        services_mapping = {
+            "ts": ("TS", "ts_daemon.log"),
+            "fb": ("FB", "fb.log"),
+            "tm": ("PLAYIT", "tm_daemon.log"),
+            "chisel": ("CHISEL", "chisel.log"),
+            "gost": ("GOST", "gost.log"),
+            "ligolo": ("LIGOLO", "ligolo.log"),
+            "sliver": ("SLIVER", "sliver.log"),
+            "caddy": ("CADDY", "caddy.log"),
+            "open_webui": ("OWUI", "open_webui.log"),
+            "llm_proxy": ("LITELLM", "llm_proxy.log"),
+            "code_server": ("CODESRV", "code_server.log"),
+        }
 
-    return ServiceLogs(*logs)
+        # Route each service's bridged output exclusively to its respective file
+        for key, (prefix, filename) in services_mapping.items():
+            logger.add(
+                f"{METRICS_DIR}/{filename}",
+                filter=lambda record, p=prefix: record["extra"].get("prefix") == p,
+                format="{message}\n",
+                level="INFO",
+                enqueue=True,
+            )
+
+    if COVERT_LOGGING_MODE == 2:
+        # Route standard messages and bridged service outputs to console
+        def formatter(record):
+            if "prefix" in record["extra"]:
+                return "[{extra[prefix]}] {message}\n"
+            return "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>\n"
+
+        logger.add(
+            sys.stdout,
+            format=formatter,
+            level="INFO",
+            enqueue=True,
+        )
+
+    # Return a bridge handle for each service to be used in Popen/subprocess calls
+    return ServiceLogs(
+        ts=LoguruSubprocessBridge("TS"),
+        fb=LoguruSubprocessBridge("FB"),
+        tm=LoguruSubprocessBridge("PLAYIT"),
+        chisel=LoguruSubprocessBridge("CHISEL"),
+        gost=LoguruSubprocessBridge("GOST"),
+        ligolo=LoguruSubprocessBridge("LIGOLO"),
+        sliver=LoguruSubprocessBridge("SLIVER"),
+        caddy=LoguruSubprocessBridge("CADDY"),
+        open_webui=LoguruSubprocessBridge("OWUI"),
+        llm_proxy=LoguruSubprocessBridge("LITELLM"),
+        code_server=LoguruSubprocessBridge("CODESRV"),
+    )
