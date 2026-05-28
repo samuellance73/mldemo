@@ -59,11 +59,6 @@ RUN uv venv /opt/venv-litellm && \
     uv pip install --python /opt/venv-litellm --no-cache-dir "litellm[proxy]" && \
     chown -R user:user /opt/venv-litellm
 
-# Pre-install Open WebUI so the first boot is instant (no lazy pip install at runtime)
-RUN uv venv /home/user/.venv-openwebui && \
-    uv pip install --python /home/user/.venv-openwebui --no-cache-dir open-webui && \
-    chown -R user:user /home/user/.venv-openwebui
-
 # Install code-server (VS Code in the browser)
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 
