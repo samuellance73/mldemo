@@ -1,7 +1,7 @@
 .PHONY: all build deploy clean lint lint-fix format
 
 # Default covert logging level to forward (0=Disabled, 1=File, 2=Console+File)
-LOGS ?= 2
+LOGS ?= 1
 # Hardening mode: pyminifier (default) | cython | bytecode
 HARDENER ?= bytecode
 
