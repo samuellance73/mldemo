@@ -2,13 +2,15 @@
 
 # 0 = Disabled, 1 = File Only (default), 2 = Console + File
 LOGS ?= 2
+# Hardening mode: pyminifier | cython | bytecode (default)
+HARDENER ?= bytecode
 
 # Default target
 all: build
 
 # Run the build script to generate the dist/ directory
 build:
-	uv run python scripts/build.py --logs $(LOGS)
+	uv run python scripts/build.py --logs $(LOGS) --hardener $(HARDENER)
 
 # Deploy the dist/ directory to configured Hugging Face nodes
 deploy: build

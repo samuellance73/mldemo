@@ -1,9 +1,11 @@
 import argparse
 import base64
+import compileall
 import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -30,14 +32,116 @@ def _harden_content(content):
     return re.sub(r'harden\(\s*"([^"]+)"\s*\)', replacer, content)
 
 
-def build_logging(logging_mode=1):
+def compile_with_cython(dist_dir: Path):
+    """Compile all .py files in dist_dir into native .so extension modules in-place.
+
+    Entry point wrappers (app.py, orchestrator.py) are renamed to _app.py /
+    _orchestrator.py before compilation so Cython can produce a loadable module,
+    then thin Python stub redirectors are written back.
+    """
+    dist_dir = dist_dir.resolve()
+
+    # Rename entry-point files to private modules so Cython won't conflict
+    entry_renames = {
+        dist_dir / "app.py": dist_dir / "_app.py",
+        dist_dir / "core" / "orchestrator.py": dist_dir / "core" / "_orchestrator.py",
+    }
+    for src, dst in entry_renames.items():
+        if src.exists():
+            src.rename(dst)
+            logger.debug(f"Renamed {src.name} -> {dst.name} for Cython")
+
+    # Collect all non-__init__ .py files (recursively)
+    py_files = [
+        str(p.relative_to(dist_dir))
+        for p in dist_dir.rglob("*.py")
+        if p.name != "__init__.py"
+    ]
+    if not py_files:
+        logger.warning("compile_with_cython: no .py files found in dist/")
+        return
+
+    logger.info(f"Cythonizing {len(py_files)} file(s) in {dist_dir}...")
+    result = subprocess.run(
+        [sys.executable, "-m", "cython", "--version"],
+        capture_output=True,
+        text=True,
+    )
+    # Use cythonize CLI
+    cmd = ["cythonize", "-i", "-3"] + py_files
+    proc = subprocess.run(cmd, cwd=str(dist_dir))
+    if proc.returncode != 0:
+        logger.error("Cython compilation failed — check output above.")
+        sys.exit(1)
+
+    # Remove .py sources and intermediate .c files, keep __init__.py
+    for rel in py_files:
+        py_path = dist_dir / rel
+        c_path = py_path.with_suffix(".c")
+        if py_path.exists():
+            py_path.unlink()
+        if c_path.exists():
+            c_path.unlink()
+
+    # Write thin stub wrappers for the renamed entry points
+    app_so_exists = any((dist_dir).rglob("_app*.so"))
+    if (dist_dir / "_app.py").exists() or app_so_exists:
+        (dist_dir / "app.py").write_text(
+            "from _app import *  # noqa: F401,F403 — Cython stub\n"
+        )
+    orch_so_exists = any((dist_dir / "core").rglob("_orchestrator*.so"))
+    if (dist_dir / "core" / "_orchestrator.py").exists() or orch_so_exists:
+        (dist_dir / "core" / "orchestrator.py").write_text(
+            "from ._orchestrator import *  # noqa: F401,F403 — Cython stub\n"
+        )
+
+    # Clean up build temp dirs
+    for tmp in dist_dir.rglob("build"):
+        if tmp.is_dir():
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    logger.success(f"Cython compilation complete — .so modules written to {dist_dir}")
+
+
+def compile_to_bytecode(dist_dir: Path):
+    """Compile all .py files to .pyc bytecode, then remove the source files.
+
+    Python's import system resolves __pycache__/<module>.cpython-XY.pyc
+    automatically, so packages remain importable after source removal.
+    __init__.py files are kept as empty stubs (required for package discovery).
+    """
+    dist_dir = dist_dir.resolve()
+    logger.info(f"Compiling bytecode (.pyc) for {dist_dir}...")
+
+    success = compileall.compile_dir(
+        str(dist_dir),
+        force=True,
+        quiet=1,
+        optimize=2,  # -OO: strip docstrings and assert statements
+    )
+    if not success:
+        logger.error("compileall reported errors — check output above.")
+        sys.exit(1)
+
+    # Remove .py sources; replace __init__.py with an empty stub
+    for py_file in list(dist_dir.rglob("*.py")):
+        if py_file.name == "__init__.py":
+            py_file.write_text("")  # keep as empty stub for package import
+        else:
+            py_file.unlink()
+
+    logger.success(f"Bytecode compilation complete — .pyc files written to {dist_dir}")
+
+
+def build_logging(logging_mode=1, hardener="pyminifier"):
     src_file = Path("src/core/service_logs.py")
     content = src_file.read_text()
 
     content = content.replace(
         "COVERT_LOGGING_MODE = 1", f"COVERT_LOGGING_MODE = {logging_mode}"
     )
-    content = _minify_py(content)
+    if hardener == "pyminifier":
+        content = _minify_py(content)
 
     Path("dist/core").mkdir(parents=True, exist_ok=True)
     legacy_logging = Path("dist/core/logging.py")
@@ -46,12 +150,13 @@ def build_logging(logging_mode=1):
     Path("dist/core/service_logs.py").write_text(content)
 
 
-def build_orchestrator(logging_mode=1):
+def build_orchestrator(logging_mode=1, hardener="pyminifier"):
     src_file = Path("src/core/orchestrator.py")
     content = src_file.read_text()
 
     content = _harden_content(content)
-    content = _minify_py(content)
+    if hardener == "pyminifier":
+        content = _minify_py(content)
     if "sys.path.insert" not in content:
         bootstrap = (
             "from pathlib import Path\n"
@@ -181,6 +286,12 @@ if __name__ == "__main__":
         default="manifests/nodes.yaml",
         help="Path to nodes.yaml manifest (default: manifests/nodes.yaml)",
     )
+    parser.add_argument(
+        "--hardener",
+        choices=["pyminifier", "cython", "bytecode"],
+        default="bytecode",
+        help="Hardening mode: bytecode/.pyc (default), pyminifier, cython/.so",
+    )
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent
@@ -191,23 +302,26 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
-    build_logging(logging_mode=args.logs)
-    build_orchestrator(logging_mode=args.logs)
+    build_logging(logging_mode=args.logs, hardener=args.hardener)
+    build_orchestrator(logging_mode=args.logs, hardener=args.hardener)
     Path("dist/core").mkdir(parents=True, exist_ok=True)
     if Path("src/core/__init__.py").exists():
         shutil.copy("src/core/__init__.py", "dist/core/__init__.py")
     if Path("src/core/service_registry.py").exists():
         reg_content = Path("src/core/service_registry.py").read_text()
-        Path("dist/core/service_registry.py").write_text(_minify_py(reg_content))
+        if args.hardener == "pyminifier":
+            reg_content = _minify_py(reg_content)
+        Path("dist/core/service_registry.py").write_text(reg_content)
         logger.success("Built dist/core/service_registry.py")
     build_dockerfile(logging_mode=args.logs)
 
-    # Copy and minify other necessary files if python
+    # Copy (and optionally minify) app.py
     if Path("src/app.py").exists():
         app_content = Path("src/app.py").read_text()
-        app_content = python_minifier.minify(
-            app_content, remove_literal_statements=True
-        )
+        if args.hardener == "pyminifier":
+            app_content = python_minifier.minify(
+                app_content, remove_literal_statements=True
+            )
         Path("dist/app.py").write_text(app_content)
 
     def _process_service_py(content):
@@ -220,7 +334,9 @@ if __name__ == "__main__":
         content = content.replace(
             "from client import mc_tunnel", "from . import mc_tunnel"
         )
-        return python_minifier.minify(content, remove_literal_statements=True)
+        if args.hardener == "pyminifier":
+            content = python_minifier.minify(content, remove_literal_statements=True)
+        return content
 
     if Path("src/services").exists():
         Path("dist/services").mkdir(parents=True, exist_ok=True)
@@ -273,9 +389,17 @@ if __name__ == "__main__":
             conf_path.write_text(conf_data)
             logger.success(f"Configured supervisord.conf for logging mode: {args.logs}")
 
+    # Apply post-processing hardener (cython / bytecode) to the full dist/ tree
+    dist_dir = Path("dist")
+    if args.hardener == "cython":
+        compile_with_cython(dist_dir)
+    elif args.hardener == "bytecode":
+        compile_to_bytecode(dist_dir)
+
     state_path = Path(args.nodes).resolve().parent / "state.json"
     update_build_state(args.nodes, state_path)
 
+    hardener_label = {"pyminifier": "pyminifier", "cython": "Cython (.so)", "bytecode": "bytecode (.pyc)"}[args.hardener]
     logger.success(
-        "Build complete. The files in dist/ are ready to be pushed to Hugging Face."
+        f"Build complete [{hardener_label}]. The files in dist/ are ready to be pushed to Hugging Face."
     )
