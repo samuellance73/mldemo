@@ -219,7 +219,7 @@ def build_dockerfile(logging_mode=1, hardener="pyminifier"):
             "_sp.loader.exec_module(_m)\\n"
         )
         bytecode_run = (
-            "RUN python3 -m compileall -o 2 -q /home/user/core /home/user/services \\"
+            "RUN python3 -m compileall -q /home/user/core /home/user/services \\"
             "\n    && find /home/user/core /home/user/services -name '*.py' ! -name '__init__.py' -delete \\"
             f"\n    && printf '{stub_escaped}' > /home/user/core/orchestrator.py\n\n"
         )
