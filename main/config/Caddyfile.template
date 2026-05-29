@@ -67,11 +67,17 @@
     }
 
     # --- Upstream error interception (served from disk, Python runtime unburdened) ---
-    # During Gradio boot, any 502/503/504 from the upstream proxy is caught here
-    # and the branded loading page is streamed directly off disk by Caddy.
+    # /vnc errors return plain text so the auto-refresh JS in loading.html
+    # cannot trigger an infinite reload loop while KasmVNC is still starting.
     handle_errors 502 503 504 {
-        root * /home/user/static
-        rewrite * /loading.html
-        file_server
+        @vnc_path path /vnc*
+        handle @vnc_path {
+            respond "KasmVNC is not ready yet — it may still be starting up. Refresh in a moment." 503
+        }
+        handle {
+            root * /home/user/static
+            rewrite * /loading.html
+            file_server
+        }
     }
 }

@@ -237,8 +237,6 @@ desktop:
     width: 1280
     height: 720
   allow_resize: false
-keyboard:
-  remap_keys: {}
 encoding:
   max_frame_rate: 24
   full_color: true
@@ -290,6 +288,7 @@ server:
     vnc_cmd = [
         "vncserver",
         display,
+        "-select-de", "manual",   # bypass interactive DE-selection prompt; use our pre-written xstartup
         "-geometry", "1280x720",
         "-depth", "24",
         "-disableBasicAuth",
