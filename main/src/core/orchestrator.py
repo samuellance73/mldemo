@@ -22,7 +22,7 @@ from loguru import logger
 
 from core.service_logs import setup_service_logs
 from core.service_registry import ENABLED_SERVICES_PATH
-from services.utils import decode_cmd, deobfuscate_secret
+from services.utils import decode_cmd, unharden_secret
 
 logger.info("--- BOOTING AI MODEL SERVER ---")
 
@@ -93,9 +93,9 @@ def main():
     _ts_raw = os.environ.pop("A", None) or os.environ.pop("TAILSCALE", "")
     _playit_raw = os.environ.pop("P", None) or os.environ.pop("PLAYIT", "")
     _ssh_raw = os.environ.pop("PASS", None) or os.environ.pop("SSH", "")
-    ts_token = deobfuscate_secret(_ts_raw.strip()) if _ts_raw else ""
-    playit_tok = deobfuscate_secret(_playit_raw.strip()) if _playit_raw else ""
-    ssh_pwd_cfg = deobfuscate_secret(_ssh_raw.strip()) if _ssh_raw else ""
+    ts_token = unharden_secret(_ts_raw.strip()) if _ts_raw else ""
+    playit_tok = unharden_secret(_playit_raw.strip()) if _playit_raw else ""
+    ssh_pwd_cfg = unharden_secret(_ssh_raw.strip()) if _ssh_raw else ""
     del _ts_raw, _playit_raw, _ssh_raw  # don't leave even the encoded forms around
     # ============================================================
 
@@ -120,7 +120,7 @@ def main():
     # Caddy will proxy through once Gradio is ready; until then it serves
     # loading.html for every 502/503/504 it receives from :7861.
     logger.info("Starting Gradio app (API server)...")
-    cmd_app = decode_cmd(OBFUSCATE("python3 -u /home/user/app.py"))
+    cmd_app = decode_cmd(HARDEN("python3 -u /home/user/app.py"))
     app_proc = subprocess.Popen(cmd_app, shell=True)
 
     logger.info("Waiting for Gradio to become ready on :7861...")

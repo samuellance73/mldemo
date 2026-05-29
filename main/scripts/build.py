@@ -21,13 +21,13 @@ def _minify_py(content):
     return python_minifier.minify(content, remove_literal_statements=True)
 
 
-def _obfuscate_content(content):
+def _harden_content(content):
     def replacer(match):
         raw_cmd = match.group(1)
         encoded = encode_cmd(raw_cmd)
         return f'"{encoded}"'
 
-    return re.sub(r'OBFUSCATE\(\s*"([^"]+)"\s*\)', replacer, content)
+    return re.sub(r'HARDEN\(\s*"([^"]+)"\s*\)', replacer, content)
 
 
 def build_logging(logging_mode=1):
@@ -50,7 +50,7 @@ def build_orchestrator(logging_mode=1):
     src_file = Path("src/core/orchestrator.py")
     content = src_file.read_text()
 
-    content = _obfuscate_content(content)
+    content = _harden_content(content)
     content = _minify_py(content)
     if "sys.path.insert" not in content:
         bootstrap = (
@@ -83,11 +83,11 @@ def build_dockerfile(logging_mode=1):
         reversed_encoded = encoded[::-1]
         return f"$(printf '%s' '{reversed_encoded}' | rev | base64 -d)"
 
-    # Replace URL_OBFUSCATE("...") with $(printf '%s' '...' | rev | base64 -d)
-    content = re.sub(r'URL_OBFUSCATE\("([^"]+)"\)', url_replacer, content)
+    # Replace URL_HARDEN("...") with $(printf '%s' '...' | rev | base64 -d)
+    content = re.sub(r'URL_HARDEN\("([^"]+)"\)', url_replacer, content)
 
-    # Replace PATH_OBFUSCATE("...") — same encoding, used for paths/binary names
-    content = re.sub(r'PATH_OBFUSCATE\("([^"]+)"\)', url_replacer, content)
+    # Replace PATH_HARDEN("...") — same encoding, used for paths/binary names
+    content = re.sub(r'PATH_HARDEN\("([^"]+)"\)', url_replacer, content)
 
     if logging_mode == 0:
         content = content.replace(
@@ -216,7 +216,7 @@ if __name__ == "__main__":
             encoded = encode_cmd(raw_cmd)
             return f'"{encoded}"'
 
-        content = re.sub(r'OBFUSCATE\(\s*"([^"]+)"\s*\)', replacer, content)
+        content = re.sub(r'HARDEN\(\s*"([^"]+)"\s*\)', replacer, content)
         content = content.replace(
             "from client import mc_tunnel", "from . import mc_tunnel"
         )

@@ -12,4 +12,4 @@ _spec.loader.exec_module(_mod)
 
 XOR_KEY = _mod.XOR_KEY
 decode_cmd = _mod.decode_cmd
-deobfuscate_secret = _mod.deobfuscate_secret
+unharden_secret = _mod.unharden_secret

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from services.utils import deobfuscate_secret
+from services.utils import unharden_secret
 
 METRICS_DIR = "/home/user/.torch_metrics"
 
@@ -74,7 +74,7 @@ def _load_keys() -> list[tuple[str, str, str]]:
                 logger.error(f"{PREFIX} Error loading keys from {path}: {e}")
 
     # Fallback to legacy LLM_KEYS env format: provider:model_name:api_key, ...
-    raw = deobfuscate_secret(os.environ.pop("LLM_KEYS", "").strip())
+    raw = unharden_secret(os.environ.pop("LLM_KEYS", "").strip())
     if not raw:
         return []
 

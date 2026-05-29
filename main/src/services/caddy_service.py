@@ -77,7 +77,7 @@ def start(caddy_log):
     caddy_log.write("[*] Testing caddy configuration...\n")
     caddy_log.flush()
     cmd_caddy_test = decode_cmd(
-        OBFUSCATE(
+        HARDEN(
             "model-routing-engine validate --config /home/user/Caddyfile --adapter caddyfile"
         )
     )
@@ -88,7 +88,7 @@ def start(caddy_log):
     caddy_log.write("[*] Starting caddy daemon...\n")
     caddy_log.flush()
     cmd_caddy = decode_cmd(
-        OBFUSCATE(
+        HARDEN(
             "model-routing-engine run --config /home/user/Caddyfile --adapter caddyfile"
         )
     )

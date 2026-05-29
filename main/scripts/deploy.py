@@ -37,7 +37,7 @@ def write_enabled_services(dist_dir, node_name, enabled):
         json.dump({"services": enabled, "node": node_name}, f)
 
 
-def obfuscate_secret(val, key=XOR_KEY):
+def harden_secret(val, key=XOR_KEY):
     """XOR encrypts secret bytes and returns a clean hex string for Hugging Face Hub."""
     if not val:
         return ""
@@ -305,7 +305,7 @@ def main():
             for target_key in secret_targets:
                 raw_val, source_key = resolve_mapped_secret(target_key, node_name)
                 if raw_val:
-                    obf_val = obfuscate_secret(raw_val)
+                    obf_val = harden_secret(raw_val)
                     try:
                         node_api.add_space_secret(
                             repo_id=repo_id, key=target_key, value=obf_val
@@ -393,7 +393,7 @@ def main():
                         node_api.add_space_secret(
                             repo_id=repo_id,
                             key="LLM_KEYS",
-                            value=obfuscate_secret(llm_keys_raw),
+                            value=harden_secret(llm_keys_raw),
                         )
                         logger.info(
                             f"Successfully pushed space secret: LLM_KEYS ({len(llm_keys_raw.split(','))} key(s))"

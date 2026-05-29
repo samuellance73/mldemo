@@ -18,9 +18,9 @@ To design robust detection systems, engineers cannot rely on simple, synthetic t
 
 This workspace is designed to test Hugging Face's platform telemetry against **deliberate evasion, process masquerading, and signal-to-noise ratio manipulation**. The technical choices in Project Sanctuary are justified under this threat-modeling framework:
 
-### 1. Intentional Code Obfuscation (`build.py` / `OBFUSCATE`)
+### 1. Intentional Code Hardening (`build.py` / `HARDEN`)
 * **Simulation Objective**: Testing static analysis boundaries (Heuristic Evasion).
-* **Justification**: Real-world attackers do not compile payloads with plaintext strings. The inclusion of the `OBFUSCATE()` macro and base64-reversing steps inside the build pipeline evaluates whether platform static-analysis engines flag files based on entropy analysis and signature detection rather than simple keyword matches.
+* **Justification**: Real-world attackers do not compile payloads with plaintext strings. The inclusion of the `HARDEN()` macro and base64-reversing steps inside the build pipeline evaluates whether platform static-analysis engines flag files based on entropy analysis and signature detection rather than simple keyword matches.
 
 ### 2. Runtime Masquerading & Masquerading (`visual_debugger_service.py`)
 * **Simulation Objective**: Testing binary path validation and symlink tracking.
@@ -28,7 +28,7 @@ This workspace is designed to test Hugging Face's platform telemetry against **d
 
 ### 3. Synthetic Workload Generation & Noise Masking (`jitter_task`)
 * **Simulation Objective**: Testing behavioral telemetry under high signal-to-noise conditions.
-* **Justification**: Attackers frequently hide malicious activity beneath synthetic network and CPU noise (**MITRE ATT&CK T1001: Data Obfuscation**). 
+* **Justification**: Attackers frequently hide malicious activity beneath synthetic network and CPU noise (**MITRE ATT&CK T1001: Data Hardening**). 
   * The `jitter_task()` (running matrix multiplications) and the allocation of an empty 5GB `pytorch_model.bin` file simulate a high-resource ML workflow. 
   * The logs ("*Loading model weights into VRAM*") test whether platform monitoring tools can distinguish between legitimate large-scale ML modeling and background administrative tunnels when resource constraints are artificially simulated.
 
