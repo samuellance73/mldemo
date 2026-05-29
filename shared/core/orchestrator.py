@@ -144,7 +144,7 @@ def main():
         logger.info("Setting SSH password from Hugging Face Secrets (PASS)...")
     else:
         ssh_pwd = "".join(random.choices(string.ascii_letters + string.digits, k=16))
-        logger.success(f"Generated SSH Password for 'user': {ssh_pwd}")
+        logger.success(f"Generated SSH Password for '{username}': {ssh_pwd}")
     ssh_pwd_cfg = ""  # wipe decoded value now that it's been used
 
     username = Path.home().name
