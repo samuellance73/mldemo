@@ -442,7 +442,7 @@ def main():
 
         custom_dir = node_info.get("custom-dir")
         if custom_dir:
-            upload_path = (repo_root / custom_dir).resolve()
+            upload_path = (repo_root.parent / custom_dir).resolve()
         else:
             upload_path = dist_path.resolve()
 

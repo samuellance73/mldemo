@@ -1,9 +1,18 @@
 nodes: 
   server-01:
-    hf-repo: "samuelfanglance/first7"
+    hf-repo: "samuelfanglance/first9"
     token-env: "HF2"
     push-secrets: true
     create-repo: true
     space-sdk: docker
     repo-type: space
-    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "test", "minecraft", "llm_proxy", "visual_debugger"]
+    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "test", "minecraft", "llm_proxy"]
+
+  kasm-desktop:
+    hf-repo: "samuelfanglance/kasm-desktop"
+    token-env: "HF2"
+    create-repo: true
+    space-sdk: docker
+    repo-type: space
+    custom-dir: "kasm-workspace"
+
