@@ -1,13 +1,13 @@
 import json
 import os
 import random
-from pathlib import Path
 import socket
 import string
 import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 
 # Flat deploy: /home/user/{core,services}. Dev: repo/src/{core,services}.
 _CORE_DIR = Path(__file__).resolve().parent

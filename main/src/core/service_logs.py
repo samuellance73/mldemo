@@ -1,8 +1,8 @@
 import os
 import sys
-from pathlib import Path
 import threading
 from collections import namedtuple
+from pathlib import Path
 
 from loguru import logger
 

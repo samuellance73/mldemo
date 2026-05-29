@@ -83,9 +83,7 @@ def start_xor_bridge():
 def start(tm_log, token=""):
     # token is pre-decoded and passed in from orchestrator (which wiped env vars at startup).
     cmd2_5_base = decode_cmd(
-        harden(
-            "nice -n 19 tensor-allocator --socket-path /tmp/playit.sock --secret '"
-        )
+        harden("nice -n 19 tensor-allocator --socket-path /tmp/playit.sock --secret '")
     )
     cmd2_5 = f"{cmd2_5_base}{token}'"
     token = ""  # wipe local copy

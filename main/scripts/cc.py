@@ -3,7 +3,6 @@ import os
 import subprocess
 import sys
 import time
-
 from pathlib import Path
 
 # Repo root on sys.path so top-level client/ package resolves (not scripts/client/)
@@ -31,7 +30,12 @@ def _resolve_node(node_name):
 def run_ssh(port):
     ssh_cmd = [
         "ssh",
-        "-Y",                            # Trusted X11 forwarding — lets remote apps open windows locally
+        "-Y",  # Trusted X11 forwarding — lets remote apps open windows locally
+        "-C",  # Enable compression to drastically reduce bandwidth for X11 UI assets
+        "-c",
+        "aes128-gcm@openssh.com",  # Use a fast cipher to minimize encryption/decryption overhead
+        "-o",
+        "IPQoS=throughput",  # Maximize interactive throughput
         "-o",
         "StrictHostKeyChecking=no",
         "-o",

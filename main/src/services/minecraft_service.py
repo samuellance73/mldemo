@@ -1,6 +1,5 @@
 import hashlib
 import json
-import os
 import shutil
 import subprocess
 import tarfile
@@ -65,7 +64,10 @@ def download_file(url, dest_path):
             "Referer": "https://geysermc.org/",
         },
     )
-    with urllib.request.urlopen(req) as response, Path(dest_path).open("wb") as out_file:
+    with (
+        urllib.request.urlopen(req) as response,
+        Path(dest_path).open("wb") as out_file,
+    ):
         shutil.copyfileobj(response, out_file)
 
 
@@ -200,7 +202,9 @@ def ensure_datapacks(mc_dir):
 
 
 def paper_patched_jar(mc_dir):
-    return Path(mc_dir) / "versions" / PAPER_MC_VERSION / f"paper-{PAPER_MC_VERSION}.jar"
+    return (
+        Path(mc_dir) / "versions" / PAPER_MC_VERSION / f"paper-{PAPER_MC_VERSION}.jar"
+    )
 
 
 def ensure_paper_runtime(java_bin, mc_dir, server_jar):

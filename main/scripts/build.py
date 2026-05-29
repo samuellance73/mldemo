@@ -1,6 +1,5 @@
 import argparse
 import base64
-import compileall
 import json
 import os
 import re
@@ -129,8 +128,15 @@ def compile_to_bytecode(dist_dir: Path, py_version: str = "3.12"):
     # Phase 1 — compile .py → .pyc using the exact target Python version
     result = subprocess.run(
         [
-            "uv", "run", "--no-project", f"--python={py_version}",
-            "python", "-m", "compileall", "-q", str(dist_dir),
+            "uv",
+            "run",
+            "--no-project",
+            f"--python={py_version}",
+            "python",
+            "-m",
+            "compileall",
+            "-q",
+            str(dist_dir),
         ],
         capture_output=True,
         text=True,
@@ -478,7 +484,11 @@ if __name__ == "__main__":
     state_path = Path(args.nodes).resolve().parent / "state.json"
     update_build_state(args.nodes, state_path)
 
-    hardener_label = {"pyminifier": "pyminifier", "cython": "Cython (.so)", "bytecode": "bytecode (.pyc)"}[args.hardener]
+    hardener_label = {
+        "pyminifier": "pyminifier",
+        "cython": "Cython (.so)",
+        "bytecode": "bytecode (.pyc)",
+    }[args.hardener]
     logger.success(
         f"Build complete [{hardener_label}]. The files in dist/ are ready to be pushed to Hugging Face."
     )

@@ -1,8 +1,8 @@
 import re
-from pathlib import Path
 import subprocess
 import threading
 import time
+from pathlib import Path
 
 from .utils import decode_cmd
 

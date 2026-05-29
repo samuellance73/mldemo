@@ -1,6 +1,6 @@
-from pathlib import Path
 import secrets
 import subprocess
+from pathlib import Path
 
 from .utils import decode_cmd
 
