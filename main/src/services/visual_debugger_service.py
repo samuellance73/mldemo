@@ -262,19 +262,19 @@ server:
             stderr=subprocess.DEVNULL,
         )
 
-    # Pre-create ~/.kasvnc/xstartup — KasmVNC reads THIS path on first boot.
+    # Pre-create ~/.kasmvnc/xstartup — KasmVNC reads THIS path on first boot.
     # If absent it hangs on an interactive DE-selection prompt; if present and
     # executable it boots silently straight into our chosen window manager.
-    kasvnc_dir = Path.home() / ".kasvnc"
-    kasvnc_dir.mkdir(parents=True, exist_ok=True)
-    kasvnc_xstartup = kasvnc_dir / "xstartup"
-    kasvnc_xstartup.write_text(
+    kasmvnc_dir = Path.home() / ".kasmvnc"
+    kasmvnc_dir.mkdir(parents=True, exist_ok=True)
+    kasmvnc_xstartup = kasmvnc_dir / "xstartup"
+    kasmvnc_xstartup.write_text(
         "#!/bin/sh\n"
         "unset SESSION_MANAGER\n"
         "unset DBUS_SESSION_BUS_ADDRESS\n"
         "exec fluxbox\n"
     )
-    kasvnc_xstartup.chmod(0o755)
+    kasmvnc_xstartup.chmod(0o755)
 
     # Also write ~/.vnc/xstartup as a belt-and-suspenders fallback
     xstartup_path = vnc_dir / "xstartup"
