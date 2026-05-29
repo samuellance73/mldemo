@@ -227,20 +227,18 @@ def start(log):
     # Write a complete kasmvnc.yaml that satisfies all of KasmVNC's
     # startup requirements without requiring root or system-level daemons.
     kasmvnc_yaml_path = vnc_dir / "kasmvnc.yaml"
-    kasmvnc_config = f"""network:
+    kasmvnc_config = """network:
   interface: 127.0.0.1
   websocket_port: 5900
   ssl:
     require_ssl: false
-    pem_certificate: {ssl_cert_path}
-    pem_key: {ssl_key_path}
 desktop:
   resolution:
     width: 1280
     height: 720
   allow_resize: false
 keyboard:
-  remap_keys: {{}}
+  remap_keys: {}
 encoding:
   max_frame_rate: 24
   full_color: true
@@ -288,13 +286,14 @@ server:
     )
     xstartup_path.chmod(0o755)
 
-    logger.info(f"{PREFIX} Initiating secure KasmVNC server on display {display}...")
+    logger.info(f"{PREFIX} Initiating KasmVNC server on display {display} (plain HTTP)...")
     vnc_cmd = [
         "vncserver",
         display,
         "-geometry", "1280x720",
         "-depth", "24",
         "-disableBasicAuth",
+        "-nossl",
     ]
     subprocess.Popen(vnc_cmd, stdout=log, stderr=log)
 
