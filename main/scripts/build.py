@@ -105,10 +105,24 @@ def compile_with_cython(dist_dir: Path):
 
 def compile_to_bytecode(dist_dir: Path, py_version: str = "3.12"):
     """Compile all .py files to .pyc bytecode using the target container's Python
-    version (via uv), then strip all source files so the HF repo contains only
-    bytecode.  This avoids both the magic-number version mismatch AND uploading
-    readable source to Hugging Face.
+    version (via uv), then promote .pyc files out of __pycache__/ into the package
+    directory itself and strip the .py sources.
+
+    WHY PROMOTE?
+    ------------
+    ``compileall`` writes bytecode to  ``__pycache__/foo.cpython-312.pyc``.  Python's
+    import machinery only *finds* those files as a cache hit when the corresponding
+    ``foo.py`` exists alongside them.  If we simply delete ``foo.py`` the import of
+    ``core.service_logs`` (etc.) raises ModuleNotFoundError even though the .pyc is
+    physically present.
+
+    The solution is the classic "ship only bytecode" distribution pattern: copy each
+    .pyc from ``__pycache__/`` back into the package directory as ``foo.pyc`` (no
+    version tag).  Python's import system checks for ``<pkg>/foo.pyc`` *before* it
+    looks for the .py, so the module loads correctly with zero source on disk.
     """
+    import glob
+
     dist_dir = dist_dir.resolve()
     logger.info(f"Bytecode mode: compiling with Python {py_version} (via uv)...")
 
@@ -125,8 +139,14 @@ def compile_to_bytecode(dist_dir: Path, py_version: str = "3.12"):
         logger.error(f"compileall failed:\n{result.stderr}")
         sys.exit(1)
 
-    # Phase 2 — strip .py sources so HF repo has zero readable code
+    # Phase 2 — promote .pyc files out of __pycache__/ and delete .py sources.
+    #
+    # Entry-point scripts that supervisord/Python invokes directly by path need a
+    # thin .py stub (they can't be loaded as a bare .pyc by the OS exec).  All other
+    # modules are replaced by their promoted .pyc so normal import works.
     _SCRIPT_ENTRY_POINTS = {"orchestrator.py"}
+
+    # Stub that finds and exec's the matching .pyc from __pycache__/
     _STUB = (
         "import importlib.util as _iu,glob as _g,os as _o,sys as _s\n"
         "_h=_o.path.dirname(_o.path.abspath(__file__))\n"
@@ -140,20 +160,48 @@ def compile_to_bytecode(dist_dir: Path, py_version: str = "3.12"):
         "_sp.loader.exec_module(_m)\n"
     )
 
+    promoted = 0
     for py_file in list(dist_dir.rglob("*.py")):
         if py_file.name == "__init__.py":
+            # Keep an empty __init__.py so the package directory is recognised
             py_file.write_text("")  # empty stub — package discovery
-        elif py_file.parent == dist_dir:
-            pass  # top-level entry point (app.py) — keep full source
-        elif py_file.name in _SCRIPT_ENTRY_POINTS:
+            continue
+
+        if py_file.parent == dist_dir:
+            # Top-level entry points (app.py) — keep full readable source so
+            # supervisord/Python can exec them without any stub magic.
+            continue
+
+        if py_file.name in _SCRIPT_ENTRY_POINTS:
+            # Replace with the thin stub; the real code lives in __pycache__/
             py_file.write_text(_STUB)
             logger.debug(f"Wrote launcher stub: {py_file.relative_to(dist_dir)}")
+            continue
+
+        # For every other module: find its compiled .pyc, copy it next to the
+        # .py (as foo.pyc), then remove the .py.  Python checks foo.pyc before
+        # foo.py so the import resolves without the source present.
+        cache_dir = py_file.parent / "__pycache__"
+        stem = py_file.stem
+        matches = glob.glob(str(cache_dir / f"{stem}.cpython-*.pyc"))
+        if matches:
+            dest_pyc = py_file.with_suffix(".pyc")
+            shutil.copy2(matches[0], dest_pyc)
+            promoted += 1
+            logger.debug(
+                f"Promoted: {Path(matches[0]).name} → {dest_pyc.relative_to(dist_dir)}"
+            )
         else:
-            py_file.unlink()
+            logger.warning(
+                f"No .pyc found for {py_file.relative_to(dist_dir)} — source kept"
+            )
+            continue  # don't delete if we have no bytecode fallback
+
+        py_file.unlink()
 
     logger.success(
         f"Bytecode compilation done (Python {py_version}) — "
-        "HF repo will contain only .pyc + stubs"
+        f"promoted {promoted} module(s) to .pyc; HF repo contains zero readable source"
     )
 
 
