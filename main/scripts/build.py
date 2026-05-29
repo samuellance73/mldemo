@@ -123,14 +123,33 @@ def compile_to_bytecode(dist_dir: Path):
         logger.error("compileall reported errors — check output above.")
         sys.exit(1)
 
-    # Remove .py sources inside packages; keep top-level scripts and __init__.py stubs.
-    # Top-level .py files (e.g. app.py) are entry points run directly as scripts —
-    # their __pycache__ .pyc is NOT used when executing `python app.py`, so they must stay.
+    # Script entry points invoked directly by supervisord/docker (not via `import`)
+    # need a thin stub .py so `python3 /path/to/file.py` still works.
+    # The stub loads the compiled .pyc via importlib and fixes __file__ so that
+    # any Path(__file__).parent resolution inside the module stays correct.
+    _SCRIPT_ENTRY_POINTS = {"orchestrator.py"}
+
+    _STUB = (
+        "import importlib.util as _iu,glob as _g,os as _o,sys as _s\n"
+        "_h=_o.path.dirname(_o.path.abspath(__file__))\n"
+        "_n=_o.path.splitext(_o.path.basename(__file__))[0]\n"
+        "_p=_g.glob(_o.path.join(_h,'__pycache__',f'{_n}.*.pyc'))\n"
+        "if not _p:raise FileNotFoundError(f'bytecode for {_n} not found')\n"
+        "_sp=_iu.spec_from_file_location('__main__',_p[0])\n"
+        "_m=_iu.module_from_spec(_sp)\n"
+        "_m.__file__=_o.path.abspath(__file__)\n"
+        "_s.modules['__main__']=_m\n"
+        "_sp.loader.exec_module(_m)\n"
+    )
+
     for py_file in list(dist_dir.rglob("*.py")):
         if py_file.name == "__init__.py":
-            py_file.write_text("")  # keep as empty stub for package discovery
+            py_file.write_text("")  # empty stub — package discovery only
         elif py_file.parent == dist_dir:
-            pass  # top-level script entry point — keep as-is
+            pass  # top-level entry point (app.py) — keep full source
+        elif py_file.name in _SCRIPT_ENTRY_POINTS:
+            py_file.write_text(_STUB)  # thin launcher stub
+            logger.debug(f"Wrote launcher stub: {py_file.relative_to(dist_dir)}")
         else:
             py_file.unlink()
 
