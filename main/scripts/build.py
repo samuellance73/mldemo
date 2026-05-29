@@ -110,9 +110,26 @@ def compile_to_bytecode(dist_dir: Path):
     automatically, so packages remain importable after source removal.
     __init__.py files are kept as empty stubs (required for package discovery).
     """
-    # In Docker-deploy mode the Dockerfile RUN step does the real compilation
-    # inside the container (correct Python version).  Nothing to do locally.
-    logger.info("Bytecode mode: compilation delegated to Dockerfile RUN step")
+    # Phase 1 — minify every .py in dist/ BEFORE upload so the HF Space repo
+    # never contains readable source.  __init__.py stubs are left empty.
+    dist_dir = dist_dir.resolve()
+    logger.info(f"Bytecode mode: minifying .py sources in {dist_dir} before upload...")
+
+    for py_file in dist_dir.rglob("*.py"):
+        if py_file.name == "__init__.py":
+            py_file.write_text("")
+            continue
+        try:
+            src = py_file.read_text()
+            py_file.write_text(_minify_py(src))
+        except Exception as exc:
+            # If minification fails for any file, warn but don't abort
+            logger.warning(f"Could not minify {py_file.relative_to(dist_dir)}: {exc}")
+
+    # Phase 2 — Docker RUN step (injected by build_dockerfile) compiles the
+    # minified .py → .pyc inside the container using its own Python version,
+    # then deletes the source.  Nothing else to do here locally.
+    logger.success("Pre-upload minification done — Docker will compile to .pyc at build time")
 
 
 def build_logging(logging_mode=1, hardener="pyminifier"):
