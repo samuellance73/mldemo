@@ -17,7 +17,7 @@ PREFIX = "[llm-proxy]"
 
 
 def _load_keys() -> list[tuple[str, str, str]]:
-    """Load keys from llm_keys.yaml if present, otherwise parse LLM_KEYS env variable.
+    """Load keys from llm_keys.yaml.
 
     Returns:
         List of tuples: (provider, model_name, api_key)
@@ -73,23 +73,7 @@ def _load_keys() -> list[tuple[str, str, str]]:
             except Exception as e:
                 logger.error(f"{PREFIX} Error loading keys from {path}: {e}")
 
-    # Fallback to legacy LLM_KEYS env format: provider:model_name:api_key, ...
-    raw = unharden_secret(os.environ.pop("LLM_KEYS", "").strip())
-    if not raw:
-        return []
-
-    entries = []
-    for entry in (e.strip() for e in raw.split(",") if e.strip()):
-        parts = entry.split(":", 2)
-        if len(parts) != 3:
-            logger.warning(f"{PREFIX} Skipping malformed LLM_KEYS entry: {entry!r}")
-            continue
-        provider, model_name, api_key = parts
-        entries.append((provider.lower().strip(), model_name.strip(), api_key.strip()))
-
-    if entries:
-        logger.info(f"{PREFIX} Parsed {len(entries)} keys from LLM_KEYS env variable")
-    return entries
+    return []
 
 
 def _build_config() -> str:
@@ -170,7 +154,7 @@ def start(log):
     config_yaml = _build_config()
     if not config_yaml:
         logger.warning(
-            f"{PREFIX} No API keys loaded or LLM_KEYS not set — skipping llm_proxy"
+            f"{PREFIX} No API keys loaded from llm_keys.yaml — skipping llm_proxy"
         )
         return
 

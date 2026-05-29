@@ -12,9 +12,7 @@ Usage:
     uv run python tests/test_llm_proxy.py --stream
     uv run python tests/test_llm_proxy.py --verbose
 
-LLM_KEYS format for Groq:
-    LLM_KEYS="groq:openai/gpt-oss-120b:gsk_xxxx"
-    LLM_KEYS="groq:openai/gpt-oss-120b:gsk_key1,groq:openai/gpt-oss-120b:gsk_key2"
+LLM keys are configured via llm_keys.yaml in the repository root.
 """
 
 import argparse

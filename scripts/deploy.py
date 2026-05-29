@@ -386,9 +386,6 @@ def main():
                             f"Error compiling llm_keys.yaml for deployment: {e}"
                         )
 
-                if not llm_keys_raw:
-                    llm_keys_raw = os.getenv("LLM_KEYS", "").strip()
-
                 if llm_keys_raw:
                     try:
                         node_api.add_space_secret(
@@ -403,7 +400,7 @@ def main():
                         logger.error(f"Failed to push LLM_KEYS secret: {e}")
                 else:
                     logger.warning(
-                        f"Node '{node_name}' has llm_proxy enabled but no keys found in llm_keys.yaml or LLM_KEYS in .env"
+                        f"Node '{node_name}' has llm_proxy enabled but no keys found in llm_keys.yaml"
                     )
 
                 # LITELLM_MASTER_KEY: push when llm_proxy enabled, delete otherwise
@@ -447,18 +444,17 @@ def main():
         else:
             upload_path = dist_path.resolve()
 
-        # Per-node runtime config injected immediately before upload (only for backend configurations)
-        if not custom_dir:
-            whoami_path = upload_path / "whoami.txt"
-            try:
-                whoami_path.write_text(node_name + "\n")
-            except Exception as e:
-                logger.warning(f"Failed to write whoami.txt: {e}")
+        # Per-node runtime config injected immediately before upload
+        whoami_path = upload_path / "whoami.txt"
+        try:
+            whoami_path.write_text(node_name + "\n")
+        except Exception as e:
+            logger.warning(f"Failed to write whoami.txt: {e}")
 
-            try:
-                write_enabled_services(upload_path, node_name, enabled_services)
-            except Exception as e:
-                logger.warning(f"Failed to write enabled_services.json: {e}")
+        try:
+            write_enabled_services(upload_path, node_name, enabled_services)
+        except Exception as e:
+            logger.warning(f"Failed to write enabled_services.json: {e}")
 
         try:
             commit_info = node_api.upload_folder(

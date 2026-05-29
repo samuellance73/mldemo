@@ -1,0 +1,24 @@
+FROM ghcr.io/open-webui/open-webui:main
+
+# Configure Open WebUI to listen on port 7860 for Hugging Face Spaces
+ENV PORT=7860
+ENV HOST=0.0.0.0
+
+# Configure to connect to the llm_proxy service from main deployment
+# This will be set via Space Secret or environment variable
+ENV OPENAI_API_BASE_URL=""
+ENV OPENAI_API_KEY=""
+
+# Enable authentication (set via Space Secret)
+ENV WEBUI_AUTH="True"
+ENV WEBUI_SECRET_KEY=""
+
+# Disable default models since we'll use the llm_proxy backend
+ENV ENABLE_OPENAI_API="True"
+
+# Expose port 7860 for Hugging Face Spaces
+EXPOSE 7860
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:7860/health || exit 1
