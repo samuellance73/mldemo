@@ -123,10 +123,14 @@ def compile_to_bytecode(dist_dir: Path):
         logger.error("compileall reported errors — check output above.")
         sys.exit(1)
 
-    # Remove .py sources; replace __init__.py with an empty stub
+    # Remove .py sources inside packages; keep top-level scripts and __init__.py stubs.
+    # Top-level .py files (e.g. app.py) are entry points run directly as scripts —
+    # their __pycache__ .pyc is NOT used when executing `python app.py`, so they must stay.
     for py_file in list(dist_dir.rglob("*.py")):
         if py_file.name == "__init__.py":
-            py_file.write_text("")  # keep as empty stub for package import
+            py_file.write_text("")  # keep as empty stub for package discovery
+        elif py_file.parent == dist_dir:
+            pass  # top-level script entry point — keep as-is
         else:
             py_file.unlink()
 
