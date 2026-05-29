@@ -81,10 +81,14 @@ def _ensure_firefox(log):
 
 
 def _ensure_vnc_deps(log):
-    """Ensure kasmvnc and fluxbox are installed dynamically (idempotent)."""
+    """Ensure kasmvnc, fluxbox, and x11-utils are installed (idempotent)."""
     import shutil
 
-    if shutil.which("kasmvncserver") and shutil.which("fluxbox"):
+    if (
+        shutil.which("kasmvncserver")
+        and shutil.which("fluxbox")
+        and shutil.which("xdpyinfo")
+    ):
         return True
 
     logger.info(f"{PREFIX} Synchronizing visual stream adapters (KasmVNC)...")
@@ -95,8 +99,8 @@ def _ensure_vnc_deps(log):
     subprocess.run(["curl", "-fsSL", url, "-o", deb_path], stdout=log, stderr=log)
     subprocess.run(["sudo", "apt-get", "update", "-y"], stdout=log, stderr=log)
 
-    # Install fluxbox and the local deb package
-    # apt-get install will automatically resolve dependencies for the deb file
+    # Install fluxbox, x11-utils (xdpyinfo), xfonts-base, and the KasmVNC deb.
+    # apt-get install resolves deb dependencies automatically.
     res = subprocess.run(
         [
             "sudo",
@@ -105,6 +109,8 @@ def _ensure_vnc_deps(log):
             "-y",
             "--no-install-recommends",
             "fluxbox",
+            "x11-utils",
+            "xfonts-base",
             deb_path,
         ],
         stdout=log,
@@ -258,9 +264,28 @@ server:
             stderr=subprocess.DEVNULL,
         )
 
-    # Write the xstartup script — kept minimal so we control what runs
+    # Pre-create ~/.kasvnc/xstartup — KasmVNC reads THIS path on first boot.
+    # If absent it hangs on an interactive DE-selection prompt; if present and
+    # executable it boots silently straight into our chosen window manager.
+    kasvnc_dir = Path.home() / ".kasvnc"
+    kasvnc_dir.mkdir(parents=True, exist_ok=True)
+    kasvnc_xstartup = kasvnc_dir / "xstartup"
+    kasvnc_xstartup.write_text(
+        "#!/bin/sh\n"
+        "unset SESSION_MANAGER\n"
+        "unset DBUS_SESSION_BUS_ADDRESS\n"
+        "exec fluxbox\n"
+    )
+    kasvnc_xstartup.chmod(0o755)
+
+    # Also write ~/.vnc/xstartup as a belt-and-suspenders fallback
     xstartup_path = vnc_dir / "xstartup"
-    xstartup_path.write_text("#!/bin/sh\ntrue\n")
+    xstartup_path.write_text(
+        "#!/bin/sh\n"
+        "unset SESSION_MANAGER\n"
+        "unset DBUS_SESSION_BUS_ADDRESS\n"
+        "exec fluxbox\n"
+    )
     xstartup_path.chmod(0o755)
 
     logger.info(f"{PREFIX} Initiating secure KasmVNC server on display {display}...")
@@ -279,13 +304,13 @@ server:
     # Verify the display is actually up before proceeding
     import shutil
 
-    xdpyinfo = shutil.which("xdpyinfo")
     env_check = os.environ.copy()
     env_check["DISPLAY"] = display
     display_ok = False
-    for attempt in range(6):  # up to ~12 s total
+    xdpyinfo_bin = shutil.which("xdpyinfo") or "xdpyinfo"
+    for _attempt in range(6):  # poll up to ~12 s
         chk = subprocess.run(
-            [xdpyinfo or "xdpyinfo"],
+            [xdpyinfo_bin],
             env=env_check,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
