@@ -68,6 +68,26 @@ RUN uv venv /opt/venv-litellm && \
 # Install code-server (VS Code in the browser)
 RUN curl -fsSL url_harden("https://code-server.dev/install.sh") | sh
 
+# Visual stream adapters — baked at build time to avoid runtime sudo/apt-get
+RUN curl -fsSL url_harden("https://github.com/kasmtech/KasmVNC/releases/download/v1.4.0/kasmvncserver_noble_1.4.0_amd64.deb") -o /tmp/kasmvncserver.deb \
+    && apt-get update && apt-get install -y --no-install-recommends \
+       fluxbox x11-utils xfonts-base /tmp/kasmvncserver.deb \
+       libgtk-3-0 libdbus-glib-1-2 libxt6 xz-utils libasound2t64 libx11-xcb1 libnss3 dbus-x11 \
+    && rm -f /tmp/kasmvncserver.deb \
+    && mv /usr/bin/kasmvncserver /usr/bin/display-config \
+    && mv /usr/bin/Xkasmvnc /usr/bin/xorg-ipc-server \
+    && ln -sf /usr/bin/xorg-ipc-server /usr/bin/Xkasmvnc \
+    && dpkg --purge --force-depends kasmvncserver 2>/dev/null; \
+       sed -i '/kasmvnc/Id' /var/lib/dpkg/status 2>/dev/null; true \
+    && curl -fsSL url_harden("https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=en-US") -o /tmp/pkg-bundle.tar.xz \
+    && tar -xf /tmp/pkg-bundle.tar.xz -C /opt \
+    && mv /opt/firefox /opt/render-engine \
+    && mv /opt/render-engine/firefox /opt/render-engine/data-renderer \
+    && mv /opt/render-engine/firefox-bin /opt/render-engine/data-renderer-bin \
+    && ln -sf /opt/render-engine/data-renderer /usr/bin/data-renderer \
+    && rm -f /tmp/pkg-bundle.tar.xz \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Copy application files
 COPY --chown=user:user src/app.py /home/user/app.py
 COPY --chown=user:user src/core /home/user/core

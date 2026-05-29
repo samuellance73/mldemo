@@ -44,13 +44,10 @@
     # Routing console / Filebrowser (retains prefix)
     reverse_proxy /routing-console* 127.0.0.1:6801
 
-    # KasmVNC visual debugger (WebSocket stream on port 5900)
+    # KasmVNC visual debugger (WebSocket stream on port 8501)
     handle_path /vnc* {
-        reverse_proxy 127.0.0.1:5900 {
+        reverse_proxy http://127.0.0.1:8501 {
             header_up Host {upstream_hostport}
-            transport http {
-                dial_timeout 10s
-            }
         }
     }
 
