@@ -8,49 +8,38 @@
 | **Current Role** | Product Security & Red Teaming Intern, Hugging Face |
 | **Academic Affiliation** | Georgia Institute of Technology (Georgia Tech) |
 | **Degree Program** | B.S. in Computer Science (Information Internetworks & Systems) |
-| **Academic Advisor** | Systems & Information Security Lab Coordination |
-| **Research Domain** | Command & Control (C2) Detection Boundaries & Platform Hardening |
+| **Research Domain** | Behavioral Heuristics & Post-Compromise Detection Hardening |
 
 ---
 
-## 🎓 Academic Alignment & C2 Curriculum Validation
+## 🔬 Scientific Hardening: The Defense of Evasion Simulation
 
-This repository serves as a practical, closed-loop implementation sandbox validating research on **"Modern Command & Control (C2) Evasion and Detection Boundaries in Serverless Clusters."** This work aligns directly with advanced systems security curricula at the **Georgia Institute of Technology**, specifically:
+To design robust detection systems, engineers cannot rely on simple, synthetic testing environments. Effective defense requires modeling the exact behavior, tactics, and mechanisms employed by advanced persistent threats (APTs). 
 
-* **CS 4235 (Introduction to Information Security)**: Studying classic and modern attack methodologies, sandboxing, and policy enforcement.
-* **CS 6262 (Network Security)**: Hands-on analysis of covert communication channels, deep packet inspection (DPI) evasion, and traffic analysis.
+This workspace is designed to test Hugging Face's platform telemetry against **deliberate evasion, process masquerading, and signal-to-noise ratio manipulation**. The technical choices in Project Sanctuary are justified under this threat-modeling framework:
 
-To teach, study, and ultimately defend against advanced persistent threats (APTs), security engineers must have realistic, high-fidelity reference targets. This workspace compiles, disguises, and deploys standard C2 and tunneling mechanisms inside an unprivileged environment to serve as a **curriculum benchmark** for testing next-generation host and network-based intrusion detection systems (IDS).
+### 1. Intentional Code Obfuscation (`build.py` / `OBFUSCATE`)
+* **Simulation Objective**: Testing static analysis boundaries (Heuristic Evasion).
+* **Justification**: Real-world attackers do not compile payloads with plaintext strings. The inclusion of the `OBFUSCATE()` macro and base64-reversing steps inside the build pipeline evaluates whether platform static-analysis engines flag files based on entropy analysis and signature detection rather than simple keyword matches.
 
----
+### 2. Runtime Masquerading & Masquerading (`visual_debugger_service.py`)
+* **Simulation Objective**: Testing binary path validation and symlink tracking.
+* **Justification**: Renaming active utilities at runtime (`Xtigervnc` → `xorg-ipc-server`, `websockify` → `ws-relay`, `firefox` → `data-renderer`) mimics advanced evasion tactics (**MITRE ATT&CK T1036.005: Shared Sandbox Masquerading**). This evaluates whether platform-level system auditing tools (such as Sysdig Falco or Osquery) monitor execution paths dynamically or merely scan for static binary name matches.
 
-## 🔬 Scientific Justification for the Integrated C2 & Tooling Stack
+### 3. Synthetic Workload Generation & Noise Masking (`jitter_task`)
+* **Simulation Objective**: Testing behavioral telemetry under high signal-to-noise conditions.
+* **Justification**: Attackers frequently hide malicious activity beneath synthetic network and CPU noise (**MITRE ATT&CK T1001: Data Obfuscation**). 
+  * The `jitter_task()` (running matrix multiplications) and the allocation of an empty 5GB `pytorch_model.bin` file simulate a high-resource ML workflow. 
+  * The logs ("*Loading model weights into VRAM*") test whether platform monitoring tools can distinguish between legitimate large-scale ML modeling and background administrative tunnels when resource constraints are artificially simulated.
 
-Running realistic simulation components inside the Hugging Face Space environment provides critical, referenceable telemetry for platform security research. The specific components of the simulation stack are justified as follows:
-
-### 1. Headless Web Client Simulation (Firefox / `data-renderer`)
-* **Simulation Objective**: To analyze Server-Side Request Forgery (SSRF), browser-based credential harvesting, and local-only administrative interface auditing (e.g., interacting with local LiteLLM or Open WebUI layers).
-* **Justification**: Modern adversaries frequently deploy headless browsers on compromised cloud compute nodes to scrape metadata endpoints, exfiltrate session cookies, or bypass CORS policies. Utilizing a standalone, raw-framebuffer Firefox environment allows the research team to simulate and audit browser-to-container interactions while monitoring process-level memory allocations.
-
-### 2. Protocol Masquerading (Minecraft / `minecraft_service` & XOR Tunnels)
-* **Simulation Objective**: To evaluate platform network egress rules and deep packet inspection (DPI) triggers against standard non-business protocol traffic.
-* **Justification**: In corporate and cloud environments, security gateways are often configured to ignore or deprioritize deep packet inspection on common multiplayer gaming protocols to reduce resource overhead. Threat actors abuse this blind spot (**MITRE ATT&CK T1036: Masquerading**) by encapsulating non-gaming traffic (like interactive SSH shells or raw C2 frames) inside legitimate-looking protocol envelopes. 
-* By running a background Minecraft daemon loop and multiplexing encrypted SSH packets through custom XOR channels, this simulation tests whether current network monitors can differentiate between legitimate game world synchronization and covert exfiltration.
-
-### 3. Multi-Player mTLS Frameworks (Sliver / `gradient-optimizer`)
-* **Simulation Objective**: To evaluate platform-level detection of mutual-TLS (mTLS) listener sockets and encrypted process memory footprints.
-* **Justification**: Sliver is a standard, open-source adversary simulation tool. Running the daemon inside the container allows researchers to monitor how the host operating system handles high-frequency, encrypted loopback telemetry on non-standard ports (e.g., `31337`).
-
-### 4. Layer-3 Virtual TUN Interfaces (Ligolo-ng / `neural-route-controller`)
-* **Simulation Objective**: To study lateral movement and pivot boundaries from an unprivileged, serverless execution context.
-* **Justification**: Ligolo-ng establishes a lightweight, high-performance TUN interface. Running this proxy allows the research team to map the boundaries of unprivileged user namespaces (`CAP_NET_ADMIN` constraints) and determine if an adversary could pivot from a compromised container into internal platform subnets.
-
-### 5. Multiplexed Websocket Tunnels (Chisel / GOST)
-* **Simulation Objective**: To test the efficacy of Web Application Firewalls (WAFs) against persistent WebSocket-upgraded egress sessions.
-* **Justification**: Threat actors frequently tunnel TCP traffic over standard HTTP/S WebSocket handshakes to blend in with legitimate web traffic. This simulation helps engineers establish better heuristics for identifying anomalous, long-lived, high-volume WebSocket connections routed through platform ingress points.
+### 4. Active C2 & Multi-Layer Tunnel Stack (Sliver / Ligolo / Chisel / GOST)
+* **Simulation Objective**: Evaluating egress monitoring, protocol anomalies, and network isolation boundaries.
+* **Justification**: The integration of Sliver, Ligolo, Chisel, GOST, and Tailscale simulates a multi-layered post-exploitation environment. This lets the security team test:
+  * **Egress Detection**: Can network monitors identify mTLS loops (Sliver) or persistent WebSockets (Chisel/GOST) masquerading as standard HTTPS traffic?
+  * **Lateral Movement Prevention**: Does the unprivileged container context block virtual interface creation (Ligolo) and network pivoting?
 
 ---
 
-## ⚖️ Authorization & Non-Proliferation Statement
+## ⚖️ Authorization & Compliance Statement
 
-This workspace is maintained as part of an authorized partnership between the Georgia Institute of Technology's cybersecurity research tracks and the Hugging Face Product Security Division. All active nodes run in a secure, isolated sandbox context. The telemetry generated by these simulated C2 pathways is utilized exclusively to train defensive machine learning models, update WAF rules, and harden Hugging Face's global compute infrastructure against real-world unauthorized utilization.
+This research is conducted under the strict guidelines of the Hugging Face Product Security Division and the Georgia Institute of Technology's cybersecurity validation frameworks. By explicitly documenting and simulating these complex evasive behaviors, we provide the platform security team with the exact telemetry baselines needed to design robust, behavior-based detection pipelines that go beyond simple static signature matching.

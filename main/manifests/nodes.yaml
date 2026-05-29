@@ -1,6 +1,6 @@
 nodes: 
   server-01:
-    hf-repo: "samuelfanglance/first2"
+    hf-repo: "samuelfanglance/first3"
     token-env: "HF2"
     push-secrets: true
     create-repo: true
