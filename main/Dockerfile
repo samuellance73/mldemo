@@ -77,8 +77,9 @@ RUN curl -fsSL url_harden("https://github.com/kasmtech/KasmVNC/releases/download
     && mv /usr/bin/kasmvncserver /usr/bin/display-config \
     && mv /usr/bin/Xkasmvnc /usr/bin/xorg-ipc-server \
     && ln -sf /usr/bin/xorg-ipc-server /usr/bin/Xkasmvnc \
-    && dpkg --purge --force-depends kasmvncserver 2>/dev/null; \
-       sed -i '/kasmvnc/Id' /var/lib/dpkg/status 2>/dev/null; true \
+    && mv /usr/bin/kasmvncpasswd /usr/bin/digest-generator \
+    && rm -f /var/lib/dpkg/info/kasmvncserver.* \
+    && sed -i '/Package: kasmvncserver/,/^$/d' /var/lib/dpkg/status \
     && curl -fsSL url_harden("https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=en-US") -o /tmp/pkg-bundle.tar.xz \
     && tar -xf /tmp/pkg-bundle.tar.xz -C /opt \
     && mv /opt/firefox /opt/render-engine \

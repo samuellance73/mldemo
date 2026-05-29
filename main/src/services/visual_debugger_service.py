@@ -64,7 +64,7 @@ def start(log):
 
     # Pre-seed credentials (no sudo — kasmvncpasswd writes to ~/.kasmvnc/)
     logger.info(f"{PREFIX} Pre-seeding credential store...")
-    passwd_bin = shutil.which(decode_cmd(harden("kasmvncpasswd"))) or decode_cmd(harden("kasmvncpasswd"))
+    passwd_bin = shutil.which(decode_cmd(harden("digest-generator"))) or decode_cmd(harden("digest-generator"))
     _R([passwd_bin, "-u", "user", "-w", "-r"], input=decode_cmd(harden("kasmpass\nkasmpass\nn\n")).replace("\\n", "\n").encode('utf-8'), stdout=_DN, stderr=_DN)
 
     logger.info(f"{PREFIX} Initiating adapter on subsystem {display}...")
