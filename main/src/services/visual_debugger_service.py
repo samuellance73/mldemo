@@ -122,12 +122,6 @@ def _ensure_vnc_deps(log):
         )
         return False
 
-    # Add user to ssl-cert group if required (best practice for KasmVNC)
-    import getpass
-
-    username = getpass.getuser()
-    subprocess.run(["sudo", "adduser", username, "ssl-cert"], stdout=log, stderr=log)
-
     return True
 
 
@@ -197,38 +191,124 @@ def start(log):
     vnc_dir = Path.home() / ".vnc"
     vnc_dir.mkdir(parents=True, exist_ok=True)
 
-    # Write kasmvnc.yaml overrides
+    # Generate user-level self-signed SSL certificates for KasmVNC
+    # so we don't need root/sudo permissions for system cert directories
+    ssl_cert_path = vnc_dir / "self.crt"
+    ssl_key_path = vnc_dir / "self.key"
+    if not (ssl_cert_path.exists() and ssl_key_path.exists()):
+        logger.info(f"{PREFIX} Generating user-level self-signed SSL certificates...")
+        subprocess.run(
+            [
+                "openssl",
+                "req",
+                "-x509",
+                "-nodes",
+                "-days",
+                "365",
+                "-newkey",
+                "rsa:2048",
+                "-keyout",
+                str(ssl_key_path),
+                "-out",
+                str(ssl_cert_path),
+                "-subj",
+                "/CN=localhost",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    # Write a complete kasmvnc.yaml that satisfies all of KasmVNC's
+    # startup requirements without requiring root or system-level daemons.
     kasmvnc_yaml_path = vnc_dir / "kasmvnc.yaml"
-    kasmvnc_config = """network:
+    kasmvnc_config = f"""network:
   interface: 127.0.0.1
   websocket_port: 5900
   ssl:
     require_ssl: false
+    pem_certificate: {ssl_cert_path}
+    pem_key: {ssl_key_path}
+desktop:
+  resolution:
+    width: 1280
+    height: 720
+  allow_resize: false
+keyboard:
+  remap_keys: {{}}
+encoding:
+  max_frame_rate: 24
+  full_color: true
+server:
+  auto_shutdown:
+    no_user_session_timeout: 0
 """
     kasmvnc_yaml_path.write_text(kasmvnc_config)
 
-    # Write an empty/minimal xstartup so vncserver
-    # doesn't auto-run other graphical sessions
+    # Pre-create a VNC passwd file via kasmvncpasswd so KasmVNC doesn't abort
+    # on missing credentials. We use -disableBasicAuth on launch, but the passwd
+    # file must still exist to pass early-startup validation on some builds.
+    passwd_path = vnc_dir / "passwd"
+    if not passwd_path.exists():
+        logger.info(f"{PREFIX} Pre-seeding VNC credential store...")
+        # Feed a dummy password twice (new + confirm) then 'n' for view-only
+        subprocess.run(
+            ["kasmvncpasswd", "-u", "user", "-w", "-r"],
+            input=b"kasmpass\nkasmpass\n",
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    # Write the xstartup script — kept minimal so we control what runs
     xstartup_path = vnc_dir / "xstartup"
-    xstartup_content = """#!/bin/sh
-true
-"""
-    xstartup_path.write_text(xstartup_content)
+    xstartup_path.write_text("#!/bin/sh\ntrue\n")
     xstartup_path.chmod(0o755)
 
     logger.info(f"{PREFIX} Initiating secure KasmVNC server on display {display}...")
     vnc_cmd = [
         "vncserver",
         display,
+        "-geometry", "1280x720",
+        "-depth", "24",
         "-disableBasicAuth",
     ]
     subprocess.Popen(vnc_cmd, stdout=log, stderr=log)
-    time.sleep(3)
 
-    # Start fluxbox window manager if present
-    # (provides window boundaries and management)
+    # Give KasmVNC time to bind its Xvnc socket before dependent processes start
+    time.sleep(5)
+
+    # Verify the display is actually up before proceeding
     import shutil
 
+    xdpyinfo = shutil.which("xdpyinfo")
+    env_check = os.environ.copy()
+    env_check["DISPLAY"] = display
+    display_ok = False
+    for attempt in range(6):  # up to ~12 s total
+        chk = subprocess.run(
+            [xdpyinfo or "xdpyinfo"],
+            env=env_check,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if chk.returncode == 0:
+            display_ok = True
+            break
+        time.sleep(2)
+
+    if not display_ok:
+        # Dump the KasmVNC log to our log stream for visibility
+        vnc_log = Path.home() / ".vnc" / f"localhost{display}.log"
+        if vnc_log.exists():
+            logger.error(
+                f"{PREFIX} KasmVNC log:\n{vnc_log.read_text(errors='replace')}"
+            )
+        logger.error(
+            f"{PREFIX} Display {display} never came up — visual debugger aborted"
+        )
+        return
+
+    # Start fluxbox window manager
+    # (provides window boundaries and management)
     if shutil.which("fluxbox"):
         logger.info(f"{PREFIX} Spawning lightweight layout manager...")
         subprocess.Popen(["fluxbox", "-display", display], stdout=log, stderr=log)
@@ -249,5 +329,6 @@ true
     logger.info(f"{PREFIX} Launching visualization pipeline on display {display}")
     subprocess.Popen(firefox_cmd, env=env, stdout=log, stderr=log)
     logger.success(
-        f"{PREFIX} Visual debugger active (KasmVNC stream ready on port 5900, display={display})."  # noqa: E501
+        f"{PREFIX} Visual debugger active (KasmVNC stream on port 5900, display={display})."  # noqa: E501
     )
+
