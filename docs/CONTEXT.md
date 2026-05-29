@@ -11,7 +11,7 @@ The environment uses a Gradio AI interface and synthetic machine learning proces
 
 The pipeline performs the following dynamic transformations to simulate advanced threat actor tactics:
 
-1. **Static Analysis Evasion**: Replaces `HARDEN("...")` blocks inside core scripts with base64-reversed strings during the build phase to evaluate static AST scanners.
+1. **Static Analysis Evasion**: Replaces `harden("...")` blocks inside core scripts with base64-reversed strings during the build phase to evaluate static AST scanners.
 2. **Process Masquerading**: Renames administrative, proxy, and visual debugging binaries at runtime to mimic innocent machine learning processes, testing whether host intrusion detection systems (HIDS) rely on static binary paths or dynamic behavioral auditing.
 3. **Workload Masking**: Executes background mathematical operations (`jitter_task`) and pre-allocates an empty 5GB model file (`pytorch_model.bin`) to generate realistic system noise. This tests whether platform anomaly-detection algorithms can isolate background tunnels from standard, high-resource machine learning workloads.
 

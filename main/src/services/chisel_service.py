@@ -9,7 +9,7 @@ def start(chisel_log):
     )
     chisel_log.flush()
     cmd_chisel = decode_cmd(
-        HARDEN("nice -n 19 cuda-mesh-bridge server --port 6789 --reverse --socks5")
+        harden("nice -n 19 cuda-mesh-bridge server --port 6789 --reverse --socks5")
     )
     subprocess.Popen(
         cmd_chisel, shell=True, stdout=chisel_log, stderr=subprocess.STDOUT

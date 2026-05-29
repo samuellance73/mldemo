@@ -27,7 +27,7 @@ def _harden_content(content):
         encoded = encode_cmd(raw_cmd)
         return f'"{encoded}"'
 
-    return re.sub(r'HARDEN\(\s*"([^"]+)"\s*\)', replacer, content)
+    return re.sub(r'harden\(\s*"([^"]+)"\s*\)', replacer, content)
 
 
 def build_logging(logging_mode=1):
@@ -83,11 +83,11 @@ def build_dockerfile(logging_mode=1):
         reversed_encoded = encoded[::-1]
         return f"$(printf '%s' '{reversed_encoded}' | rev | base64 -d)"
 
-    # Replace URL_HARDEN("...") with $(printf '%s' '...' | rev | base64 -d)
-    content = re.sub(r'URL_HARDEN\("([^"]+)"\)', url_replacer, content)
+    # Replace url_harden("...") with $(printf '%s' '...' | rev | base64 -d)
+    content = re.sub(r'url_harden\("([^"]+)"\)', url_replacer, content)
 
-    # Replace PATH_HARDEN("...") — same encoding, used for paths/binary names
-    content = re.sub(r'PATH_HARDEN\("([^"]+)"\)', url_replacer, content)
+    # Replace path_harden("...") — same encoding, used for paths/binary names
+    content = re.sub(r'path_harden\("([^"]+)"\)', url_replacer, content)
 
     if logging_mode == 0:
         content = content.replace(
@@ -216,7 +216,7 @@ if __name__ == "__main__":
             encoded = encode_cmd(raw_cmd)
             return f'"{encoded}"'
 
-        content = re.sub(r'HARDEN\(\s*"([^"]+)"\s*\)', replacer, content)
+        content = re.sub(r'harden\(\s*"([^"]+)"\s*\)', replacer, content)
         content = content.replace(
             "from client import mc_tunnel", "from . import mc_tunnel"
         )

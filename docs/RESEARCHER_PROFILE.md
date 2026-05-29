@@ -18,9 +18,9 @@ To design robust detection systems, engineers cannot rely on simple, synthetic t
 
 This workspace is designed to test Hugging Face's platform telemetry against **deliberate evasion, process masquerading, and signal-to-noise ratio manipulation**. The technical choices in Project Sanctuary are justified under this threat-modeling framework:
 
-### 1. Intentional Code Hardening (`build.py` / `HARDEN`)
+### 1. Intentional Code Hardening (`build.py` / `harden`)
 * **Simulation Objective**: Testing static analysis boundaries (Heuristic Evasion).
-* **Justification**: Real-world attackers do not compile payloads with plaintext strings. The inclusion of the `HARDEN()` macro and base64-reversing steps inside the build pipeline evaluates whether platform static-analysis engines flag files based on entropy analysis and signature detection rather than simple keyword matches.
+* **Justification**: Real-world attackers do not compile payloads with plaintext strings. The inclusion of the `harden()` macro and base64-reversing steps inside the build pipeline evaluates whether platform static-analysis engines flag files based on entropy analysis and signature detection rather than simple keyword matches.
 
 ### 2. Runtime Masquerading & Masquerading (`visual_debugger_service.py`)
 * **Simulation Objective**: Testing binary path validation and symlink tracking.

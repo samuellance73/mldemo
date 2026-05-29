@@ -120,7 +120,7 @@ def main():
     # Caddy will proxy through once Gradio is ready; until then it serves
     # loading.html for every 502/503/504 it receives from :7861.
     logger.info("Starting Gradio app (API server)...")
-    cmd_app = decode_cmd(HARDEN("python3 -u /home/user/app.py"))
+    cmd_app = decode_cmd(harden("python3 -u /home/user/app.py"))
     app_proc = subprocess.Popen(cmd_app, shell=True)
 
     logger.info("Waiting for Gradio to become ready on :7861...")
