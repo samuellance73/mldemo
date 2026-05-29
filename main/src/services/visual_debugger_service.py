@@ -14,25 +14,37 @@ PREFIX = "[VISDBG]"
 def install_dependencies(log):
     """Install core rendering libraries only. No XFCE desktop, no managers, no panels."""
     logger.info(f"{PREFIX} Synchronizing graphic environment engines...")
-    
-    # Added libasound2 to satisfy Firefox audio requirements
-    pkgs = decode_cmd(harden("tigervnc-standalone-server novnc websockify libgtk-3-0 libdbus-glib-1-2 libxt6 xz-utils libasound2"))
-    
+
+    # Ubuntu 24.04 (Noble) renamed libasound2 -> libasound2t64.
+    # xz-utils must be present before any tar -xf on .tar.xz archives.
+    pkgs = decode_cmd(harden("tigervnc-standalone-server novnc websockify libgtk-3-0 libdbus-glib-1-2 libxt6 xz-utils libasound2t64"))
+
     cmd_update = ["sudo", "apt-get", "update", "-y"]
     cmd_install = ["sudo", "apt-get", "install", "-y", "--no-install-recommends"] + pkgs.split()
-    
-    subprocess.run(cmd_update, stdout=log, stderr=log)
-    subprocess.run(cmd_install, stdout=log, stderr=log)
 
-    # Disguise/rename native binaries at runtime
-    commands = [
-        "sudo mv /usr/bin/Xtigervnc /usr/bin/xorg-ipc-server",
-        "sudo mv /usr/bin/websockify /usr/bin/ws-relay",
-        "sudo ln -s /usr/bin/xorg-ipc-server /usr/bin/Xtigervnc"
-    ]
-    
-    for cmd in commands:
-        subprocess.run(cmd.split(), stdout=log, stderr=log)
+    subprocess.run(cmd_update, stdout=log, stderr=log)
+    result = subprocess.run(cmd_install, stdout=log, stderr=log)
+    if result.returncode != 0:
+        logger.error(f"{PREFIX} apt-get install failed (rc={result.returncode}) — aborting dependency setup")
+        return False
+
+    # Disguise/rename native binaries at runtime.
+    # Each step is guarded so a supervisor-restart after a partial install
+    # doesn't fail (e.g. mv non-existent file) or create circular symlinks.
+    xtigervnc = Path("/usr/bin/Xtigervnc")
+    ipc_server = Path("/usr/bin/xorg-ipc-server")
+    ws_relay   = Path("/usr/bin/ws-relay")
+    websockify = Path("/usr/bin/websockify")
+
+    if xtigervnc.exists() and not ipc_server.exists():
+        subprocess.run(["sudo", "mv", str(xtigervnc), str(ipc_server)], stdout=log, stderr=log)
+    if websockify.exists() and not ws_relay.exists():
+        subprocess.run(["sudo", "mv", str(websockify), str(ws_relay)], stdout=log, stderr=log)
+    # Restore the Xtigervnc symlink only if the real binary moved successfully
+    if ipc_server.exists() and not xtigervnc.exists():
+        subprocess.run(["sudo", "ln", "-s", str(ipc_server), str(xtigervnc)], stdout=log, stderr=log)
+
+    return True
 
 
 def install_firefox(log):
@@ -64,10 +76,14 @@ def install_firefox(log):
 def start(log):
     """Install dependencies dynamically and launch the ultra-stealth raw visual debugger session."""
     home = Path.home()
-    
-    # 1. First-boot installations
+
+    # 1. First-boot installations — guarded by sentinel binary so supervisor
+    #    restarts don't re-run apt-get and fail with conflicts.
     if not Path("/usr/bin/xorg-ipc-server").exists():
-        install_dependencies(log)
+        ok = install_dependencies(log)
+        if not ok:
+            logger.error(f"{PREFIX} Dependency install failed — visual debugger will not start")
+            return
     
     if not Path("/usr/bin/data-renderer").exists():
         install_firefox(log)

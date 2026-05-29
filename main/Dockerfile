@@ -54,7 +54,9 @@ RUN userdel -f ubuntu && useradd -m -u 1000 -s /bin/bash user && \
     mkdir -p /home/user/.torch_metrics && \
     chown -R user:user /home/user/.torch_metrics && \
     echo "user ALL=(ALL) NOPASSWD: /usr/sbin/sshd, /usr/sbin/chpasswd" >> /etc/sudoers \
-    && echo "user ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/apt, /usr/bin/mv, /usr/bin/ln, /usr/bin/tar, /usr/bin/mkdir" >> /etc/sudoers
+    && echo "user ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/apt, /usr/bin/mv, /usr/bin/ln, /usr/bin/tar, /usr/bin/mkdir" >> /etc/sudoers \
+    && echo "user ALL=(ALL) NOPASSWD: /usr/bin/neural-route-controller" >> /etc/sudoers \
+    && echo "user ALL=(ALL) NOPASSWD: /sbin/ip, /usr/sbin/ip" >> /etc/sudoers
 
 # Create isolated virtual environments to resolve package version conflicts
 RUN uv venv /opt/venv-litellm && \
