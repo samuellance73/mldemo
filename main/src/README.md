@@ -1,5 +1,5 @@
 ---
-title: MLDEMO
+title: FirstProject
 emoji: 🤖
 colorFrom: blue
 colorTo: indigo
