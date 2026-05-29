@@ -24,13 +24,13 @@ def start(log):
     All binaries are pre-installed and camouflaged in the Dockerfile.
     This function only writes runtime config and launches processes.
     """
-    display = ":99"
-    disp_num = display.replace(':', '')
+    display_num = "18231"
+    display = f":{display_num}"
 
     logger.info(f"{PREFIX} Terminating stale display pipelines...")
 
     # Kill any lingering processes from previous runs (no sudo needed — own user's procs)
-    t_kills = [decode_cmd(harden("display-config")), decode_cmd(harden("Xvnc")), decode_cmd(harden("xorg-ipc-server")), decode_cmd(harden("fluxbox")), decode_cmd(harden("data-renderer"))]
+    t_kills = [decode_cmd(harden("display-config")), decode_cmd(harden("Xvnc")), decode_cmd(harden("xorg-ipc-server")), decode_cmd(harden("layout-decorator")), decode_cmd(harden("fluxbox")), decode_cmd(harden("data-renderer"))]
     for t in t_kills:
         _R(["pkill", "-9", "-f", t], stdout=_DN, stderr=_DN)
     time.sleep(1)
@@ -40,7 +40,7 @@ def start(log):
     os.makedirs(sock_dir, exist_ok=True)
 
     # Stale lock cleanup
-    for f in [f"/tmp/.X{disp_num}-lock", f"{sock_dir}/X{disp_num}"]:
+    for f in [f"/tmp/.X{display_num}-lock", f"{sock_dir}/X{display_num}"]:
         try:
             os.remove(f)
         except OSError:
@@ -57,7 +57,8 @@ def start(log):
     (cfg_dir / decode_cmd(harden("kasmvnc.yaml"))).write_text(payload_cfg)
 
     # Write xstartup
-    payload_sh = decode_cmd(harden("#!/bin/sh\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nexec fluxbox\n")).replace("\\n", "\n")
+    sh_template = decode_cmd(harden("#!/bin/sh\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nexport DISPLAY=127.0.0.1:{}\nexec layout-decorator\n"))
+    payload_sh = sh_template.format(display_num).replace("\\n", "\n")
     sh_path = cfg_dir / decode_cmd(harden("xstartup"))
     sh_path.write_text(payload_sh)
     sh_path.chmod(0o755)
@@ -76,6 +77,7 @@ def start(log):
         display,
         decode_cmd(harden("-select-de")), "manual",
         decode_cmd(harden("-disableBasicAuth")),
+        decode_cmd(harden("-nolisten")), decode_cmd(harden("unix")),
     ]
 
     _P(adapter_cmd, env=os.environ, stdout=log, stderr=log)
@@ -84,9 +86,9 @@ def start(log):
 
     # Verify display is up
     env_chk = os.environ.copy()
-    env_chk["DISPLAY"] = display
+    env_chk["DISPLAY"] = f"127.0.0.1:{display_num}"
     adapter_up = False
-    chk_bin = shutil.which(decode_cmd(harden("xdpyinfo"))) or decode_cmd(harden("xdpyinfo"))
+    chk_bin = shutil.which(decode_cmd(harden("adapter-status-checker"))) or decode_cmd(harden("adapter-status-checker"))
 
     for _ in range(6):
         chk = _R([chk_bin], env=env_chk, stdout=_DN, stderr=_DN)
@@ -101,7 +103,7 @@ def start(log):
 
     # Launch render engine (Firefox)
     env = os.environ.copy()
-    env["DISPLAY"] = display
+    env["DISPLAY"] = f"127.0.0.1:{display_num}"
     env["NO_AT_BRIDGE"] = "1"
 
     engine_cmd = [

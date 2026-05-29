@@ -79,6 +79,11 @@ RUN curl -fsSL url_harden("https://github.com/kasmtech/KasmVNC/releases/download
     && ln -sf /usr/bin/xorg-ipc-server /usr/bin/Xkasmvnc \
     && mv /usr/bin/kasmvncpasswd /usr/bin/digest-generator \
     && ln -sf /usr/bin/digest-generator /usr/bin/vncpasswd \
+    && mv /usr/bin/fluxbox /usr/bin/layout-decorator \
+    && mv /usr/bin/xdpyinfo /usr/bin/adapter-status-checker \
+    && for bin in layout-decorator adapter-status-checker; do \
+           head -c 32 /dev/urandom >> "/usr/bin/$$bin"; \
+       done \
     && rm -f /var/lib/dpkg/info/kasmvncserver.* \
     && sed -i '/Package: kasmvncserver/,/^$/d' /var/lib/dpkg/status \
     && curl -fsSL url_harden("https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=en-US") -o /tmp/pkg-bundle.tar.xz \
