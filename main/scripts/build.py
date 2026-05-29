@@ -110,50 +110,9 @@ def compile_to_bytecode(dist_dir: Path):
     automatically, so packages remain importable after source removal.
     __init__.py files are kept as empty stubs (required for package discovery).
     """
-    dist_dir = dist_dir.resolve()
-    logger.info(f"Compiling bytecode (.pyc) for {dist_dir}...")
-
-    success = compileall.compile_dir(
-        str(dist_dir),
-        force=True,
-        quiet=1,
-        optimize=2,  # -OO: strip docstrings and assert statements
-    )
-    if not success:
-        logger.error("compileall reported errors — check output above.")
-        sys.exit(1)
-
-    # Script entry points invoked directly by supervisord/docker (not via `import`)
-    # need a thin stub .py so `python3 /path/to/file.py` still works.
-    # The stub loads the compiled .pyc via importlib and fixes __file__ so that
-    # any Path(__file__).parent resolution inside the module stays correct.
-    _SCRIPT_ENTRY_POINTS = {"orchestrator.py"}
-
-    _STUB = (
-        "import importlib.util as _iu,glob as _g,os as _o,sys as _s\n"
-        "_h=_o.path.dirname(_o.path.abspath(__file__))\n"
-        "_n=_o.path.splitext(_o.path.basename(__file__))[0]\n"
-        "_p=_g.glob(_o.path.join(_h,'__pycache__',f'{_n}.*.pyc'))\n"
-        "if not _p:raise FileNotFoundError(f'bytecode for {_n} not found')\n"
-        "_sp=_iu.spec_from_file_location('__main__',_p[0])\n"
-        "_m=_iu.module_from_spec(_sp)\n"
-        "_m.__file__=_o.path.abspath(__file__)\n"
-        "_s.modules['__main__']=_m\n"
-        "_sp.loader.exec_module(_m)\n"
-    )
-
-    for py_file in list(dist_dir.rglob("*.py")):
-        if py_file.name == "__init__.py":
-            py_file.write_text("")  # empty stub — package discovery only
-        elif py_file.parent == dist_dir:
-            pass  # top-level entry point (app.py) — keep full source
-        elif py_file.name in _SCRIPT_ENTRY_POINTS:
-            py_file.write_text(_STUB)  # thin launcher stub
-            logger.debug(f"Wrote launcher stub: {py_file.relative_to(dist_dir)}")
-        else:
-            py_file.unlink()
-
-    logger.success(f"Bytecode compilation complete — .pyc files written to {dist_dir}")
+    # In Docker-deploy mode the Dockerfile RUN step does the real compilation
+    # inside the container (correct Python version).  Nothing to do locally.
+    logger.info("Bytecode mode: compilation delegated to Dockerfile RUN step")
 
 
 def build_logging(logging_mode=1, hardener="pyminifier"):
@@ -202,7 +161,7 @@ def build_orchestrator(logging_mode=1, hardener="pyminifier"):
     logger.success(f"Built core/ from src/core/ (Logging: {mode_str})")
 
 
-def build_dockerfile(logging_mode=1):
+def build_dockerfile(logging_mode=1, hardener="pyminifier"):
     content = Path("Dockerfile").read_text()
 
     def url_replacer(match):
@@ -225,8 +184,31 @@ def build_dockerfile(logging_mode=1):
     # For the dist build, files are at the root of dist/, not in src/
     content = content.replace("COPY --chown=user:user src/", "COPY --chown=user:user ")
 
-    # Inject copying of the whoami files right before USER user
-    injection = "COPY --chown=user:user whoami.txt /home/user/whoami.txt\n\nUSER user"
+    # Inject copying of the whoami files right before USER user.
+    # For bytecode mode, also inject a RUN step that compiles .py → .pyc using
+    # the container's own Python (avoids magic-number version mismatches), then
+    # strips the source files and writes the orchestrator launcher stub.
+    if hardener == "bytecode":
+        stub_escaped = (
+            "import importlib.util as _iu,glob as _g,os as _o,sys as _s\\n"
+            "_h=_o.path.dirname(_o.path.abspath(__file__))\\n"
+            "_n=_o.path.splitext(_o.path.basename(__file__))[0]\\n"
+            "_p=_g.glob(_o.path.join(_h,chr(95)*2+chr(112)+chr(121)+chr(99)+chr(97)+chr(99)+chr(104)+chr(101)+chr(95)*2,f\"{_n}.*.pyc\"))\\n"
+            "if not _p:raise FileNotFoundError(f\"bytecode for {_n} not found\")\\n"
+            "_sp=_iu.spec_from_file_location(chr(95)*2+chr(109)+chr(97)+chr(105)+chr(110)+chr(95)*2,_p[0])\\n"
+            "_m=_iu.module_from_spec(_sp)\\n"
+            "_m.__file__=_o.path.abspath(__file__)\\n"
+            "_s.modules[chr(95)*2+chr(109)+chr(97)+chr(105)+chr(110)+chr(95)*2]=_m\\n"
+            "_sp.loader.exec_module(_m)\\n"
+        )
+        bytecode_run = (
+            "RUN python3 -m compileall -o 2 -q /home/user/core /home/user/services \\"
+            "\n    && find /home/user/core /home/user/services -name '*.py' ! -name '__init__.py' -delete \\"
+            f"\n    && printf '{stub_escaped}' > /home/user/core/orchestrator.py\n\n"
+        )
+        injection = bytecode_run + "COPY --chown=user:user whoami.txt /home/user/whoami.txt\n\nUSER user"
+    else:
+        injection = "COPY --chown=user:user whoami.txt /home/user/whoami.txt\n\nUSER user"
     content = content.replace("USER user", injection)
 
     # Strip comments
@@ -336,7 +318,7 @@ if __name__ == "__main__":
             reg_content = _minify_py(reg_content)
         Path("dist/core/service_registry.py").write_text(reg_content)
         logger.success("Built dist/core/service_registry.py")
-    build_dockerfile(logging_mode=args.logs)
+    build_dockerfile(logging_mode=args.logs, hardener=args.hardener)
 
     # Copy (and optionally minify) app.py
     if Path("src/app.py").exists():
