@@ -1,5 +1,7 @@
 """Canonical service names for per-node manifests and runtime gating."""
 
+from pathlib import Path
+
 ALLOWED_SERVICES = frozenset(
     {
         "caddy",
@@ -16,7 +18,8 @@ ALLOWED_SERVICES = frozenset(
         "open_webui",
         "code_server",
         "visual_debugger",
+        "gradio",
     }
 )
 
-ENABLED_SERVICES_PATH = "/home/user/config/enabled_services.json"
+ENABLED_SERVICES_PATH = str(Path.home() / "config" / "enabled_services.json")

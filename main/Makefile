@@ -12,10 +12,6 @@ all: build
 build:
 	uv run python scripts/build.py --logs $(LOGS) --hardener $(HARDENER)
 
-# Deploy the dist/ directory to configured Hugging Face nodes
-deploy: build
-	uv run python scripts/deploy.py
-
 # Lint checking
 lint:
 	uv run ruff check .

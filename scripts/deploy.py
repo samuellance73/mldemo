@@ -10,9 +10,10 @@ from dotenv import load_dotenv
 from huggingface_hub import HfApi
 from loguru import logger
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-_SRC_ROOT = _REPO_ROOT / "src"
-for _p in (_SRC_ROOT, _REPO_ROOT):
+_REPO_ROOT = Path(__file__).resolve().parent.parent          # Sanctuary/
+_MAIN_ROOT = _REPO_ROOT / "main"                               # Sanctuary/main/
+_SRC_ROOT = _MAIN_ROOT / "src"                                 # Sanctuary/main/src/
+for _p in (_SRC_ROOT, _MAIN_ROOT):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
@@ -133,14 +134,14 @@ def update_state(
 
 
 def main():
-    load_dotenv(".env")
+    load_dotenv(_REPO_ROOT / ".env")
     parser = argparse.ArgumentParser(
         description="Deploy built code to Hugging Face Hub nodes."
     )
     parser.add_argument(
         "--nodes",
-        default="manifests/nodes.yaml",
-        help="Path to nodes.yaml manifest (default: manifests/nodes.yaml)",
+        default="../manifests/nodes.yaml",
+        help="Path to nodes.yaml manifest (default: ../manifests/nodes.yaml)",
     )
     parser.add_argument(
         "--dist",
@@ -175,8 +176,8 @@ def main():
     if args.ssh_password:
         os.environ["PASS"] = args.ssh_password
 
-    # Ensure working directory is repository root
-    repo_root = Path(__file__).resolve().parent.parent
+    # Ensure working directory is main/ (where dist/ and config/ live)
+    repo_root = Path(__file__).resolve().parent.parent / "main"
     os.chdir(repo_root)
 
     nodes_path = Path(args.nodes)

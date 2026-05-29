@@ -38,35 +38,6 @@ def load_enabled_services():
         return frozenset()
 
 
-def jitter_task():
-    """The 'Circadian Rhythm' & 'The Hub Mimic' task to simulate user activity."""
-    while True:
-        sleep_time = random.randint(2700, 5400)
-        time.sleep(sleep_time)
-
-        try:
-            logger.debug("Processing background inference batch...")
-            import numpy as np
-
-            a = np.random.randn(2000, 2000)
-            b = np.random.randn(2000, 2000)
-            _ = np.dot(a, b)
-        except Exception:
-            pass
-
-        try:
-            logger.debug("Syncing model cache...")
-            subprocess.run(
-                [
-                    "curl",
-                    "-s",
-                    "-o",
-                    "/dev/null",
-                    "https://huggingface.co/gpt2/resolve/main/vocab.json",
-                ]
-            )
-        except Exception:
-            pass
 
 
 def wait_for_port(host, port, timeout=30):
@@ -116,30 +87,12 @@ def main():
 
         caddy_service.start(logs.caddy)
 
-    # === PHASE 1: Cover story — start Gradio behind Caddy.
+    # === PHASE 1: Cover story — start Gradio Cover App behind Caddy.
     # Caddy will proxy through once Gradio is ready; until then it serves
     # loading.html for every 502/503/504 it receives from :7861.
-    logger.info("Starting Gradio app (API server)...")
-    cmd_app = decode_cmd(harden("python3 -u /home/user/app.py"))
-    app_proc = subprocess.Popen(cmd_app, shell=True)
-
-    logger.info("Waiting for Gradio to become ready on :7861...")
-    if not wait_for_port("127.0.0.1", 7861, timeout=60):
-        logger.warning("Gradio did not become ready within 60s — continuing anyway")
-    else:
-        logger.info("Gradio ready — Caddy now proxying live traffic.")
-
-    if not Path("/home/user/pytorch_model.bin").exists():
-        logger.info("Pre-allocating model weight buffer...")
-        subprocess.run(["truncate", "-s", "5G", "/home/user/pytorch_model.bin"])
-
-    logger.info("Loading model weights into VRAM...")
-    time.sleep(2)
-
-    threading.Thread(target=jitter_task, daemon=True).start()
-
-    delay = random.randint(2, 3)
-    logger.info(f"Synchronizing gradient checkpoint topology (standby for {delay}s)...")
+    if "gradio" in enabled:
+        from services import gradio_service
+        gradio_proc = gradio_service.start(logs.gradio)
 
     # === PHASE 2: Network tunnels and access layer.
     if "tailscale" in enabled:
@@ -194,10 +147,11 @@ def main():
         logger.success(f"Generated SSH Password for 'user': {ssh_pwd}")
     ssh_pwd_cfg = ""  # wipe decoded value now that it's been used
 
+    username = Path.home().name
     try:
         subprocess.run(
             ["sudo", "/usr/sbin/chpasswd"],
-            input=f"user:{ssh_pwd}\n",
+            input=f"{username}:{ssh_pwd}\n",
             text=True,
             check=True,
         )
@@ -249,7 +203,14 @@ def main():
     logger.success("Model loaded successfully. Background services active.")
     logger.info("Background services are active.")
 
-    app_proc.wait()
+    if "gradio" in enabled and "gradio_proc" in locals():
+        gradio_proc.wait()
+    else:
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("Shutting down orchestrator...")
 
 
 if __name__ == "__main__":

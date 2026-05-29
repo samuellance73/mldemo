@@ -8,15 +8,15 @@ HARDENER ?= bytecode
 # Default target
 all: build
 
-# Delegate build to the main backend project directory
+# Build the main deployment flavor
 build:
 	$(MAKE) -C main build LOGS=$(LOGS) HARDENER=$(HARDENER)
 
-# Delegate deploy to the main backend project directory
-deploy:
-	$(MAKE) -C main deploy LOGS=$(LOGS) HARDENER=$(HARDENER)
+# Build then deploy all nodes from the universal deploy script
+deploy: build
+	uv run python scripts/deploy.py
 
-# Delegate linting
+# Delegate linting to main/ (uv finds pyproject.toml at root)
 lint:
 	$(MAKE) -C main lint
 
@@ -28,7 +28,7 @@ lint-fix:
 format:
 	$(MAKE) -C main format
 
-# Delegate clean to the main backend project directory
+# Delegate clean to the main deployment directory
 clean:
 	$(MAKE) -C main clean
 

@@ -79,7 +79,7 @@ def build_mc_handshake(host, port):
 
 
 def get_node_url(node_name):
-    state_path = Path(REPO_ROOT) / "manifests" / "state.json"
+    state_path = Path(REPO_ROOT).parent / "manifests" / "state.json"
     if not state_path.exists():
         raise FileNotFoundError(
             f"State file '{state_path}' not found. Build/deploy first."

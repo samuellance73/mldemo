@@ -11,8 +11,8 @@ __pycache__/
 .env
 .env.*
 !.env.example
-main/llm_keys.yaml
-main/manifests/state.json
+llm_keys.yaml
+manifests/state.json
 
 main/sliver
 main/cfg/*

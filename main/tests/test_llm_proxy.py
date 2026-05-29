@@ -29,7 +29,7 @@ from pathlib import Path
 # Config
 # ---------------------------------------------------------------------------
 REPO_ROOT = Path(__file__).resolve().parent.parent
-STATE_PATH = REPO_ROOT / "manifests" / "state.json"
+STATE_PATH = REPO_ROOT.parent / "manifests" / "state.json"
 
 CHAT_PATH = "/v1/chat/completions"
 MODELS_PATH = "/v1/models"

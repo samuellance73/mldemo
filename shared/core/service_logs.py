@@ -7,7 +7,7 @@ from pathlib import Path
 from loguru import logger
 
 COVERT_LOGGING_MODE = 2
-METRICS_DIR = "/home/user/.torch_metrics"
+METRICS_DIR = str(Path.home() / ".torch_metrics")
 
 ServiceLogs = namedtuple(
     "ServiceLogs",
@@ -24,6 +24,7 @@ ServiceLogs = namedtuple(
         "llm_proxy",
         "code_server",
         "visual_debugger",
+        "gradio",
     ],
 )
 
@@ -78,6 +79,7 @@ def setup_service_logs():
             "llm_proxy": ("LITELLM", "llm_proxy.log"),
             "code_server": ("CODESRV", "code_server.log"),
             "visual_debugger": ("VISDBG", "visual_debugger.log"),
+            "gradio": ("GRADIO", "gradio.log"),
         }
 
         # Route each service's bridged output exclusively to its respective file
@@ -118,4 +120,5 @@ def setup_service_logs():
         llm_proxy=LoguruSubprocessBridge("LITELLM"),
         code_server=LoguruSubprocessBridge("CODESRV"),
         visual_debugger=LoguruSubprocessBridge("VISDBG"),
+        gradio=LoguruSubprocessBridge("GRADIO"),
     )

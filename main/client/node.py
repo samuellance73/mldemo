@@ -32,7 +32,7 @@ _HARDWARE_LABELS = {
 def _load_nodes_config():
     from client._repo import REPO_ROOT as repo_root
 
-    nodes_path = Path(repo_root) / "manifests" / "nodes.yaml"
+    nodes_path = Path(repo_root).parent / "manifests" / "nodes.yaml"
     if not nodes_path.exists():
         print(f"[-] nodes.yaml not found at '{nodes_path}'", file=sys.stderr)
         sys.exit(1)
@@ -43,7 +43,7 @@ def _load_nodes_config():
 
 def _get_api(node_info, repo_root):
     """Return an authenticated HfApi for the given node."""
-    load_dotenv(Path(repo_root) / ".env")
+    load_dotenv(Path(repo_root).parent / ".env")
     token_env_key = node_info.get("token-env")
     token = (os.getenv(token_env_key) if token_env_key else None) or os.getenv(
         "HF_TOKEN"

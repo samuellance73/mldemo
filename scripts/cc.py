@@ -5,9 +5,10 @@ import sys
 import time
 from pathlib import Path
 
-# Repo root on sys.path so top-level client/ package resolves (not scripts/client/)
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_REPO_ROOT))
+# Sanctuary/ is the monorepo root; main/ holds the client package
+_REPO_ROOT = Path(__file__).resolve().parent.parent          # Sanctuary/
+_MAIN_ROOT = _REPO_ROOT / "main"                               # Sanctuary/main/
+sys.path.insert(0, str(_MAIN_ROOT))
 
 import client.common as common
 import client.node as node_cmd
