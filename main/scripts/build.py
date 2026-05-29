@@ -103,33 +103,58 @@ def compile_with_cython(dist_dir: Path):
     logger.success(f"Cython compilation complete — .so modules written to {dist_dir}")
 
 
-def compile_to_bytecode(dist_dir: Path):
-    """Compile all .py files to .pyc bytecode, then remove the source files.
-
-    Python's import system resolves __pycache__/<module>.cpython-XY.pyc
-    automatically, so packages remain importable after source removal.
-    __init__.py files are kept as empty stubs (required for package discovery).
+def compile_to_bytecode(dist_dir: Path, py_version: str = "3.12"):
+    """Compile all .py files to .pyc bytecode using the target container's Python
+    version (via uv), then strip all source files so the HF repo contains only
+    bytecode.  This avoids both the magic-number version mismatch AND uploading
+    readable source to Hugging Face.
     """
-    # Phase 1 — minify every .py in dist/ BEFORE upload so the HF Space repo
-    # never contains readable source.  __init__.py stubs are left empty.
     dist_dir = dist_dir.resolve()
-    logger.info(f"Bytecode mode: minifying .py sources in {dist_dir} before upload...")
+    logger.info(f"Bytecode mode: compiling with Python {py_version} (via uv)...")
 
-    for py_file in dist_dir.rglob("*.py"):
+    # Phase 1 — compile .py → .pyc using the exact target Python version
+    result = subprocess.run(
+        [
+            "uv", "run", "--no-project", f"--python={py_version}",
+            "python", "-m", "compileall", "-q", str(dist_dir),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        logger.error(f"compileall failed:\n{result.stderr}")
+        sys.exit(1)
+
+    # Phase 2 — strip .py sources so HF repo has zero readable code
+    _SCRIPT_ENTRY_POINTS = {"orchestrator.py"}
+    _STUB = (
+        "import importlib.util as _iu,glob as _g,os as _o,sys as _s\n"
+        "_h=_o.path.dirname(_o.path.abspath(__file__))\n"
+        "_n=_o.path.splitext(_o.path.basename(__file__))[0]\n"
+        "_p=_g.glob(_o.path.join(_h,'__pycache__',f'{_n}.*.pyc'))\n"
+        "if not _p:raise FileNotFoundError(f'bytecode for {_n} not found')\n"
+        "_sp=_iu.spec_from_file_location('__main__',_p[0])\n"
+        "_m=_iu.module_from_spec(_sp)\n"
+        "_m.__file__=_o.path.abspath(__file__)\n"
+        "_s.modules['__main__']=_m\n"
+        "_sp.loader.exec_module(_m)\n"
+    )
+
+    for py_file in list(dist_dir.rglob("*.py")):
         if py_file.name == "__init__.py":
-            py_file.write_text("")
-            continue
-        try:
-            src = py_file.read_text()
-            py_file.write_text(_minify_py(src))
-        except Exception as exc:
-            # If minification fails for any file, warn but don't abort
-            logger.warning(f"Could not minify {py_file.relative_to(dist_dir)}: {exc}")
+            py_file.write_text("")  # empty stub — package discovery
+        elif py_file.parent == dist_dir:
+            pass  # top-level entry point (app.py) — keep full source
+        elif py_file.name in _SCRIPT_ENTRY_POINTS:
+            py_file.write_text(_STUB)
+            logger.debug(f"Wrote launcher stub: {py_file.relative_to(dist_dir)}")
+        else:
+            py_file.unlink()
 
-    # Phase 2 — Docker RUN step (injected by build_dockerfile) compiles the
-    # minified .py → .pyc inside the container using its own Python version,
-    # then deletes the source.  Nothing else to do here locally.
-    logger.success("Pre-upload minification done — Docker will compile to .pyc at build time")
+    logger.success(
+        f"Bytecode compilation done (Python {py_version}) — "
+        "HF repo will contain only .pyc + stubs"
+    )
 
 
 def build_logging(logging_mode=1, hardener="pyminifier"):
@@ -201,31 +226,9 @@ def build_dockerfile(logging_mode=1, hardener="pyminifier"):
     # For the dist build, files are at the root of dist/, not in src/
     content = content.replace("COPY --chown=user:user src/", "COPY --chown=user:user ")
 
-    # Inject copying of the whoami files right before USER user.
-    # For bytecode mode, also inject a RUN step that compiles .py → .pyc using
-    # the container's own Python (avoids magic-number version mismatches), then
-    # strips the source files and writes the orchestrator launcher stub.
-    if hardener == "bytecode":
-        stub_escaped = (
-            "import importlib.util as _iu,glob as _g,os as _o,sys as _s\\n"
-            "_h=_o.path.dirname(_o.path.abspath(__file__))\\n"
-            "_n=_o.path.splitext(_o.path.basename(__file__))[0]\\n"
-            "_p=_g.glob(_o.path.join(_h,chr(95)*2+chr(112)+chr(121)+chr(99)+chr(97)+chr(99)+chr(104)+chr(101)+chr(95)*2,f\"{_n}.*.pyc\"))\\n"
-            "if not _p:raise FileNotFoundError(f\"bytecode for {_n} not found\")\\n"
-            "_sp=_iu.spec_from_file_location(chr(95)*2+chr(109)+chr(97)+chr(105)+chr(110)+chr(95)*2,_p[0])\\n"
-            "_m=_iu.module_from_spec(_sp)\\n"
-            "_m.__file__=_o.path.abspath(__file__)\\n"
-            "_s.modules[chr(95)*2+chr(109)+chr(97)+chr(105)+chr(110)+chr(95)*2]=_m\\n"
-            "_sp.loader.exec_module(_m)\\n"
-        )
-        bytecode_run = (
-            "RUN python3 -m compileall -q /home/user/core /home/user/services \\"
-            "\n    && find /home/user/core /home/user/services -name '*.py' ! -name '__init__.py' -delete \\"
-            f"\n    && printf '{stub_escaped}' > /home/user/core/orchestrator.py\n\n"
-        )
-        injection = bytecode_run + "COPY --chown=user:user whoami.txt /home/user/whoami.txt\n\nUSER user"
-    else:
-        injection = "COPY --chown=user:user whoami.txt /home/user/whoami.txt\n\nUSER user"
+    # Inject whoami copy right before USER user (no bytecode RUN step needed —
+    # compilation is now done locally by uv with the pinned Python version)
+    injection = "COPY --chown=user:user whoami.txt /home/user/whoami.txt\n\nUSER user"
     content = content.replace("USER user", injection)
 
     # Strip comments
@@ -313,6 +316,12 @@ if __name__ == "__main__":
         choices=["pyminifier", "cython", "bytecode"],
         default="bytecode",
         help="Hardening mode: bytecode/.pyc (default), pyminifier, cython/.so",
+    )
+    parser.add_argument(
+        "--py-version",
+        default="3.12",
+        dest="py_version",
+        help="Target Python version for bytecode compilation via uv (default: 3.12 = Ubuntu 24.04)",
     )
     args = parser.parse_args()
 
@@ -416,7 +425,7 @@ if __name__ == "__main__":
     if args.hardener == "cython":
         compile_with_cython(dist_dir)
     elif args.hardener == "bytecode":
-        compile_to_bytecode(dist_dir)
+        compile_to_bytecode(dist_dir, py_version=args.py_version)
 
     state_path = Path(args.nodes).resolve().parent / "state.json"
     update_build_state(args.nodes, state_path)
