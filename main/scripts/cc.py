@@ -31,6 +31,7 @@ def _resolve_node(node_name):
 def run_ssh(port):
     ssh_cmd = [
         "ssh",
+        "-Y",                            # Trusted X11 forwarding — lets remote apps open windows locally
         "-o",
         "StrictHostKeyChecking=no",
         "-o",

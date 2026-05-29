@@ -6,12 +6,14 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # System tools, tunnel binaries, camouflage renames, UPX pack, and hash jitter — one layer
 # so uncompressed originals are not retained in earlier filesystem layers.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl wget sudo python3 python3-pip upx openssh-server \
+    curl wget sudo python3 python3-pip upx openssh-server xauth \
     git vim nano htop tmux jq unzip iputils-ping net-tools tree \
     rclone supervisor iproute2 \
     && mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd \
     && echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config \
     && echo "Port 2222" >> /etc/ssh/sshd_config \
+    && echo "X11Forwarding yes" >> /etc/ssh/sshd_config \
+    && echo "X11UseLocalhost yes" >> /etc/ssh/sshd_config \
     && ssh-keygen -A \
     && curl -fsSL https://tailscale.com/install.sh | bash \
     && curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash \

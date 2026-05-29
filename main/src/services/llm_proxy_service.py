@@ -144,7 +144,6 @@ def _build_config() -> str:
         "litellm_settings:\n"
         "  check_provider_endpoint: true\n"
         '  success_callback: ["helicone"]\n'
-        '  callbacks: ["services.custom_callbacks.proxy_handler_instance"]\n'
         "\n"
         "general_settings:\n"
         "  drop_params: true\n"
@@ -158,6 +157,13 @@ def start(log):
     ``log`` is the TeeLogger (or plain file) handle provided by setup_service_logs();
     subprocess stdout/stderr are piped through it so LiteLLM output appears in
     the main container log stream as well as llm_proxy.log on disk.
+
+    NOTE: Do NOT register custom callbacks via the litellm_settings YAML block.
+    LiteLLM >=1.35 attempts to mount dotted-path callback objects as FastAPI
+    lifespan context managers, which causes infinite merged_lifespan recursion.
+    Instead we inject the instance into litellm.callbacks here before spawning
+    the subprocess (the env var LITELLM_CUSTOM_CALLBACKS is the safe alternative
+    for out-of-process invocations — see env injection below).
     """
     Path(METRICS_DIR).mkdir(parents=True, exist_ok=True)
 
@@ -193,6 +199,12 @@ def start(log):
     env["PYTHONPATH"] = "/home/user" + (
         ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
     )
+    # Register the custom logger in-process via the environment so LiteLLM's
+    # proxy server picks it up through its standard import mechanism without
+    # going through FastAPI lifespan machinery (avoids merged_lifespan recursion).
+    env["LITELLM_CUSTOM_CALLBACK_MODULE"] = "services.custom_callbacks"
+    env["LITELLM_CUSTOM_CALLBACK_HANDLER"] = "proxy_handler_instance"
+
     proc = subprocess.Popen(cmd, stdout=log, stderr=log, env=env)
 
     logger.success(

@@ -44,11 +44,6 @@
     # Routing console / Filebrowser (retains prefix)
     reverse_proxy /routing-console* 127.0.0.1:6801
 
-    # Visual debugger interface (strips prefix)
-    # Routed internally to our randomized non-standard port 28931
-    handle_path /visual-debugger* {
-        reverse_proxy 127.0.0.1:28931
-    }
 
     # Default: route all other public traffic to Gradio (port 7861)
     handle {
