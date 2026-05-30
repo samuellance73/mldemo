@@ -9,11 +9,21 @@ nodes:
     services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "minecraft", "llm_proxy", "gradio"]
 #    services: ["caddy", "filebrowser","chisel", "gost", "visual_debugger"]
 
-  kasm-desktop:
-    hf-repo: "samuelfanglance/kasm-desktop"
-    token-env: "HF2"
+  openwebui:
+    hf-repo: "sammychen255/openwebui"
+    token-env: "HF1"
     create-repo: true
     space-sdk: docker
     repo-type: space
-    custom-dir: "kasm-workspace"
+    custom-dir: "openwebui"
+   # services: ["tailscale"]
+
+  kasm:
+    hf-repo: "sammychen255/kasm"
+    token-env: "HF1"
+    create-repo: true
+    space-sdk: docker
+    repo-type: space
+    custom-dir: "kasm"
+    services: []
 

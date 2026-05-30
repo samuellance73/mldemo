@@ -13,7 +13,8 @@ from loguru import logger
 _REPO_ROOT = Path(__file__).resolve().parent.parent          # Sanctuary/
 _MAIN_ROOT = _REPO_ROOT / "main"                               # Sanctuary/main/
 _SRC_ROOT = _MAIN_ROOT / "src"                                 # Sanctuary/main/src/
-for _p in (_SRC_ROOT, _MAIN_ROOT):
+_SHARED_ROOT = _REPO_ROOT / "shared"                           # Sanctuary/shared/
+for _p in (_SRC_ROOT, _MAIN_ROOT, _SHARED_ROOT):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
@@ -166,6 +167,10 @@ def main():
     parser.add_argument(
         "--ssh-password", help="SSH user password to push as space secret 'PASS'"
     )
+    parser.add_argument(
+        "--node",
+        help="Specific node(s) to deploy to (comma-separated, or 'all' for all nodes)",
+    )
     args = parser.parse_args()
 
     # Apply command line secret overrides
@@ -204,6 +209,19 @@ def main():
     if not nodes:
         logger.warning("No nodes configured in manifest.")
         sys.exit(0)
+
+    # Filter nodes based on --node argument
+    if args.node and args.node.lower() != "all":
+        requested_nodes = [n.strip() for n in args.node.split(",")]
+        filtered_nodes = {}
+        for node_name in requested_nodes:
+            if node_name not in nodes:
+                logger.error(
+                    f"Node '{node_name}' not found in manifest. Available nodes: {', '.join(nodes.keys())}"
+                )
+                sys.exit(1)
+            filtered_nodes[node_name] = nodes[node_name]
+        nodes = filtered_nodes
 
     logger.info(f"Starting deployment of '{args.dist}' to {len(nodes)} node(s)...")
     state_path = nodes_path.resolve().parent / "state.json"

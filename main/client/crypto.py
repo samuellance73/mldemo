@@ -3,8 +3,8 @@
 import importlib.util
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-_UTILS_PATH = _REPO_ROOT / "src" / "services" / "utils.py"
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_UTILS_PATH = _REPO_ROOT / "shared" / "services" / "utils.py"
 
 _spec = importlib.util.spec_from_file_location("ml_services_utils", str(_UTILS_PATH))
 _mod = importlib.util.module_from_spec(_spec)

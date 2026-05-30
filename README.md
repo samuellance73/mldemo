@@ -18,8 +18,8 @@ Sanctuary/                  <─── Unified Monorepo Parent Root
 │   ├── manifests/          <─── Node layouts and active deployment state manifests
 │   ├── scripts/            <─── Minification, obfuscation, and deployment pipelines
 │   └── src/                <─── Encryption layers, core orchestrator, and service modules
-├── kasm-workspace/          <─── Standalone Kasm Workspace Container
-│   ├── Dockerfile          <─── Port-customized, permission-patched deployment
+├── openwebui/              <─── Open WebUI Chat Interface
+│   ├── Dockerfile          <─── Open WebUI deployment configuration
 │   └── README.md           <─── Hugging Face Space configuration and documentation
 ├── Makefile                <─── Top-level command forwarder
 └── README.md               <─── Monorepo documentation (this file)
@@ -52,4 +52,4 @@ Automation targets are managed by the top-level root `Makefile`. You can run the
 Sanctuary automates the deployment of multiple distributed nodes directly to Hugging Face Spaces:
 
 - **Core Camouflaged Backend Nodes** (`server-01` through `server-06`): Exposes Gradio apps running stealth encrypted reverse proxies, Minecraft servers, Tailscale mesh connectors, and Sliver shells inside the target environments.
-- **Frontend Gateway / Desktop** (`kasm-desktop`): Deploys a standalone, custom-configured Kasm Workspaces GUI environment with integrated browser-based VNC access.
+- **Frontend Chat Interface** (`openwebui`): Deploys a standalone Open WebUI instance providing a ChatGPT-like interface for LLM interactions via the Sanctuary proxy backend.

@@ -2,7 +2,7 @@
 title: Sanctuary Open WebUI
 emoji: 🤖
 colorFrom: blue
-colorTo: cyan
+colorTo: red
 sdk: docker
 app_port: 7860
 pinned: false
