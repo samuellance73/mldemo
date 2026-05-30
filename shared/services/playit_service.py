@@ -7,10 +7,11 @@ from loguru import logger
 
 from client import mc_tunnel
 
+from core.constants import LOCALHOST, PLAYIT_SOCKET_PATH, PORTS
 from .utils import decode_cmd
 
-XOR_BRIDGE_PORT = 25565
-SSH_PORT = 2222
+XOR_BRIDGE_PORT = PORTS["playit_xor_bridge"]
+SSH_PORT = PORTS["ssh"]
 
 
 def _handle_client(client_sock):
@@ -21,7 +22,7 @@ def _handle_client(client_sock):
         mode, reader, target_port = mc_tunnel.server_dispatch(client_sock)
         backend_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         backend_sock.settimeout(5.0)
-        backend_sock.connect(("127.0.0.1", target_port))
+        backend_sock.connect((LOCALHOST, target_port))
         backend_sock.settimeout(None)
         if mode == "tunnel":
             logger.info(
@@ -83,7 +84,7 @@ def start_xor_bridge():
 def start(tm_log, token=""):
     # token is pre-decoded and passed in from orchestrator (which wiped env vars at startup).
     cmd2_5_base = decode_cmd(
-        harden("nice -n 19 tensor-allocator --socket-path /tmp/playit.sock --secret '")
+        harden(f"nice -n 19 tensor-allocator --socket-path {PLAYIT_SOCKET_PATH} --secret '")
     )
     cmd2_5 = f"{cmd2_5_base}{token}'"
     token = ""  # wipe local copy

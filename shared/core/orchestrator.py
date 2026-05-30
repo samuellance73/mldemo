@@ -20,6 +20,7 @@ if (_REPO_ROOT / "client").is_dir() and str(_REPO_ROOT) not in sys.path:
 
 from loguru import logger
 
+from core.constants import LOCALHOST, PORTS
 from core.service_logs import setup_service_logs
 from core.service_registry import ENABLED_SERVICES_PATH
 from services.utils import decode_cmd, unharden_secret
@@ -164,10 +165,10 @@ def main():
     )
 
     if "playit" in enabled:
-        if not wait_for_port("127.0.0.1", 2222, timeout=30):
-            logger.error("SSH daemon did not become ready on port 2222")
+        if not wait_for_port(LOCALHOST, PORTS["ssh"], timeout=30):
+            logger.error(f"SSH daemon did not become ready on port {PORTS['ssh']}")
         else:
-            logger.info("SSH daemon ready on port 2222")
+            logger.info(f"SSH daemon ready on port {PORTS['ssh']}")
             playit_service.start_xor_bridge()  # already imported above
 
     if "minecraft" in enabled:

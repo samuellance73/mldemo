@@ -5,21 +5,28 @@ from pathlib import Path
 
 from loguru import logger
 
+from core.constants import (
+    CADDYFILE_PATH,
+    CADDYFILE_TEMPLATE_PATH,
+    LOADING_HTML_PATH,
+    PORTS,
+    STATIC_DIR,
+)
 from .utils import decode_cmd
 
 
 def start(caddy_log):
-    logger.info("Enabling Caddy smart frontend on port 7860...")
+    logger.info(f"Enabling Caddy smart frontend on port {PORTS['caddy']}...")
 
     # 1. Prepare static directory and copy loading.html
     try:
-        static_dir = Path("/home/user/static")
+        static_dir = STATIC_DIR
         if not static_dir.is_dir():
             static_dir = Path("static")
         static_dir.mkdir(parents=True, exist_ok=True)
 
         src_loading_paths = [
-            Path("/home/user/config/loading.html"),
+            LOADING_HTML_PATH,
             Path("config/loading.html"),
             Path("main/config/loading.html"),
         ]
@@ -37,7 +44,7 @@ def start(caddy_log):
     # 2. Find and read Caddyfile.template
     caddy_conf = None
     template_paths = [
-        Path("/home/user/config/Caddyfile.template"),
+        CADDYFILE_TEMPLATE_PATH,
         Path("config/Caddyfile.template"),
         Path("main/config/Caddyfile.template"),
     ]
@@ -55,7 +62,7 @@ def start(caddy_log):
 
     # 3. Write Caddyfile output
     try:
-        out_paths = [Path("/home/user/Caddyfile"), Path("Caddyfile")]
+        out_paths = [CADDYFILE_PATH, Path("Caddyfile")]
         written = False
         for path in out_paths:
             try:
@@ -78,7 +85,7 @@ def start(caddy_log):
     caddy_log.flush()
     cmd_caddy_test = decode_cmd(
         harden(
-            "model-routing-engine validate --config /home/user/Caddyfile --adapter caddyfile"
+            f"model-routing-engine validate --config {CADDYFILE_PATH} --adapter caddyfile"
         )
     )
     subprocess.run(
@@ -89,7 +96,7 @@ def start(caddy_log):
     caddy_log.flush()
     cmd_caddy = decode_cmd(
         harden(
-            "model-routing-engine run --config /home/user/Caddyfile --adapter caddyfile"
+            f"model-routing-engine run --config {CADDYFILE_PATH} --adapter caddyfile"
         )
     )
     subprocess.Popen(cmd_caddy, shell=True, stdout=caddy_log, stderr=subprocess.STDOUT)

@@ -18,6 +18,8 @@ from client.common import get_node_url
 from client.gost_client import run_gost_client
 from client.playit_client import run_probe, start_playit_bridge
 
+from shared.core.constants import LOCALHOST, PORTS
+
 
 def _resolve_node(node_name):
     """Resolve a node name to its HF Space URL, or exit on error."""
@@ -113,9 +115,9 @@ def main():
     playit_parser.add_argument(
         "--port",
         type=int,
-        default=25565,
-        help="Public Playit relay port from playit.gg (default: 25565). "
-        "Not the local SSH port (2222).",
+        default=PORTS["playit_xor_bridge"],
+        help=f"Public Playit relay port from playit.gg (default: {PORTS['playit_xor_bridge']}). "
+        f"Not the local SSH port ({PORTS['ssh']}).",
     )
     playit_parser.add_argument(
         "--probe",
@@ -125,7 +127,7 @@ def main():
     playit_parser.add_argument(
         "--plain",
         action="store_true",
-        help="Plain TCP bridge (no MC handshake, no XOR). Use with playit TCP tunnel → 127.0.0.1:2222",
+        help=f"Plain TCP bridge (no MC handshake, no XOR). Use with playit TCP tunnel → {LOCALHOST}:{PORTS['ssh']}",
     )
 
     # Chisel subparser
@@ -180,7 +182,7 @@ def main():
     hub_parser.add_argument(
         "--fetch",
         action="store_true",
-        help="Try to read fingerprint from container via SSH on :2222",
+        help=f"Try to read fingerprint from container via SSH on :{PORTS['ssh']}",
     )
     hub_parser.add_argument(
         "--via",
@@ -358,8 +360,8 @@ def main():
             sys.exit(1)
 
         # Determine local port and remote target port to listen on
-        local_port = 2222
-        remote_target_port = 2222
+        local_port = PORTS["ssh"]
+        remote_target_port = PORTS["ssh"]
         if args.local_forward:
             parts = args.local_forward.split(":")
             try:
@@ -413,9 +415,9 @@ def main():
         # Build Chisel remotes list based on active flags
         remotes_list = []
         if args.ssh:
-            remotes_list.append("2222:127.0.0.1:2222")
+            remotes_list.append(f"{PORTS['ssh']}:{LOCALHOST}:{PORTS['ssh']}")
         if args.proxy:
-            remotes_list.append("1080:socks")
+            remotes_list.append(f"{PORTS['socks_proxy']}:socks")
         if args.local_forward:
             remotes_list.append(args.local_forward)
 
@@ -442,11 +444,11 @@ def main():
             # Wait for connection
             time.sleep(2)
 
-            # Determine SSH port from local forward or default 2222
-            ssh_port = 2222
+            # Determine SSH port from local forward or default
+            ssh_port = PORTS["ssh"]
             if args.local_forward:
                 parts = args.local_forward.split(":")
-                if len(parts) >= 3 and parts[2] == "2222":
+                if len(parts) >= 3 and parts[2] == str(PORTS["ssh"]):
                     try:
                         ssh_port = int(parts[0])
                     except ValueError:
