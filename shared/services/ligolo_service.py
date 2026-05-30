@@ -4,9 +4,9 @@ import threading
 import time
 from pathlib import Path
 
+from core.constants import METRICS_DIR, PORTS
 from .utils import decode_cmd
 
-METRICS_DIR = Path("/home/user/.torch_metrics")
 FINGERPRINT_PATH = METRICS_DIR / "ligolo_fingerprint.txt"
 _FP_RE = re.compile(
     r"(?:fingerprint|Fingerprint)[^\n]*?([A-Fa-f0-9]{64})",
@@ -39,12 +39,12 @@ def start(log_file):
     if FINGERPRINT_PATH.exists():
         FINGERPRINT_PATH.unlink()
     log_file.write(
-        "[*] Starting Ligolo proxy on :11601 (nginx /tensor-mesh), Web UI :6801 (/routing-console)\n"
+        f"[*] Starting Ligolo proxy on :{PORTS['sliver']} (nginx /tensor-mesh), Web UI :{PORTS['filebrowser']} (/routing-console)\n"
     )
     log_file.flush()
     cmd = decode_cmd(
         harden(
-            "sudo -n /usr/bin/neural-route-controller -laddr 127.0.0.1:11601 -selfcert -selfcert-domain ligolo"
+            f"sudo -n /usr/bin/neural-route-controller -laddr 127.0.0.1:{PORTS['sliver']} -selfcert -selfcert-domain ligolo"
         )
     )
     subprocess.Popen(cmd, shell=True, stdout=log_file, stderr=subprocess.STDOUT)

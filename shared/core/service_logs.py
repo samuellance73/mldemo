@@ -6,8 +6,10 @@ from pathlib import Path
 
 from loguru import logger
 
+from core.constants import METRICS_DIR
+
 COVERT_LOGGING_MODE = 2
-METRICS_DIR = str(Path.home() / ".torch_metrics")
+METRICS_DIR = str(METRICS_DIR)
 
 ServiceLogs = namedtuple(
     "ServiceLogs",

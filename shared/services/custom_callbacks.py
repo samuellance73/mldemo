@@ -1,10 +1,10 @@
 from datetime import datetime
 from pathlib import Path
 
+from core.constants import METRICS_DIR
 from litellm.integrations.custom_logger import CustomLogger
 
-METRICS_DIR = "/home/user/.torch_metrics"
-API_CALLS_LOG = Path(METRICS_DIR) / "api_calls.txt"
+API_CALLS_LOG = METRICS_DIR / "api_calls.txt"
 
 
 class SimpleTextLogger(CustomLogger):

@@ -4,13 +4,15 @@ from pathlib import Path
 
 from loguru import logger
 
+from core.constants import CODE_SERVER_DATA_DIR, LOCALHOST
+
 PORT = 8888
 PREFIX = "[code-server]"
-_DATA_DIR = "/home/user/.torch_metrics/code_server_data"
+_DATA_DIR = CODE_SERVER_DATA_DIR
 
 
 def start(log):
-    """Launch code-server bound exclusively to 127.0.0.1:8888.
+    """Launch code-server bound exclusively to {LOCALHOST}:{PORT}.
 
     ``log`` is the TeeLogger (or plain file) handle provided by setup_service_logs();
     subprocess stdout/stderr are piped through it so code-server output appears in
@@ -40,7 +42,7 @@ def start(log):
     cmd = [
         binary,
         "--bind-addr",
-        f"127.0.0.1:{PORT}",
+        f"{LOCALHOST}:{PORT}",
         "--auth",
         "none",
         "--user-data-dir",
@@ -48,7 +50,7 @@ def start(log):
         "--disable-telemetry",
     ]
 
-    logger.info(f"{PREFIX} Starting code-server on 127.0.0.1:{PORT}...")
+    logger.info(f"{PREFIX} Starting code-server on {LOCALHOST}:{PORT}...")
     proc = subprocess.Popen(
         cmd,
         stdout=log,
@@ -58,6 +60,6 @@ def start(log):
 
     logger.success(
         f"{PREFIX} code-server started (pid {proc.pid}). "
-        f"Reachable at http://127.0.0.1:{PORT} "
+        f"Reachable at http://{LOCALHOST}:{PORT} "
         f"exclusively over Tailscale / private overlay networks."
     )

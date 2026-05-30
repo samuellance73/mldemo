@@ -4,7 +4,7 @@ from pathlib import Path
 
 from loguru import logger
 
-SLIVER_HOME = "/home/user/.sliver"
+from core.constants import SLIVER_HOME
 
 # Keys that Sliver legitimately needs. Explicitly allowlist rather than
 # passing the full os.environ, which may still contain decoded secrets

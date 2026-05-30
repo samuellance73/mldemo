@@ -10,6 +10,14 @@ MAIN_ROOT = REPO_ROOT / "main"
 STATIC_DIR = USER_HOME / "static"
 CONFIG_DIR = USER_HOME / "config"
 METRICS_DIR = USER_HOME / ".torch_metrics"
+VENV_OPENWEBUI_DIR = USER_HOME / ".venv-openwebui"
+FILEBROWSER_DB_PATH = USER_HOME / "filebrowser.db"
+LITELLM_CONFIG_PATH = USER_HOME / "litellm.yaml"
+LITELLM_KEYS_PATH = USER_HOME / "llm_keys.yaml"
+CODE_SERVER_DATA_DIR = METRICS_DIR / "code_server_data"
+TAILSCALE_STATE_DIR = METRICS_DIR
+TAILSCALE_SOCKET_PATH = METRICS_DIR / "tailscaled.sock"
+SLIVER_HOME = USER_HOME / ".sliver"
 
 # Service paths
 PLAYIT_SOCKET_PATH = Path("/tmp/playit.sock")

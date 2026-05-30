@@ -5,11 +5,12 @@ from pathlib import Path
 
 from loguru import logger
 
-METRICS_DIR = Path("/home/user/.torch_metrics")
+from core.constants import METRICS_DIR, STATIC_DIR, USER_HOME
+
 LOG_PATH = METRICS_DIR / "test.log"
 STARTUP_LOG = METRICS_DIR / "startup.log"
-MARKER_PATH = Path("/home/user/TEST_SERVICE_IS_ACTIVE")
-STATIC_BANNER = Path("/home/user/static/TEST_SERVICE_ENABLED.txt")
+MARKER_PATH = USER_HOME / "TEST_SERVICE_IS_ACTIVE"
+STATIC_BANNER = STATIC_DIR / "TEST_SERVICE_ENABLED.txt"
 PREFIX = "[TEST SERVICE]"
 
 BANNER = """
@@ -50,7 +51,7 @@ def _heartbeat_loop():
 def start():
     """Obvious smoke-test service: marker files, banner log, periodic heartbeats."""
     METRICS_DIR.mkdir(parents=True, exist_ok=True)
-    Path("/home/user/static").mkdir(parents=True, exist_ok=True)
+    STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
     started = "Started at " + time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
     with LOG_PATH.open("a") as f:

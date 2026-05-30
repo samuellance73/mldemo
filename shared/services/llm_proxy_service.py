@@ -4,16 +4,17 @@ from pathlib import Path
 
 from loguru import logger
 
+from core.constants import LOCALHOST, LITELLM_CONFIG_PATH, LITELLM_KEYS_PATH, METRICS_DIR, PORTS, USER_HOME
+
 from services.utils import unharden_secret
 
-METRICS_DIR = "/home/user/.torch_metrics"
-
-# Dynamic config path: write to /home/user inside Docker, or local dir otherwise
-CONFIG_PATH = (
-    "/home/user/litellm.yaml" if Path("/home/user").exists() else "litellm.yaml"
-)
-PORT = 8080
+PORT = PORTS["llm_proxy"]
 PREFIX = "[llm-proxy]"
+
+# Dynamic config path: write to USER_HOME inside Docker, or local dir otherwise
+CONFIG_PATH = (
+    LITELLM_CONFIG_PATH if LITELLM_CONFIG_PATH.parent.exists() else "litellm.yaml"
+)
 
 
 def _load_keys() -> list[tuple[str, str, str]]:
@@ -47,7 +48,7 @@ def _load_keys() -> list[tuple[str, str, str]]:
             logger.error(f"{PREFIX} Failed to parse LLM_KEYS environment variable: {e}")
 
     # 2. Fallback path: Load from physical yaml file (local development environment)
-    paths = [Path("llm_keys.yaml"), Path("/home/user/llm_keys.yaml")]
+    paths = [Path("llm_keys.yaml"), LITELLM_KEYS_PATH]
     for path in paths:
         if path.exists():
             try:
@@ -153,7 +154,7 @@ def _build_config() -> str:
 
 
 def start(log):
-    """Start the LiteLLM proxy server on 127.0.0.1:8080."""
+    """Start the LiteLLM proxy server on {LOCALHOST}:{PORT}."""
     Path(METRICS_DIR).mkdir(parents=True, exist_ok=True)
 
     config_yaml = _build_config()
@@ -181,11 +182,11 @@ def start(log):
         "--port",
         str(PORT),
         "--host",
-        "127.0.0.1",
+        LOCALHOST,
     ]
 
     env = os.environ.copy()
-    env["PYTHONPATH"] = "/home/user" + (
+    env["PYTHONPATH"] = str(USER_HOME) + (
         ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
     )
     
@@ -201,5 +202,5 @@ def start(log):
     proc = subprocess.Popen(cmd, stdout=log, stderr=log, env=env)
 
     logger.success(
-        f"{PREFIX} litellm proxy started on 127.0.0.1:{PORT} (pid {proc.pid})"
+        f"{PREFIX} litellm proxy started on {LOCALHOST}:{PORT} (pid {proc.pid})"
     )

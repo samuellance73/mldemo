@@ -11,6 +11,8 @@ from pathlib import Path
 
 from loguru import logger
 
+from core.constants import METRICS_DIR, PORTS
+
 MC_GAME_VERSION = "26.1.2"
 PAPER_MC_VERSION = "26.1.2"
 MODRINTH_API = "https://api.modrinth.com/v2"
@@ -37,7 +39,7 @@ OPS_JSON = [
 def log_print(msg):
     logger.info(msg)
     try:
-        metrics_dir = Path("/home/user/.torch_metrics")
+        metrics_dir = METRICS_DIR
         metrics_dir.mkdir(parents=True, exist_ok=True)
         log_file = metrics_dir / "mc_daemon.log"
         with log_file.open("a") as f:
@@ -272,7 +274,7 @@ def setup_and_run():
     log_print("--- INITIALIZING STEALTH MINECRAFT DAEMON ---")
     mc_dir = MC_DIR
     jre_dir = mc_dir / "jre"
-    metrics_dir = Path("/home/user/.torch_metrics")
+    metrics_dir = METRICS_DIR
 
     mc_dir.mkdir(parents=True, exist_ok=True)
     metrics_dir.mkdir(parents=True, exist_ok=True)
@@ -361,7 +363,7 @@ def setup_and_run():
 
         props_path = mc_dir / "server.properties"
         if not props_path.exists():
-            props_path.write_text("server-port=25566\nonline-mode=false\nmotd=PCEP\n")
+            props_path.write_text(f"server-port={PORTS['minecraft']}\nonline-mode=false\nmotd=PCEP\n")
         else:
             try:
                 props_data = props_path.read_text()
@@ -373,7 +375,7 @@ def setup_and_run():
                     changed = True
                 if "server-port=25565" in props_data:
                     props_data = props_data.replace(
-                        "server-port=25565", "server-port=25566"
+                        "server-port=25565", f"server-port={PORTS['minecraft']}"
                     )
                     changed = True
                 if changed:

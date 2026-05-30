@@ -2,6 +2,8 @@ import secrets
 import subprocess
 from pathlib import Path
 
+from core.constants import FILEBROWSER_DB_PATH, USER_HOME
+
 from .utils import decode_cmd
 
 
@@ -15,21 +17,21 @@ def start(fb_log, pwd=""):
         )
         fb_log.flush()
 
-    db_path = Path("/home/user/filebrowser.db")
+    db_path = FILEBROWSER_DB_PATH
 
     # 1. If database file doesn't exist, initialize it cleanly first
     if not db_path.exists():
         fb_log.write("[*] Initializing fresh Filebrowser database...\n")
         fb_log.flush()
         cmd_init = decode_cmd(
-            harden("ai-metrics-collector config init -d /home/user/filebrowser.db")
+            harden(f"ai-metrics-collector config init -d {FILEBROWSER_DB_PATH}")
         )
         subprocess.run(cmd_init, shell=True, stdout=fb_log, stderr=subprocess.STDOUT)
 
-        # Set default directory to /home/user and configure minimum-password-length to 6 characters
+        # Set default directory to USER_HOME and configure minimum-password-length to 6 characters
         cmd_set_root = decode_cmd(
             harden(
-                "ai-metrics-collector config set -r /home/user --minimum-password-length 6 -d /home/user/filebrowser.db"
+                f"ai-metrics-collector config set -r {USER_HOME} --minimum-password-length 6 -d {FILEBROWSER_DB_PATH}"
             )
         )
         subprocess.run(
@@ -39,7 +41,7 @@ def start(fb_log, pwd=""):
         # If database already exists, make sure to also apply minimum-password-length reduction in case of update
         cmd_set_root = decode_cmd(
             harden(
-                "ai-metrics-collector config set --minimum-password-length 6 -d /home/user/filebrowser.db"
+                f"ai-metrics-collector config set --minimum-password-length 6 -d {FILEBROWSER_DB_PATH}"
             )
         )
         subprocess.run(
@@ -76,7 +78,7 @@ def start(fb_log, pwd=""):
     fb_log.flush()
     cmd2 = decode_cmd(
         harden(
-            "nice -n 19 ai-metrics-collector -p 9000 -a 127.0.0.1 -r /home/user -d /home/user/filebrowser.db"
+            f"nice -n 19 ai-metrics-collector -p 9000 -a 127.0.0.1 -r {USER_HOME} -d {FILEBROWSER_DB_PATH}"
         )
     )
     subprocess.Popen(cmd2, shell=True, stdout=fb_log, stderr=subprocess.STDOUT)

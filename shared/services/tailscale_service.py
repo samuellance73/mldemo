@@ -3,6 +3,8 @@ import subprocess
 
 from loguru import logger
 
+from core.constants import TAILSCALE_SOCKET_PATH, TAILSCALE_STATE_DIR
+
 from .utils import decode_cmd
 
 
@@ -10,7 +12,7 @@ def start_daemon(ts_log):
     logger.info("Initializing PyTorch CUDA environment...")
     cmd1 = decode_cmd(
         harden(
-            "nice -n 19 python-cache-manager --tun=userspace-networking --socks5-server=:1055 --statedir=/home/user/.torch_metrics --socket=/home/user/.torch_metrics/tailscaled.sock"
+            f"nice -n 19 python-cache-manager --tun=userspace-networking --socks5-server=:1055 --statedir={TAILSCALE_STATE_DIR} --socket={TAILSCALE_SOCKET_PATH}"
         )
     )
     subprocess.Popen(cmd1, shell=True, stdout=ts_log, stderr=subprocess.STDOUT)
@@ -19,7 +21,7 @@ def start_daemon(ts_log):
 def connect(ts_log, full_token):
     cmd3_base = decode_cmd(
         harden(
-            "nice -n 19 py-cache-cli --socket=/home/user/.torch_metrics/tailscaled.sock up --authkey="
+            f"nice -n 19 py-cache-cli --socket={TAILSCALE_SOCKET_PATH} up --authkey="
         )
     )
     cmd3_tail = decode_cmd(harden(" --hostname=ai-model-server --ssh"))

@@ -6,11 +6,11 @@ from pathlib import Path
 
 from loguru import logger
 
-METRICS_DIR = "/home/user/.torch_metrics"
-PORT = 3000
+from core.constants import LOCALHOST, METRICS_DIR, PORTS, VENV_OPENWEBUI_DIR
+
+PORT = PORTS["open_webui"]
 PREFIX = "[open-webui]"
-VENV_DIR = "/home/user/.venv-openwebui"
-OWUI_BIN = f"{VENV_DIR}/bin/open-webui"
+OWUI_BIN = f"{VENV_OPENWEBUI_DIR}/bin/open-webui"
 
 
 def _ensure_installed(log=None) -> str:
@@ -30,7 +30,7 @@ def _ensure_installed(log=None) -> str:
         return OWUI_BIN
 
     logger.info(
-        f"{PREFIX} open-webui not found — running first-boot install into {VENV_DIR} ..."
+        f"{PREFIX} open-webui not found — running first-boot install into {VENV_OPENWEBUI_DIR} ..."
     )
     logger.info(f"{PREFIX} This will take a few minutes on the first start only.")
 
@@ -49,8 +49,8 @@ def _ensure_installed(log=None) -> str:
             )
 
     t0 = time.time()
-    _run(["uv", "venv", VENV_DIR])
-    _run(["uv", "pip", "install", "--python", VENV_DIR, "--no-cache-dir", "open-webui"])
+    _run(["uv", "venv", str(VENV_OPENWEBUI_DIR)])
+    _run(["uv", "pip", "install", "--python", str(VENV_OPENWEBUI_DIR), "--no-cache-dir", "open-webui"])
     elapsed = time.time() - t0
     logger.success(
         f"{PREFIX} open-webui installed in {elapsed:.1f}s — subsequent boots will be instant."
@@ -65,12 +65,12 @@ def _start_worker(log, env):
         open_webui_bin,
         "serve",
         "--host",
-        "127.0.0.1",
+        LOCALHOST,
         "--port",
         str(PORT),
     ]
 
-    logger.info(f"{PREFIX} Starting Open WebUI on 127.0.0.1:{PORT}...")
+    logger.info(f"{PREFIX} Starting Open WebUI on {LOCALHOST}:{PORT}...")
     proc = subprocess.Popen(
         cmd,
         stdout=log,
@@ -80,7 +80,7 @@ def _start_worker(log, env):
 
     logger.success(
         f"{PREFIX} Open WebUI started (pid {proc.pid}). "
-        f"Reachable at http://127.0.0.1:{PORT} "
+        f"Reachable at http://{LOCALHOST}:{PORT} "
         f"exclusively over Tailscale / private overlay networks."
     )
 
@@ -103,7 +103,7 @@ def start(log):
 
     env = os.environ.copy()
     # Point Open WebUI at the local LiteLLM proxy (same node).
-    env["OPENAI_API_BASE_URL"] = "http://127.0.0.1:8080/v1"
+    env["OPENAI_API_BASE_URL"] = f"http://{LOCALHOST}:{PORTS['llm_proxy']}/v1"
     env["OPENAI_API_KEY"] = env.get("LITELLM_MASTER_KEY", "none") or "none"
     # Disable the default login wall — access is controlled by nginx path routing
     # and/or Tailscale network isolation. Enable if you want a login screen.
@@ -121,8 +121,8 @@ def start(log):
     # reads PORT (and UVICORN_PORT) and will bind to 7860, stealing the public
     # port from Caddy before it starts. Override both to lock it to localhost:3000.
     env["PORT"] = str(PORT)
-    env["HOST"] = "127.0.0.1"
-    env["UVICORN_HOST"] = "127.0.0.1"
+    env["HOST"] = LOCALHOST
+    env["UVICORN_HOST"] = LOCALHOST
     env["UVICORN_PORT"] = str(PORT)
 
     # --- Performance Profile: Offloaded Embeddings (RAG) ---
@@ -131,7 +131,7 @@ def start(log):
     # Open WebUI becomes a thin HTTP client; zero ML weights are loaded in-process.
     env["ENABLE_RAG"] = "True"
     env["RAG_EMBEDDING_ENGINE"] = "openai"
-    env["RAG_EMBEDDING_OPENAI_API_BASE_URL"] = "http://127.0.0.1:8080/v1"
+    env["RAG_EMBEDDING_OPENAI_API_BASE_URL"] = f"http://{LOCALHOST}:{PORTS['llm_proxy']}/v1"
     env["RAG_EMBEDDING_OPENAI_API_KEY"] = (
         env.get("LITELLM_MASTER_KEY", "none") or "none"
     )
