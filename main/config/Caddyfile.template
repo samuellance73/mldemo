@@ -23,7 +23,9 @@
     }
 
     # Gost bridge (retains prefix)
-    reverse_proxy /gost-bridge* 127.0.0.1:6790
+    handle /gost-bridge* {
+        reverse_proxy 127.0.0.1:6790
+    }
 
     # Model sync (strips prefix)
     handle_path /model-sync* {
@@ -31,50 +33,41 @@
     }
 
     # Tensor mesh / Sliver (removes cert validation for self-signed backend)
-    reverse_proxy /tensor-mesh* https://127.0.0.1:11601 {
-        transport http {
-            tls_insecure_skip_verify
+    handle /tensor-mesh* {
+        reverse_proxy https://127.0.0.1:11601 {
+            transport http {
+                tls_insecure_skip_verify
+            }
         }
     }
 
-    # LiteLLM OpenAI API proxy and health check (retains prefix)
-    reverse_proxy /v1* 127.0.0.1:8080
-    reverse_proxy /health* 127.0.0.1:8080
+    # LiteLLM OpenAI API proxy (retains prefix)
+    handle /v1* {
+        reverse_proxy 127.0.0.1:8080
+    }
+
+    # LiteLLM health check (retains prefix)
+    handle /health* {
+        reverse_proxy 127.0.0.1:8080
+    }
 
     # Routing console / Filebrowser (retains prefix)
-    reverse_proxy /routing-console* 127.0.0.1:6801
-
-    # KasmVNC visual debugger (WebSocket stream on port 8501)
-    handle_path /vnc* {
-        reverse_proxy http://127.0.0.1:8501 {
-            header_up Host {upstream_hostport}
-        }
+    handle /routing-console* {
+        reverse_proxy 127.0.0.1:6801
     }
-
 
     # Default: route all other public traffic to Gradio (port 7861)
     handle {
         reverse_proxy 127.0.0.1:7861 {
             # Inform Gradio of the real scheme so it generates https:// asset URLs.
-            # Without these, Gradio sees a plain HTTP upstream connection and emits
-            # http:// links which browsers block as mixed content.
             header_up X-Forwarded-Proto https
-            header_up X-Forwarded-Host  {host}
         }
     }
 
     # --- Upstream error interception (served from disk, Python runtime unburdened) ---
-    # /vnc errors return plain text so the auto-refresh JS in loading.html
-    # cannot trigger an infinite reload loop while KasmVNC is still starting.
-    handle_errors 502 503 504 {
-        @vnc_path path /vnc*
-        handle @vnc_path {
-            respond "KasmVNC is not ready yet — it may still be starting up. Refresh in a moment." 503
-        }
-        handle {
-            root * /home/user/static
-            rewrite * /loading.html
-            file_server
-        }
+    handle_errors {
+        root * /home/user/static
+        rewrite * /loading.html
+        file_server
     }
 }

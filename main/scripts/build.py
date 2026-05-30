@@ -419,6 +419,9 @@ if __name__ == "__main__":
         content = content.replace(
             "from client import mc_tunnel", "from . import mc_tunnel"
         )
+        content = content.replace(
+            "from client.crypto import XOR_KEY", "from .utils import XOR_KEY"
+        )
         if args.hardener == "pyminifier":
             content = python_minifier.minify(content, remove_literal_statements=True)
         return content

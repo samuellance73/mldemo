@@ -17,11 +17,36 @@ PREFIX = "[llm-proxy]"
 
 
 def _load_keys() -> list[tuple[str, str, str]]:
-    """Load keys from llm_keys.yaml.
+    """Load keys from the encrypted LLM_KEYS environment variable, or fallback to llm_keys.yaml.
 
     Returns:
         List of tuples: (provider, model_name, api_key)
     """
+    entries = []
+
+    # 1. Primary path: Load from the XOR-obfuscated LLM_KEYS environment variable (standard Space deployment)
+    llm_keys_env = os.environ.get("LLM_KEYS", "").strip()
+    if llm_keys_env:
+        try:
+            decoded = unharden_secret(llm_keys_env)
+            if decoded:
+                for chunk in decoded.split(","):
+                    chunk = chunk.strip()
+                    if not chunk:
+                        continue
+                    parts = chunk.split(":", 2)
+                    if len(parts) == 3:
+                        provider = parts[0].strip()
+                        model_name = parts[1].strip()
+                        api_key = parts[2].strip()
+                        entries.append((provider, model_name, api_key))
+                if entries:
+                    logger.info(f"{PREFIX} Loaded {len(entries)} keys from LLM_KEYS environment variable.")
+                    return entries
+        except Exception as e:
+            logger.error(f"{PREFIX} Failed to parse LLM_KEYS environment variable: {e}")
+
+    # 2. Fallback path: Load from physical yaml file (local development environment)
     paths = [Path("llm_keys.yaml"), Path("/home/user/llm_keys.yaml")]
     for path in paths:
         if path.exists():
@@ -31,15 +56,7 @@ def _load_keys() -> list[tuple[str, str, str]]:
                 with path.open() as f:
                     data = yaml.safe_load(f) or {}
 
-                # Schema expectation:
-                # providers:
-                #   groq:
-                #     - "gsk_wildcardKey..."            # Treated as wildcard (groq/*)
-                #     - model: "llama-3.3-70b"         # Specific model target
-                #       keys:
-                #         - "gsk_specificKey..."
                 providers = data.get("providers", {})
-                entries = []
                 for provider, keys in providers.items():
                     provider_clean = provider.lower().strip()
                     if isinstance(keys, list):
@@ -128,33 +145,21 @@ def _build_config() -> str:
         "litellm_settings:\n"
         "  check_provider_endpoint: true\n"
         '  success_callback: ["helicone"]\n'
+        "  drop_params: true\n" # <--- FIXED: Moved from general_settings to litellm_settings
         "\n"
         "general_settings:\n"
-        "  drop_params: true\n"
         f"{master_key_line}"
     )
 
 
 def start(log):
-    """Start the LiteLLM proxy server on 127.0.0.1:8080.
-
-    ``log`` is the TeeLogger (or plain file) handle provided by setup_service_logs();
-    subprocess stdout/stderr are piped through it so LiteLLM output appears in
-    the main container log stream as well as llm_proxy.log on disk.
-
-    NOTE: Do NOT register custom callbacks via the litellm_settings YAML block.
-    LiteLLM >=1.35 attempts to mount dotted-path callback objects as FastAPI
-    lifespan context managers, which causes infinite merged_lifespan recursion.
-    Instead we inject the instance into litellm.callbacks here before spawning
-    the subprocess (the env var LITELLM_CUSTOM_CALLBACKS is the safe alternative
-    for out-of-process invocations — see env injection below).
-    """
+    """Start the LiteLLM proxy server on 127.0.0.1:8080."""
     Path(METRICS_DIR).mkdir(parents=True, exist_ok=True)
 
     config_yaml = _build_config()
     if not config_yaml:
         logger.warning(
-            f"{PREFIX} No API keys loaded from llm_keys.yaml — skipping llm_proxy"
+            f"{PREFIX} No API keys loaded from environment or llm_keys.yaml — skipping llm_proxy"
         )
         return
 
@@ -183,6 +188,10 @@ def start(log):
     env["PYTHONPATH"] = "/home/user" + (
         ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
     )
+    
+    # Global environment fallback to force parameter dropping across all sessions
+    env["LITELLM_DROP_PARAMS"] = "True"
+    
     # Register the custom logger in-process via the environment so LiteLLM's
     # proxy server picks it up through its standard import mechanism without
     # going through FastAPI lifespan machinery (avoids merged_lifespan recursion).

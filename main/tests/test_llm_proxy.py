@@ -17,17 +17,24 @@ LLM keys are configured via llm_keys.yaml in the repository root.
 
 import argparse
 import json
+import os
 import sys
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 REPO_ROOT = Path(__file__).resolve().parent.parent
 STATE_PATH = REPO_ROOT.parent / "manifests" / "state.json"
+
+# Load .env for LITELLM_MASTER_KEY
+load_dotenv(REPO_ROOT / ".env")
+LITELLM_MASTER_KEY = os.getenv("LITELLM_MASTER_KEY", "")
 
 CHAT_PATH = "/v1/chat/completions"
 MODELS_PATH = "/v1/models"
@@ -75,6 +82,8 @@ def hdr(msg):
 def _request(url: str, payload: dict | None = None) -> tuple[int, dict | str]:
     data = json.dumps(payload).encode() if payload else None
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    if LITELLM_MASTER_KEY:
+        headers["Authorization"] = f"Bearer {LITELLM_MASTER_KEY}"
     req = urllib.request.Request(
         url, data=data, headers=headers, method="POST" if data else "GET"
     )
@@ -329,6 +338,13 @@ def run(args):
 
 
 def main():
+    # Check if LITELLM_MASTER_KEY is set
+    if not LITELLM_MASTER_KEY:
+        print(f"Warning: LITELLM_MASTER_KEY not set in .env file")
+        print(f"  Add it to your .env: LITELLM_MASTER_KEY=sk-your-key-here")
+    else:
+        print(f"Using LITELLM_MASTER_KEY from .env (length: {len(LITELLM_MASTER_KEY)})")
+
     parser = argparse.ArgumentParser(
         description="Test the LiteLLM proxy on deployed HF Space nodes.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
