@@ -17,7 +17,6 @@ LITELLM_KEYS_PATH = USER_HOME / "llm_keys.yaml"
 CODE_SERVER_DATA_DIR = METRICS_DIR / "code_server_data"
 TAILSCALE_STATE_DIR = METRICS_DIR
 TAILSCALE_SOCKET_PATH = METRICS_DIR / "tailscaled.sock"
-SLIVER_HOME = USER_HOME / ".sliver"
 
 # Service paths
 PLAYIT_SOCKET_PATH = Path("/tmp/playit.sock")
