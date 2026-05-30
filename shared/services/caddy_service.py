@@ -9,6 +9,7 @@ from core.constants import (
     CADDYFILE_PATH,
     CADDYFILE_TEMPLATE_PATH,
     LOADING_HTML_PATH,
+    METRICS_DIR,
     PORTS,
     STATIC_DIR,
 )
@@ -41,7 +42,7 @@ def start(caddy_log):
     except Exception as e:
         logger.error(f"Failed to copy loading.html to static directory: {e}")
 
-    # 2. Find and read Caddyfile.template
+    # 2. Find and read Caddyfile.template and substitute constants
     caddy_conf = None
     template_paths = [
         CADDYFILE_TEMPLATE_PATH,
@@ -59,6 +60,25 @@ def start(caddy_log):
     if caddy_conf is None:
         logger.error("Failed to prepare caddy config: Caddyfile.template not found.")
         return
+
+    # Substitute placeholders with actual constants
+    substitutions = {
+        "{METRICS_DIR}": str(METRICS_DIR),
+        "{STATIC_DIR}": str(STATIC_DIR),
+        "{LOCALHOST}": "127.0.0.1",
+        "{CADDY_PORT}": str(PORTS["caddy"]),
+        "{CADDY_SECONDARY_PORT}": str(PORTS["caddy_secondary"]),
+        "{CHISEL_PORT}": str(PORTS["chisel"]),
+        "{GOST_PORT}": str(PORTS["gost"]),
+        "{MODEL_SYNC_PORT}": str(PORTS["model_sync"]),
+        "{SLIVER_PORT}": str(PORTS["sliver"]),
+        "{LLM_PROXY_PORT}": str(PORTS["llm_proxy"]),
+        "{FILEBROWSER_PORT}": str(PORTS["filebrowser"]),
+        "{GRADIO_PORT}": str(PORTS["gradio"]),
+    }
+
+    for placeholder, value in substitutions.items():
+        caddy_conf = caddy_conf.replace(placeholder, value)
 
     # 3. Write Caddyfile output
     try:

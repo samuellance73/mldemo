@@ -20,10 +20,15 @@ LOCALHOST = "127.0.0.1"
 # Port configuration
 PORTS = {
     "caddy": 7860,
+    "caddy_secondary": 7890,
     "gradio": 7861,
     "ssh": 2222,
     "chisel": 6789,
+    "gost": 6790,
+    "model_sync": 6795,
+    "sliver": 11601,
     "llm_proxy": 8080,
+    "filebrowser": 6801,
     "socks_proxy": 1080,
     "playit_xor_bridge": 25565,
     "minecraft": 25566,

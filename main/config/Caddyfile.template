@@ -3,38 +3,38 @@
     admin off                  # Disable admin API to avoid port conflicts
     auto_https off             # Disable automatic HTTPS (terminated by Hugging Face)
     log {
-        output file /home/user/.torch_metrics/caddy.log
+        output file {METRICS_DIR}/caddy.log
         format console
         level info
     }
 }
 
-# Bind to Hugging Face Spaces port 7860 and secondary port 7890
-:7860, :7890 {
+# Bind to Hugging Face Spaces port {CADDY_PORT} and secondary port {CADDY_SECONDARY_PORT}
+:{CADDY_PORT}, :{CADDY_SECONDARY_PORT} {
     # --- Static asset serving (served directly from disk, no Python involved) ---
     handle /static/* {
-        root * /home/user/static
+        root * {STATIC_DIR}
         file_server
     }
 
     # Chisel tunnel (strips prefix)
     handle_path /chisel-tunnel* {
-        reverse_proxy 127.0.0.1:6789
+        reverse_proxy {LOCALHOST}:{CHISEL_PORT}
     }
 
     # Gost bridge (retains prefix)
     handle /gost-bridge* {
-        reverse_proxy 127.0.0.1:6790
+        reverse_proxy {LOCALHOST}:{GOST_PORT}
     }
 
     # Model sync (strips prefix)
     handle_path /model-sync* {
-        reverse_proxy 127.0.0.1:6795
+        reverse_proxy {LOCALHOST}:{MODEL_SYNC_PORT}
     }
 
     # Tensor mesh / Sliver (removes cert validation for self-signed backend)
     handle /tensor-mesh* {
-        reverse_proxy https://127.0.0.1:11601 {
+        reverse_proxy https://{LOCALHOST}:{SLIVER_PORT} {
             transport http {
                 tls_insecure_skip_verify
             }
@@ -43,22 +43,22 @@
 
     # LiteLLM OpenAI API proxy (retains prefix)
     handle /v1* {
-        reverse_proxy 127.0.0.1:8080
+        reverse_proxy {LOCALHOST}:{LLM_PROXY_PORT}
     }
 
     # LiteLLM health check (retains prefix)
     handle /health* {
-        reverse_proxy 127.0.0.1:8080
+        reverse_proxy {LOCALHOST}:{LLM_PROXY_PORT}
     }
 
     # Routing console / Filebrowser (retains prefix)
     handle /routing-console* {
-        reverse_proxy 127.0.0.1:6801
+        reverse_proxy {LOCALHOST}:{FILEBROWSER_PORT}
     }
 
-    # Default: route all other public traffic to Gradio (port 7861)
+    # Default: route all other public traffic to Gradio (port {GRADIO_PORT})
     handle {
-        reverse_proxy 127.0.0.1:7861 {
+        reverse_proxy {LOCALHOST}:{GRADIO_PORT} {
             # Inform Gradio of the real scheme so it generates https:// asset URLs.
             header_up X-Forwarded-Proto https
         }
@@ -66,7 +66,7 @@
 
     # --- Upstream error interception (served from disk, Python runtime unburdened) ---
     handle_errors {
-        root * /home/user/static
+        root * {STATIC_DIR}
         rewrite * /loading.html
         file_server
     }
