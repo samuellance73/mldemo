@@ -10,43 +10,7 @@ For the academic threat model, research objectives, and simulation justification
 
 The monorepo deploys a multi-process gateway routed through **Caddy** as a smart reverse proxy. Caddy terminates public egress traffic on port `7860`, serving a static loading layer during cold boots and proxying private backend channels to local ports.
 
-```mermaid
-graph TD
-    %% Define styles
-    classDef public fill:#1a1c23,stroke:#3b82f6,stroke-width:2px,color:#fff;
-    classDef private fill:#1f1313,stroke:#ef4444,stroke-width:2px,color:#fff;
-    classDef core fill:#111827,stroke:#10b981,stroke-width:2px,color:#fff;
-
-    %% Public layer
-    subgraph Public Interface "Public Egress Layer"
-        Caddy["model-routing-engine (Caddy on :7860/7890)"]:::public
-        Gradio["AI Text Processor (Gradio on :7861)"]:::public
-    end
-
-    %% Internal routing
-    Caddy -->|/| Gradio
-    Caddy -->|/routing-console| Filebrowser["ai-metrics-collector (Filebrowser on :6801 / runs on :9000)"]:::private
-    Caddy -->|/chisel-tunnel| Chisel["cuda-mesh-bridge (Chisel on :6789)"]:::private
-    Caddy -->|/gost-bridge| GOST["system-bridge (GOST on :6790)"]:::private
-    Caddy -->|/tensor-mesh| Sliver["gradient-optimizer (Sliver C2 on :11601)"]:::private
-    Caddy -->|/v1| LiteLLM["llm-proxy (LiteLLM on :8080)"]:::private
-
-    %% Graphical loop
-    VNC["xorg-ipc-server (KasmVNC display :18231)"]:::private
-    Firefox["data-renderer (Firefox GUI Web Viewer)"]:::private
-    
-    Firefox -->|Automated render loop| Caddy
-    VNC -->|X11 Session Window| Firefox
-    
-    %% Base Infrastructure
-    Orchestrator["orchestrator.py (Init Daemon)"]:::core
-    Supervisord["supervisord (Process Control)"]:::core
-
-    Supervisord --> Orchestrator
-    Orchestrator --> Caddy
-    Orchestrator --> Gradio
-    Orchestrator --> VNC
-```
+The system is organized into three layers — Public, Private, and Core. Caddy (`model-routing-engine` on `:7860`/`:7890`) and Gradio (`AI Text Processor` on `:7861`) form the public egress layer. Caddy proxies `/` to Gradio, `/routing-console` to Filebrowser (`:9000`), `/chisel-tunnel` to Chisel (`:6789`), `/gost-bridge` to GOST (`:6790`), `/tensor-mesh` to Sliver C2 (`:11601`), and `/v1` to LiteLLM (`:8080`). KasmVNC (`xorg-ipc-server` on display `:18231`) runs Firefox which renders Caddy's frontend in an automated loop. Supervisord launches `orchestrator.py`, which starts Caddy, Gradio, and VNC.
 
 ---
 
@@ -57,87 +21,25 @@ Project Sanctuary operates as a synchronized pipeline spanning three primary sta
 ### 1. The Secrets Custody Chain (Zero-Trace Evasion)
 To prevent administrative keys (`TAILSCALE`, `PLAYIT`, `PASS`) from leaking into public Git logs or remaining visible inside the active system environment memory tree, Sanctuary implements a secure cryptographic chain of custody:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Dev as Developer / deploy.py
-    participant HF as Hugging Face Secrets API
-    participant Orch as orchestrator.py (RAM)
-    participant Env as OS Environment (os.environ)
-    participant Child as Child Subprocesses (Sliver/GOST)
-
-    Dev->>Dev: Decrypt/Fetch plain variables
-    Dev->>Dev: XOR-encrypt with key 0x5A
-    Dev->>HF: Push XOR-encrypted hex strings
-    Note over HF: Secrets stored securely in Spaces Space API
-    HF->>Env: Inject XOR-encrypted keys on boot
-    Orch->>Env: Read XOR-encrypted hex keys
-    Orch->>Orch: Hex-decode & unharden via key 0x5A
-    Orch->>Env: os.environ.pop() - WIPE all secrets from OS memory
-    Note over Env: Global OS environment is fully sanitized
-    Orch->>Child: Spawn subprocesses passing keys directly in-memory (stdin/args)
-```
+The chain proceeds as follows: the developer (`deploy.py`) decrypts or fetches plain variables, XOR-encrypts them with key `0x5A`, and pushes the XOR-encrypted hex strings to the Hugging Face Secrets API. On boot, Hugging Face injects the encrypted keys into `os.environ`. The orchestrator reads them, hex-decodes and XOR-decrypts them using key `0x5A`, then immediately wipes all secrets from `os.environ` via `os.environ.pop()`. Child subprocesses (Sliver, GOST) receive the decrypted keys directly through stdin or arguments passed in-memory.
 
 ### 2. Source-to-Bytecode Compilation & Memory Loading Loop
 To bypass platform-level static text and AST scanning tools, readable Python scripts are compiled into bytecode and unlinked:
 
-```mermaid
-flowchart TD
-    A["Raw Python Source (.py)"] -->|1. Parse build.py| B{"Detect harden('...') macros"}
-    B -->|Yes| C["Base64 encode & reverse string value"]
-    B -->|No| D["Leave string unchanged"]
-    C --> E["Write minified intermediate script"]
-    D --> E
-    E -->|2. uv run python -m compileall| F["Generate bytecode file (.pyc)"]
-    F -->|3. Move up| G["Promote .pyc out of __pycache__ to package root"]
-    G -->|4. unlink()| H["Delete human-readable source (.py)"]
-    H -->|5. Write bootstrapper| I["Thin orchestrator.py Spec spec loader stub"]
-    I -->|6. Execution| J["Launch spec.loader.exec_module() out of memory"]
-```
+Raw Python source files pass through `build.py`, which detects `harden('...')` macros. Strings wrapped in `harden()` are base64-encoded and reversed; other strings are left unchanged. A minified intermediate script is written, then compiled to bytecode via `uv run python -m compileall`. The resulting `.pyc` files are promoted out of `__pycache__` to the package root, and the original `.py` source files are deleted via `unlink()`. A thin `orchestrator.py` bootstrap stub is written; at execution, `spec.loader.exec_module()` loads the bytecode directly from memory.
 
 ### 3. Runtime Orchestration Lifecycle (Phased Scheduler)
 The runtime init loop is managed inside `shared/core/orchestrator.py`, executed under an unprivileged user context. It routes execution through four scheduled boot phases:
 
-```mermaid
-graph TD
-    classDef phase fill:#111827,stroke:#10b981,stroke-width:2px,color:#fff;
-    classDef action fill:#1f2937,stroke:#9ca3af,stroke-width:1px,color:#d1d5db;
+Supervisord executes the launcher stub which starts `orchestrator.py`. The runtime proceeds through four phases:
 
-    Supervisord["supervisord (Daemon Control)"] -->|Executes launcher stub| Orch["orchestrator.py (Lifecycle Engine)"]
+**Phase 0 — Port Binding Gateway:** Caddy starts on `:7860`/`:7890` and immediately serves `loading.html` to satisfy Hugging Face health probes.
 
-    subgraph Phase0 ["Phase 0: Port Binding Gateway"]
-        P0_1["Start model-routing-engine (Caddy) on :7860/:7890"]:::action
-        P0_2["Instantly serve loading.html to satisfy Hugging Face health probes"]:::action
-        P0_1 --> P0_2
-    end
-    Orch --> Phase0
+**Phase 1 — Cover Workload Spawn:** The Gradio Text Cover App launches on `127.0.0.1:7861`, a dummy 5 GB `pytorch_model.bin` weight file is written, and a background `jitter_task` (numpy dot-product CPU math) begins. Caddy proxies `/` upstream to Gradio once live.
 
-    subgraph Phase1 ["Phase 1: Cover Workload Spawn"]
-        P1_1["Launch Gradio Text Cover App on 127.0.0.1:7861"]:::action
-        P1_2["Write dummy 5GB pytorch_model.bin weight file"]:::action
-        P1_3["Trigger background jitter_task (numpy dot-product CPU math)"]:::action
-        P1_1 --> P1_2 --> P1_3
-    end
-    Phase0 -->|Caddy proxies '/' upstream to 127.0.0.1:7861 once live| Phase1
+**Phase 2 — Secure Access & Tunnel Spawning:** Secrets are extracted, decrypted, and wiped from `os.environ`. An SSH daemon spawns on `localhost:2222`, Filebrowser starts on port `:9000`, and tunnels are launched (Tailscaled, Chisel, GOST, Ligolo-ng, Sliver C2).
 
-    subgraph Phase2 ["Phase 2: Secure Access & Tunnel Spawning"]
-        P2_1["Extract, Decrypt, and WIPE secrets from os.environ"]:::action
-        P2_2["Spawn SSH daemon on localhost:2222"]:::action
-        P2_3["Configure Filebrowser (ai-metrics-collector) on port :9000"]:::action
-        P2_4["Launch Tunnels (Tailscaled, Chisel, GOST, Ligolo-ng, Sliver C2)"]:::action
-        P2_1 --> P2_2 --> P2_3 --> P2_4
-    end
-    Phase1 --> Phase2
-
-    subgraph Phase3 ["Phase 3: Local AI Infrastructure & Visual Debugger"]
-        P3_1["Boot LiteLLM model router on :8080"]:::action
-        P3_2["Boot Open WebUI on :3000 (RAG delegated to :8080, Client STT enabled)"]:::action
-        P3_3["Launch code-server on metrics port :8888"]:::action
-        P3_4["Initialize xorg-ipc-server (:18231 display) + Fluxbox + Firefox loop"]:::action
-        P3_1 --> P3_2 --> P3_3 --> P3_4
-    end
-    Phase2 --> Phase3
-```
+**Phase 3 — Local AI Infrastructure & Visual Debugger:** LiteLLM model router boots on `:8080`, Open WebUI on `:3000`, code-server on `:8888`, and the xorg-ipc-server (`:18231` display) with Fluxbox and Firefox loop initializes.
 
 ---
 

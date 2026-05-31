@@ -149,7 +149,7 @@ def _build_config() -> str:
         "router_settings:\n"
         "  routing_strategy: usage-based-routing-v2\n"
         "  num_retries: 3\n"
-        "  retry_after: 5\n"
+        "  retry_after: 5\n" 
         "\n"
         "litellm_settings:\n"
         "  check_provider_endpoint: true\n"
