@@ -340,8 +340,8 @@ def run(args):
 def main():
     # Check if LITELLM_MASTER_KEY is set
     if not LITELLM_MASTER_KEY:
-        print(f"Warning: LITELLM_MASTER_KEY not set in .env file")
-        print(f"  Add it to your .env: LITELLM_MASTER_KEY=sk-your-key-here")
+        print("Warning: LITELLM_MASTER_KEY not set in .env file")
+        print("  Add it to your .env: LITELLM_MASTER_KEY=sk-your-key-here")
     else:
         print(f"Using LITELLM_MASTER_KEY from .env (length: {len(LITELLM_MASTER_KEY)})")
 

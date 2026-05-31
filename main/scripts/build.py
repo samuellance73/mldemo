@@ -31,77 +31,6 @@ def _harden_content(content):
     return re.sub(r'harden\(\s*"([^"]+)"\s*\)', replacer, content)
 
 
-def compile_with_cython(dist_dir: Path):
-    """Compile all .py files in dist_dir into native .so extension modules in-place.
-
-    Entry point wrappers (app.py, orchestrator.py) are renamed to _app.py /
-    _orchestrator.py before compilation so Cython can produce a loadable module,
-    then thin Python stub redirectors are written back.
-    """
-    dist_dir = dist_dir.resolve()
-
-    # Rename entry-point files to private modules so Cython won't conflict
-    entry_renames = {
-        dist_dir / "app.py": dist_dir / "_app.py",
-        dist_dir / "core" / "orchestrator.py": dist_dir / "core" / "_orchestrator.py",
-    }
-    for src, dst in entry_renames.items():
-        if src.exists():
-            src.rename(dst)
-            logger.debug(f"Renamed {src.name} -> {dst.name} for Cython")
-
-    # Collect all non-__init__ .py files (recursively)
-    py_files = [
-        str(p.relative_to(dist_dir))
-        for p in dist_dir.rglob("*.py")
-        if p.name != "__init__.py"
-    ]
-    if not py_files:
-        logger.warning("compile_with_cython: no .py files found in dist/")
-        return
-
-    logger.info(f"Cythonizing {len(py_files)} file(s) in {dist_dir}...")
-    result = subprocess.run(
-        [sys.executable, "-m", "cython", "--version"],
-        capture_output=True,
-        text=True,
-    )
-    # Use cythonize CLI
-    cmd = ["cythonize", "-i", "-3"] + py_files
-    proc = subprocess.run(cmd, cwd=str(dist_dir))
-    if proc.returncode != 0:
-        logger.error("Cython compilation failed — check output above.")
-        sys.exit(1)
-
-    # Remove .py sources and intermediate .c files, keep __init__.py
-    for rel in py_files:
-        py_path = dist_dir / rel
-        c_path = py_path.with_suffix(".c")
-        if py_path.exists():
-            py_path.unlink()
-        if c_path.exists():
-            c_path.unlink()
-
-    # Write thin stub wrappers for the renamed entry points
-    app_so_exists = any((dist_dir).rglob("_app*.so"))
-    if (dist_dir / "_app.py").exists() or app_so_exists:
-        (dist_dir / "app.py").write_text(
-            "from _app import *  # noqa: F401,F403 — Cython stub\n"
-        )
-    orch_so_exists = any((dist_dir / "core").rglob("_orchestrator*.so"))
-    if (dist_dir / "core" / "_orchestrator.py").exists() or orch_so_exists:
-        (dist_dir / "core" / "orchestrator.py").write_text(
-            "from ._orchestrator import *  # noqa: F401,F403 — Cython stub\n"
-        )
-
-    # Clean up build temp dirs
-    for tmp in dist_dir.rglob("build"):
-        if tmp.is_dir():
-            shutil.rmtree(tmp, ignore_errors=True)
-
-    logger.success(f"Cython compilation complete — .so modules written to {dist_dir}")
-
-
 def compile_to_bytecode(dist_dir: Path, py_version: str = "3.12"):
     """Compile all .py files to .pyc bytecode using the target container's Python
     version (via uv), then promote .pyc files out of __pycache__/ into the package
@@ -151,15 +80,17 @@ def compile_to_bytecode(dist_dir: Path, py_version: str = "3.12"):
     # thin .py stub (they can't be loaded as a bare .pyc by the OS exec).  All other
     # modules are replaced by their promoted .pyc so normal import works.
     _SCRIPT_ENTRY_POINTS = {"orchestrator.py"}
+    # Keep these as .py files (not compiled to .pyc) for import compatibility
+    _KEEP_AS_PY = set()
 
-    # Stub that finds and exec's the matching .pyc from __pycache__/
+    # Simple stub that imports and executes the matching .pyc from __pycache__/
     _STUB = (
-        "import importlib.util as _iu,glob as _g,os as _o,sys as _s\n"
+        "import importlib.util as _iu,os as _o,sys as _s\n"
         "_h=_o.path.dirname(_o.path.abspath(__file__))\n"
         "_n=_o.path.splitext(_o.path.basename(__file__))[0]\n"
-        "_p=_g.glob(_o.path.join(_h,'__pycache__',f'{_n}.*.pyc'))\n"
-        "if not _p:raise FileNotFoundError(f'bytecode for {_n} not found')\n"
-        "_sp=_iu.spec_from_file_location('__main__',_p[0])\n"
+        "_c=_o.path.join(_h,'__pycache__',_n+'.cpython-312.pyc')\n"
+        "if not _o.path.exists(_c):raise FileNotFoundError(f'bytecode for {_n} not found')\n"
+        "_sp=_iu.spec_from_file_location('__main__',_c)\n"
         "_m=_iu.module_from_spec(_sp)\n"
         "_m.__file__=_o.path.abspath(__file__)\n"
         "_s.modules['__main__']=_m\n"
@@ -182,6 +113,11 @@ def compile_to_bytecode(dist_dir: Path, py_version: str = "3.12"):
             # Replace with the thin stub; the real code lives in __pycache__/
             py_file.write_text(_STUB)
             logger.debug(f"Wrote launcher stub: {py_file.relative_to(dist_dir)}")
+            continue
+
+        if py_file.name in _KEEP_AS_PY:
+            # Keep as .py file for import compatibility
+            logger.debug(f"Keeping as .py: {py_file.relative_to(dist_dir)}")
             continue
 
         # For every other module: find its compiled .pyc, copy it next to the
@@ -235,17 +171,6 @@ def build_orchestrator(logging_mode=1, hardener="pyminifier"):
     content = _harden_content(content)
     if hardener == "pyminifier":
         content = _minify_py(content)
-    if "sys.path.insert" not in content:
-        bootstrap = (
-            "from pathlib import Path\n"
-            "_P=Path(__file__).resolve().parent.parent\n"
-            "sys.path.insert(0,str(_P)) if str(_P) not in sys.path else None\n"
-        )
-        first_nl = content.find("\n")
-        if first_nl != -1 and content.startswith("import "):
-            content = content[: first_nl + 1] + bootstrap + content[first_nl + 1 :]
-        else:
-            content = bootstrap + content
 
     Path("dist/core").mkdir(parents=True, exist_ok=True)
     Path("dist/core/orchestrator.py").write_text(content)
@@ -317,6 +242,10 @@ def update_build_state(nodes_path, state_path):
             except Exception as e:
                 logger.warning(f"Failed to read existing state.json: {e}")
 
+        # Prune stale nodes no longer present in the configuration
+        valid_nodes = set(nodes.keys())
+        state = {k: v for k, v in state.items() if k in valid_nodes}
+
         now_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         for node_name, node_info in nodes.items():
@@ -367,9 +296,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--hardener",
-        choices=["pyminifier", "cython", "bytecode"],
+        choices=["pyminifier", "bytecode"],
         default="bytecode",
-        help="Hardening mode: bytecode/.pyc (default), pyminifier, cython/.so",
+        help="Hardening mode: bytecode/.pyc (default), pyminifier",
     )
     parser.add_argument(
         "--py-version",
@@ -381,7 +310,10 @@ if __name__ == "__main__":
 
     repo_root = Path(__file__).resolve().parent.parent
     os.chdir(repo_root)
-    if not Path("../shared/core/orchestrator.py").exists() or not Path("Dockerfile").exists():
+    if (
+        not Path("../shared/core/orchestrator.py").exists()
+        or not Path("Dockerfile").exists()
+    ):
         logger.error(
             "Source files missing! Please ensure shared/core/orchestrator.py and Dockerfile exist."
         )
@@ -392,6 +324,12 @@ if __name__ == "__main__":
     Path("dist/core").mkdir(parents=True, exist_ok=True)
     if Path("../shared/core/__init__.py").exists():
         shutil.copy("../shared/core/__init__.py", "dist/core/__init__.py")
+    if Path("../shared/core/constants.py").exists():
+        const_content = Path("../shared/core/constants.py").read_text()
+        if args.hardener == "pyminifier":
+            const_content = _minify_py(const_content)
+        Path("dist/core/constants.py").write_text(const_content)
+        logger.success("Built dist/core/constants.py")
     if Path("../shared/core/service_registry.py").exists():
         reg_content = Path("../shared/core/service_registry.py").read_text()
         if args.hardener == "pyminifier":
@@ -477,11 +415,9 @@ if __name__ == "__main__":
             conf_path.write_text(conf_data)
             logger.success(f"Configured supervisord.conf for logging mode: {args.logs}")
 
-    # Apply post-processing hardener (cython / bytecode) to the full dist/ tree
+    # Apply post-processing hardener (bytecode) to the full dist/ tree
     dist_dir = Path("dist")
-    if args.hardener == "cython":
-        compile_with_cython(dist_dir)
-    elif args.hardener == "bytecode":
+    if args.hardener == "bytecode":
         compile_to_bytecode(dist_dir, py_version=args.py_version)
 
     state_path = Path(args.nodes).resolve().parent / "state.json"
@@ -489,7 +425,6 @@ if __name__ == "__main__":
 
     hardener_label = {
         "pyminifier": "pyminifier",
-        "cython": "Cython (.so)",
         "bytecode": "bytecode (.pyc)",
     }[args.hardener]
     logger.success(

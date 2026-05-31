@@ -2,9 +2,8 @@ import os
 import subprocess
 from pathlib import Path
 
-from loguru import logger
-
 from core.constants import CODE_SERVER_DATA_DIR, LOCALHOST
+from loguru import logger
 
 PORT = 8888
 PREFIX = "[code-server]"

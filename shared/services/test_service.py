@@ -1,11 +1,9 @@
 import sys
 import threading
 import time
-from pathlib import Path
-
-from loguru import logger
 
 from core.constants import METRICS_DIR, STATIC_DIR, USER_HOME
+from loguru import logger
 
 LOG_PATH = METRICS_DIR / "test.log"
 STARTUP_LOG = METRICS_DIR / "startup.log"

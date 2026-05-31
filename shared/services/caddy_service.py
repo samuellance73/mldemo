@@ -3,8 +3,6 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from loguru import logger
-
 from core.constants import (
     CADDYFILE_PATH,
     CADDYFILE_TEMPLATE_PATH,
@@ -13,7 +11,13 @@ from core.constants import (
     PORTS,
     STATIC_DIR,
 )
-from .utils import decode_cmd
+from loguru import logger
+
+from services.utils import decode_cmd
+
+
+def harden(cmd: str) -> str:
+    return cmd
 
 
 def start(caddy_log):

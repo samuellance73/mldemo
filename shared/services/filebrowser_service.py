@@ -1,10 +1,13 @@
 import secrets
 import subprocess
-from pathlib import Path
 
 from core.constants import FILEBROWSER_DB_PATH, USER_HOME
 
-from .utils import decode_cmd
+from services.utils import decode_cmd
+
+
+def harden(cmd: str) -> str:
+    return cmd
 
 
 def start(fb_log, pwd=""):

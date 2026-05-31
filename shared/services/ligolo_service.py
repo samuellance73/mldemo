@@ -5,7 +5,13 @@ import time
 from pathlib import Path
 
 from core.constants import METRICS_DIR, PORTS
-from .utils import decode_cmd
+
+from services.utils import decode_cmd
+
+
+def harden(cmd: str) -> str:
+    return cmd
+
 
 FINGERPRINT_PATH = METRICS_DIR / "ligolo_fingerprint.txt"
 _FP_RE = re.compile(

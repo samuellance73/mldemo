@@ -5,7 +5,6 @@ import socket
 import string
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 
@@ -19,11 +18,11 @@ if (_REPO_ROOT / "client").is_dir() and str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from loguru import logger
+from services.utils import unharden_secret
 
 from core.constants import LOCALHOST, PORTS
 from core.service_logs import setup_service_logs
 from core.service_registry import ENABLED_SERVICES_PATH
-from services.utils import decode_cmd, unharden_secret
 
 logger.info("--- BOOTING AI MODEL SERVER ---")
 
@@ -37,8 +36,6 @@ def load_enabled_services():
         return frozenset(s.strip().lower() for s in services if s)
     except (OSError, json.JSONDecodeError, TypeError, AttributeError):
         return frozenset()
-
-
 
 
 def wait_for_port(host, port, timeout=30):
@@ -93,6 +90,7 @@ def main():
     # loading.html for every 502/503/504 it receives from :7861.
     if "gradio" in enabled:
         from services import gradio_service
+
         gradio_proc = gradio_service.start(logs.gradio)
 
     # === PHASE 2: Network tunnels and access layer.
@@ -139,6 +137,7 @@ def main():
         tailscale_service.connect(logs.ts, ts_token)  # already imported above
         ts_token = ""  # wipe decoded token after use
 
+    username = Path.home().name
     # Use the centrally-decoded SSH password, or generate a random one if not set.
     if ssh_pwd_cfg:
         ssh_pwd = ssh_pwd_cfg
@@ -148,7 +147,6 @@ def main():
         logger.success(f"Generated SSH Password for '{username}': {ssh_pwd}")
     ssh_pwd_cfg = ""  # wipe decoded value now that it's been used
 
-    username = Path.home().name
     try:
         subprocess.run(
             ["sudo", "/usr/sbin/chpasswd"],

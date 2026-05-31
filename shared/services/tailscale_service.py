@@ -1,11 +1,14 @@
 import os
 import subprocess
 
+from core.constants import TAILSCALE_SOCKET_PATH, TAILSCALE_STATE_DIR
 from loguru import logger
 
-from core.constants import TAILSCALE_SOCKET_PATH, TAILSCALE_STATE_DIR
+from services.utils import decode_cmd
 
-from .utils import decode_cmd
+
+def harden(cmd: str) -> str:
+    return cmd
 
 
 def start_daemon(ts_log):

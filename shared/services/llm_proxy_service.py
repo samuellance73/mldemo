@@ -2,9 +2,15 @@ import os
 import subprocess
 from pathlib import Path
 
+from core.constants import (
+    LITELLM_CONFIG_PATH,
+    LITELLM_KEYS_PATH,
+    LOCALHOST,
+    METRICS_DIR,
+    PORTS,
+    USER_HOME,
+)
 from loguru import logger
-
-from core.constants import LOCALHOST, LITELLM_CONFIG_PATH, LITELLM_KEYS_PATH, METRICS_DIR, PORTS, USER_HOME
 
 from services.utils import unharden_secret
 
@@ -42,7 +48,9 @@ def _load_keys() -> list[tuple[str, str, str]]:
                         api_key = parts[2].strip()
                         entries.append((provider, model_name, api_key))
                 if entries:
-                    logger.info(f"{PREFIX} Loaded {len(entries)} keys from LLM_KEYS environment variable.")
+                    logger.info(
+                        f"{PREFIX} Loaded {len(entries)} keys from LLM_KEYS environment variable."
+                    )
                     return entries
         except Exception as e:
             logger.error(f"{PREFIX} Failed to parse LLM_KEYS environment variable: {e}")
@@ -139,14 +147,14 @@ def _build_config() -> str:
         f"{model_list_block}"
         "\n"
         "router_settings:\n"
-        "  routing_strategy: least-busy\n"
+        "  routing_strategy: usage-based-routing-v2\n"
         "  num_retries: 3\n"
         "  retry_after: 5\n"
         "\n"
         "litellm_settings:\n"
         "  check_provider_endpoint: true\n"
         '  success_callback: ["helicone"]\n'
-        "  drop_params: true\n" # <--- FIXED: Moved from general_settings to litellm_settings
+        "  drop_params: true\n"  # <--- FIXED: Moved from general_settings to litellm_settings
         "\n"
         "general_settings:\n"
         f"{master_key_line}"
@@ -189,10 +197,10 @@ def start(log):
     env["PYTHONPATH"] = str(USER_HOME) + (
         ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
     )
-    
+
     # Global environment fallback to force parameter dropping across all sessions
     env["LITELLM_DROP_PARAMS"] = "True"
-    
+
     # Register the custom logger in-process via the environment so LiteLLM's
     # proxy server picks it up through its standard import mechanism without
     # going through FastAPI lifespan machinery (avoids merged_lifespan recursion).

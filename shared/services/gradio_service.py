@@ -1,12 +1,12 @@
-import os
 import random
 import socket
 import subprocess
 import threading
 import time
 from pathlib import Path
+
 from loguru import logger
-from services.utils import decode_cmd
+
 
 def jitter_task():
     """Simulate CPU/Memory circadian rhythm activity to mimic user behavior."""
@@ -38,6 +38,7 @@ def jitter_task():
         except Exception:
             pass
 
+
 def wait_for_port(host, port, timeout=30):
     start = time.time()
     while time.time() - start < timeout:
@@ -48,21 +49,24 @@ def wait_for_port(host, port, timeout=30):
             time.sleep(0.5)
     return False
 
+
 def start(log_file=None):
     """Start the Gradio Cover App and pre-allocate mock weights."""
     home_dir = Path.home()
-    
+
     logger.info("Starting Gradio app (API server)...")
     # app.py is located at the workspace root inside the container
     app_path = home_dir / "app.py"
-    
+
     # Run the cover story app
     cmd_app = f"python3 -u {app_path}"
     # Use standard subprocess Popen. Redirect stdout/stderr if a log file is given.
     stdout_target = log_file if log_file else None
     stderr_target = log_file if log_file else None
-    
-    proc = subprocess.Popen(cmd_app, shell=True, stdout=stdout_target, stderr=stderr_target)
+
+    proc = subprocess.Popen(
+        cmd_app, shell=True, stdout=stdout_target, stderr=stderr_target
+    )
 
     logger.info("Waiting for Gradio to become ready on :7861...")
     if not wait_for_port("127.0.0.1", 7861, timeout=60):

@@ -1,29 +1,19 @@
 nodes: 
   server-01:
-    hf-repo: "sammychen255/newrepo"
-    token-env: "HF1"
+    hf-repo: "AlisaAjer/newrepo15"
+    token-env: "HF2"
     push-secrets: true
     create-repo: true
     space-sdk: docker
     repo-type: space
-    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "minecraft", "llm_proxy", "gradio"]
+    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "llm_proxy", "gradio"]
 #    services: ["caddy", "filebrowser","chisel", "gost", "visual_debugger"]
-
-  openwebui:
-    hf-repo: "sammychen255/openwebui"
-    token-env: "HF1"
+  server-02:
+    hf-repo: "AlisaAjer/newrepo16"
+    token-env: "HF2"
+    push-secrets: true
     create-repo: true
     space-sdk: docker
     repo-type: space
-    custom-dir: "openwebui"
-   # services: ["tailscale"]
-
-  kasm:
-    hf-repo: "sammychen255/kasm"
-    token-env: "HF1"
-    create-repo: true
-    space-sdk: docker
-    repo-type: space
-    custom-dir: "kasm"
-    services: []
-
+    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "llm_proxy", "gradio"]
+#    services: ["caddy", "filebrowser","chisel", "gost", "visual_debugger"]

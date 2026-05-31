@@ -9,9 +9,8 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from loguru import logger
-
 from core.constants import METRICS_DIR, PORTS
+from loguru import logger
 
 MC_GAME_VERSION = "26.1.2"
 PAPER_MC_VERSION = "26.1.2"
@@ -363,7 +362,9 @@ def setup_and_run():
 
         props_path = mc_dir / "server.properties"
         if not props_path.exists():
-            props_path.write_text(f"server-port={PORTS['minecraft']}\nonline-mode=false\nmotd=PCEP\n")
+            props_path.write_text(
+                f"server-port={PORTS['minecraft']}\nonline-mode=false\nmotd=PCEP\n"
+            )
         else:
             try:
                 props_data = props_path.read_text()

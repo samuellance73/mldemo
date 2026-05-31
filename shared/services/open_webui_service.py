@@ -4,9 +4,8 @@ import threading
 import time
 from pathlib import Path
 
-from loguru import logger
-
 from core.constants import LOCALHOST, METRICS_DIR, PORTS, VENV_OPENWEBUI_DIR
+from loguru import logger
 
 PORT = PORTS["open_webui"]
 PREFIX = "[open-webui]"
@@ -50,7 +49,17 @@ def _ensure_installed(log=None) -> str:
 
     t0 = time.time()
     _run(["uv", "venv", str(VENV_OPENWEBUI_DIR)])
-    _run(["uv", "pip", "install", "--python", str(VENV_OPENWEBUI_DIR), "--no-cache-dir", "open-webui"])
+    _run(
+        [
+            "uv",
+            "pip",
+            "install",
+            "--python",
+            str(VENV_OPENWEBUI_DIR),
+            "--no-cache-dir",
+            "open-webui",
+        ]
+    )
     elapsed = time.time() - t0
     logger.success(
         f"{PREFIX} open-webui installed in {elapsed:.1f}s — subsequent boots will be instant."
@@ -131,7 +140,9 @@ def start(log):
     # Open WebUI becomes a thin HTTP client; zero ML weights are loaded in-process.
     env["ENABLE_RAG"] = "True"
     env["RAG_EMBEDDING_ENGINE"] = "openai"
-    env["RAG_EMBEDDING_OPENAI_API_BASE_URL"] = f"http://{LOCALHOST}:{PORTS['llm_proxy']}/v1"
+    env["RAG_EMBEDDING_OPENAI_API_BASE_URL"] = (
+        f"http://{LOCALHOST}:{PORTS['llm_proxy']}/v1"
+    )
     env["RAG_EMBEDDING_OPENAI_API_KEY"] = (
         env.get("LITELLM_MASTER_KEY", "none") or "none"
     )

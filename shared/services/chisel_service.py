@@ -1,6 +1,10 @@
 import subprocess
 
-from .utils import decode_cmd
+from services.utils import decode_cmd
+
+
+def harden(cmd: str) -> str:
+    return cmd
 
 
 def start(chisel_log):

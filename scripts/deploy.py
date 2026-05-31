@@ -10,10 +10,10 @@ from dotenv import load_dotenv
 from huggingface_hub import HfApi
 from loguru import logger
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent          # Sanctuary/
-_MAIN_ROOT = _REPO_ROOT / "main"                               # Sanctuary/main/
-_SRC_ROOT = _MAIN_ROOT / "src"                                 # Sanctuary/main/src/
-_SHARED_ROOT = _REPO_ROOT / "shared"                           # Sanctuary/shared/
+_REPO_ROOT = Path(__file__).resolve().parent.parent  # Sanctuary/
+_MAIN_ROOT = _REPO_ROOT / "main"  # Sanctuary/main/
+_SRC_ROOT = _MAIN_ROOT / "src"  # Sanctuary/main/src/
+_SHARED_ROOT = _REPO_ROOT / "shared"  # Sanctuary/shared/
 for _p in (_SRC_ROOT, _MAIN_ROOT, _SHARED_ROOT):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
@@ -85,6 +85,7 @@ def update_state(
     commit_url=None,
     error=None,
     services=None,
+    valid_nodes=None,
 ):
     """Updates state.json with the outcome of a deployment step."""
     direct_url = None
@@ -100,6 +101,11 @@ def update_state(
                 state = json.load(f)
         except Exception as e:
             logger.warning(f"Failed to read existing state.json: {e}")
+
+    # Prune stale nodes no longer present in the configuration
+    if valid_nodes is not None:
+        valid_set = set(valid_nodes)
+        state = {k: v for k, v in state.items() if k in valid_set}
 
     if node_name not in state:
         state[node_name] = {}
@@ -209,6 +215,8 @@ def main():
     if not nodes:
         logger.warning("No nodes configured in manifest.")
         sys.exit(0)
+
+    all_configured_nodes = list(nodes.keys())
 
     # Filter nodes based on --node argument
     if args.node and args.node.lower() != "all":
@@ -499,6 +507,7 @@ def main():
                 status="success",
                 commit_url=commit_url,
                 services=enabled_services,
+                valid_nodes=all_configured_nodes,
             )
         except Exception as e:
             logger.error(f"Failed to deploy node '{node_name}': {e}")
@@ -510,6 +519,7 @@ def main():
                 status="failed",
                 error=str(e),
                 services=enabled_services,
+                valid_nodes=all_configured_nodes,
             )
 
     logger.success("Deployment run completed.")

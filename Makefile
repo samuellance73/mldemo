@@ -2,7 +2,7 @@
 
 # Default covert logging level to forward (0=Disabled, 1=File, 2=Console+File)
 LOGS ?= 2
-# Hardening mode: pyminifier (default) | cython | bytecode
+# Hardening mode: pyminifier | bytecode (default)
 HARDENER ?= bytecode
 
 # Default target

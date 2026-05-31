@@ -6,8 +6,9 @@ import time
 from pathlib import Path
 
 # Sanctuary/ is the monorepo root; main/ holds the client package
-_REPO_ROOT = Path(__file__).resolve().parent.parent          # Sanctuary/
-_MAIN_ROOT = _REPO_ROOT / "main"                               # Sanctuary/main/
+_REPO_ROOT = Path(__file__).resolve().parent.parent  # Sanctuary/
+_MAIN_ROOT = _REPO_ROOT / "main"  # Sanctuary/main/
+sys.path.insert(0, str(_REPO_ROOT))
 sys.path.insert(0, str(_MAIN_ROOT))
 
 import client.common as common

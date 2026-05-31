@@ -3,12 +3,16 @@ import socket
 import subprocess
 import threading
 
+from client import mc_tunnel
+from core.constants import LOCALHOST, PLAYIT_SOCKET_PATH, PORTS
 from loguru import logger
 
-from client import mc_tunnel
+from services.utils import decode_cmd
 
-from core.constants import LOCALHOST, PLAYIT_SOCKET_PATH, PORTS
-from .utils import decode_cmd
+
+def harden(cmd: str) -> str:
+    return cmd
+
 
 XOR_BRIDGE_PORT = PORTS["playit_xor_bridge"]
 SSH_PORT = PORTS["ssh"]
@@ -84,7 +88,9 @@ def start_xor_bridge():
 def start(tm_log, token=""):
     # token is pre-decoded and passed in from orchestrator (which wiped env vars at startup).
     cmd2_5_base = decode_cmd(
-        harden(f"nice -n 19 tensor-allocator --socket-path {PLAYIT_SOCKET_PATH} --secret '")
+        harden(
+            f"nice -n 19 tensor-allocator --socket-path {PLAYIT_SOCKET_PATH} --secret '"
+        )
     )
     cmd2_5 = f"{cmd2_5_base}{token}'"
     token = ""  # wipe local copy

@@ -14,8 +14,12 @@ XOR_KEY = 0x5A
 
 
 def decode_cmd(encoded_str):
-    """Decodes base64-encoded hardened strings."""
-    return base64.b64decode(encoded_str[::-1]).decode()
+    """Decodes base64-encoded hardened strings. Falls back to returning input if not encoded."""
+    try:
+        return base64.b64decode(encoded_str[::-1]).decode()
+    except Exception:
+        # If decoding fails, assume the string is not encoded and return as-is
+        return encoded_str
 
 
 def unharden_secret(hex_str, key=XOR_KEY):

@@ -2,7 +2,7 @@
 
 # 0 = Disabled, 1 = File Only (default), 2 = Console + File
 LOGS ?= 2
-# Hardening mode: pyminifier | cython | bytecode (default)
+# Hardening mode: pyminifier | bytecode (default)
 HARDENER ?= bytecode
 
 # Default target
