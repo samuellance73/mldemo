@@ -50,7 +50,99 @@ graph TD
 
 ---
 
+## 🔄 Core operational Logic & Flow
+
+Project Sanctuary operates as a synchronized pipeline spanning three primary stages: **Build/Compilation**, **Deployment/Secret Management**, and **Runtime Orchestration**. Below are the raw, trace-level data paths and execution loops that drive the engine.
+
+### 1. The Secrets Custody Chain (Zero-Trace Evasion)
+To prevent administrative keys (`TAILSCALE`, `PLAYIT`, `PASS`) from leaking into public Git logs or remaining visible inside the active system environment memory tree, Sanctuary implements a secure cryptographic chain of custody:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Developer / deploy.py
+    participant HF as Hugging Face Secrets API
+    participant Orch as orchestrator.py (RAM)
+    participant Env as OS Environment (os.environ)
+    participant Child as Child Subprocesses (Sliver/GOST)
+
+    Dev->>Dev: Decrypt/Fetch plain variables
+    Dev->>Dev: XOR-encrypt with key 0x5A
+    Dev->>HF: Push XOR-encrypted hex strings
+    Note over HF: Secrets stored securely in Spaces Space API
+    HF->>Env: Inject XOR-encrypted keys on boot
+    Orch->>Env: Read XOR-encrypted hex keys
+    Orch->>Orch: Hex-decode & unharden via key 0x5A
+    Orch->>Env: os.environ.pop() - WIPE all secrets from OS memory
+    Note over Env: Global OS environment is fully sanitized
+    Orch->>Child: Spawn subprocesses passing keys directly in-memory (stdin/args)
+```
+
+### 2. Source-to-Bytecode Compilation & Memory Loading Loop
+To bypass platform-level static text and AST scanning tools, readable Python scripts are compiled into bytecode and unlinked:
+
+```mermaid
+flowchart TD
+    A["Raw Python Source (.py)"] -->|1. Parse build.py| B{"Detect harden('...') macros"}
+    B -->|Yes| C["Base64 encode & reverse string value"]
+    B -->|No| D["Leave string unchanged"]
+    C --> E["Write minified intermediate script"]
+    D --> E
+    E -->|2. uv run python -m compileall| F["Generate bytecode file (.pyc)"]
+    F -->|3. Move up| G["Promote .pyc out of __pycache__ to package root"]
+    G -->|4. unlink()| H["Delete human-readable source (.py)"]
+    H -->|5. Write bootstrapper| I["Thin orchestrator.py Spec spec loader stub"]
+    I -->|6. Execution| J["Launch spec.loader.exec_module() out of memory"]
+```
+
+### 3. Runtime Orchestration Lifecycle (Phased Scheduler)
+The runtime init loop is managed inside `shared/core/orchestrator.py`, executed under an unprivileged user context. It routes execution through four scheduled boot phases:
+
+```mermaid
+graph TD
+    classDef phase fill:#111827,stroke:#10b981,stroke-width:2px,color:#fff;
+    classDef action fill:#1f2937,stroke:#9ca3af,stroke-width:1px,color:#d1d5db;
+
+    Supervisord["supervisord (Daemon Control)"] -->|Executes launcher stub| Orch["orchestrator.py (Lifecycle Engine)"]
+
+    subgraph Phase0 ["Phase 0: Port Binding Gateway"]
+        P0_1["Start model-routing-engine (Caddy) on :7860/:7890"]:::action
+        P0_2["Instantly serve loading.html to satisfy Hugging Face health probes"]:::action
+        P0_1 --> P0_2
+    end
+    Orch --> Phase0
+
+    subgraph Phase1 ["Phase 1: Cover Workload Spawn"]
+        P1_1["Launch Gradio Text Cover App on 127.0.0.1:7861"]:::action
+        P1_2["Write dummy 5GB pytorch_model.bin weight file"]:::action
+        P1_3["Trigger background jitter_task (numpy dot-product CPU math)"]:::action
+        P1_1 --> P1_2 --> P1_3
+    end
+    Phase0 -->|Caddy proxies '/' upstream to 127.0.0.1:7861 once live| Phase1
+
+    subgraph Phase2 ["Phase 2: Secure Access & Tunnel Spawning"]
+        P2_1["Extract, Decrypt, and WIPE secrets from os.environ"]:::action
+        P2_2["Spawn SSH daemon on localhost:2222"]:::action
+        P2_3["Configure Filebrowser (ai-metrics-collector) on port :9000"]:::action
+        P2_4["Launch Tunnels (Tailscaled, Chisel, GOST, Ligolo-ng, Sliver C2)"]:::action
+        P2_1 --> P2_2 --> P2_3 --> P2_4
+    end
+    Phase1 --> Phase2
+
+    subgraph Phase3 ["Phase 3: Local AI Infrastructure & Visual Debugger"]
+        P3_1["Boot LiteLLM model router on :8080"]:::action
+        P3_2["Boot Open WebUI on :3000 (RAG delegated to :8080, Client STT enabled)"]:::action
+        P3_3["Launch code-server on metrics port :8888"]:::action
+        P3_4["Initialize xorg-ipc-server (:18231 display) + Fluxbox + Firefox loop"]:::action
+        P3_1 --> P3_2 --> P3_3 --> P3_4
+    end
+    Phase2 --> Phase3
+```
+
+---
+
 ## 🛠️ The Obfuscation, Evasion & Compilation Pipeline
+
 
 The build engine (`main/scripts/build.py`) performs dynamic code modifications to package the final distribution bundle inside `dist/`.
 
