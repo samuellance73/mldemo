@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 
 import gradio as gr
-from services.minecraft_service import MC_DIR
+from sanctuary.services.minecraft_service import MC_DIR
 
 LOG_DIR = Path("/home/user/.torch_metrics")
 MC_LOG = Path(MC_DIR) / "logs" / "latest.log"

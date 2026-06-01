@@ -96,10 +96,11 @@ RUN curl -fsSL url_harden("https://github.com/kasmtech/KasmVNC/releases/download
     && rm -f /tmp/pkg-bundle.tar.xz \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+ENV PYTHONPATH=/home/user
+
 # Copy application files
 COPY --chown=user:user src/app.py /home/user/app.py
-COPY --chown=user:user src/core /home/user/core
-COPY --chown=user:user src/services /home/user/services
+COPY --chown=user:user src/sanctuary /home/user/sanctuary
 COPY --chown=user:user config /home/user/config
 COPY --chown=user:user config/ligolo-ng.yaml /home/user/ligolo-ng.yaml
 

@@ -31,16 +31,7 @@ def _harden_content(content):
     return re.sub(r'harden\(\s*"([^"]+)"\s*\)', replacer, content)
 
 
-def _flatten_imports(content):
-    """Rewrite sanctuary.* package imports to the flat dist/ structure.
 
-    src/ uses   : from sanctuary.core.X import Y
-    dist/ needs : from core.X import Y
-    """
-    content = re.sub(r'\bsanctuary\.core\b', 'core', content)
-    content = re.sub(r'\bsanctuary\.services\b', 'services', content)
-    content = re.sub(r'\bsanctuary\.client\b', 'services', content)
-    return content
 
 
 def compile_to_bytecode(dist_dir: Path, py_version: str = "3.12"):
@@ -166,15 +157,14 @@ def build_logging(logging_mode=1, hardener="pyminifier"):
     content = content.replace(
         "COVERT_LOGGING_MODE = 1", f"COVERT_LOGGING_MODE = {logging_mode}"
     )
-    content = _flatten_imports(content)
     if hardener == "pyminifier":
         content = _minify_py(content)
 
-    Path("dist/core").mkdir(parents=True, exist_ok=True)
-    legacy_logging = Path("dist/core/logging.py")
+    Path("dist/sanctuary/core").mkdir(parents=True, exist_ok=True)
+    legacy_logging = Path("dist/sanctuary/core/logging.py")
     if legacy_logging.exists():
         legacy_logging.unlink()
-    Path("dist/core/service_logs.py").write_text(content)
+    Path("dist/sanctuary/core/service_logs.py").write_text(content)
 
 
 def build_orchestrator(logging_mode=1, hardener="pyminifier"):
@@ -182,12 +172,11 @@ def build_orchestrator(logging_mode=1, hardener="pyminifier"):
     content = src_file.read_text()
 
     content = _harden_content(content)
-    content = _flatten_imports(content)
     if hardener == "pyminifier":
         content = _minify_py(content)
 
-    Path("dist/core").mkdir(parents=True, exist_ok=True)
-    Path("dist/core/orchestrator.py").write_text(content)
+    Path("dist/sanctuary/core").mkdir(parents=True, exist_ok=True)
+    Path("dist/sanctuary/core/orchestrator.py").write_text(content)
     mode_str = (
         "File Only"
         if logging_mode == 1
@@ -335,23 +324,37 @@ if __name__ == "__main__":
 
     build_logging(logging_mode=args.logs, hardener=args.hardener)
     build_orchestrator(logging_mode=args.logs, hardener=args.hardener)
-    Path("dist/core").mkdir(parents=True, exist_ok=True)
+
+    Path("dist/sanctuary/core").mkdir(parents=True, exist_ok=True)
+    Path("dist/sanctuary/services").mkdir(parents=True, exist_ok=True)
+
+    if Path("../src/sanctuary/__init__.py").exists():
+        shutil.copy("../src/sanctuary/__init__.py", "dist/sanctuary/__init__.py")
+    else:
+        Path("dist/sanctuary/__init__.py").write_text("")
+
     if Path("../src/sanctuary/core/__init__.py").exists():
-        shutil.copy("../src/sanctuary/core/__init__.py", "dist/core/__init__.py")
+        shutil.copy("../src/sanctuary/core/__init__.py", "dist/sanctuary/core/__init__.py")
+    else:
+        Path("dist/sanctuary/core/__init__.py").write_text("")
+
+    if Path("../src/sanctuary/services/__init__.py").exists():
+        shutil.copy("../src/sanctuary/services/__init__.py", "dist/sanctuary/services/__init__.py")
+    else:
+        Path("dist/sanctuary/services/__init__.py").write_text("")
+
     if Path("../src/sanctuary/core/constants.py").exists():
         const_content = Path("../src/sanctuary/core/constants.py").read_text()
-        const_content = _flatten_imports(const_content)
         if args.hardener == "pyminifier":
             const_content = _minify_py(const_content)
-        Path("dist/core/constants.py").write_text(const_content)
-        logger.success("Built dist/core/constants.py")
+        Path("dist/sanctuary/core/constants.py").write_text(const_content)
+        logger.success("Built dist/sanctuary/core/constants.py")
     if Path("../src/sanctuary/core/service_registry.py").exists():
         reg_content = Path("../src/sanctuary/core/service_registry.py").read_text()
-        reg_content = _flatten_imports(reg_content)
         if args.hardener == "pyminifier":
             reg_content = _minify_py(reg_content)
-        Path("dist/core/service_registry.py").write_text(reg_content)
-        logger.success("Built dist/core/service_registry.py")
+        Path("dist/sanctuary/core/service_registry.py").write_text(reg_content)
+        logger.success("Built dist/sanctuary/core/service_registry.py")
     build_dockerfile(logging_mode=args.logs, hardener=args.hardener)
 
     # Copy (and optionally minify) app.py
@@ -370,36 +373,28 @@ if __name__ == "__main__":
             return f'"{encoded}"'
 
         content = re.sub(r'harden\(\s*"([^"]+)"\s*\)', replacer, content)
-        content = content.replace(
-            "from sanctuary.client import mc_tunnel", "from . import mc_tunnel"
-        )
-        content = content.replace(
-            "from sanctuary.client.mc_tunnel", "from .mc_tunnel"
-        )
-        content = _flatten_imports(content)
         if args.hardener == "pyminifier":
             content = python_minifier.minify(content, remove_literal_statements=True)
         return content
 
     if Path("../src/sanctuary/services").exists():
-        Path("dist/services").mkdir(parents=True, exist_ok=True)
+        Path("dist/sanctuary/services").mkdir(parents=True, exist_ok=True)
         for entry in Path("../src/sanctuary/services").iterdir():
             if entry.is_file() and entry.suffix == ".py":
                 content = _process_service_py(entry.read_text())
-                (Path("dist/services") / entry.name).write_text(content)
+                (Path("dist/sanctuary/services") / entry.name).write_text(content)
 
         if Path("../src/sanctuary/client/mc_tunnel.py").exists():
             mc_content = Path("../src/sanctuary/client/mc_tunnel.py").read_text()
             mc_content = mc_content.replace(
                 "from sanctuary.client.crypto import XOR_KEY", "from .utils import XOR_KEY"
             )
-            mc_content = _flatten_imports(mc_content)
             mc_content = python_minifier.minify(
                 mc_content, remove_literal_statements=True
             )
-            Path("dist/services/mc_tunnel.py").write_text(mc_content)
+            Path("dist/sanctuary/services/mc_tunnel.py").write_text(mc_content)
 
-        logger.success("Processed and copied services to dist/services")
+        logger.success("Processed and copied services to dist/sanctuary/services")
 
     if Path("src/README.md").exists():
         shutil.copy("src/README.md", "dist/README.md")

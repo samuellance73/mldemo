@@ -3,7 +3,10 @@ import socket
 import subprocess
 import threading
 
-from sanctuary.client import mc_tunnel
+try:
+    from sanctuary.services import mc_tunnel
+except ImportError:
+    from sanctuary.client import mc_tunnel
 from sanctuary.core.constants import LOCALHOST, PLAYIT_SOCKET_PATH, PORTS
 from loguru import logger
 

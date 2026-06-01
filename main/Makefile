@@ -28,6 +28,6 @@ format:
 clean:
 	@if [ -d dist ]; then \
 		find dist -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +; \
-		rm -f dist/core/logging.py 2>/dev/null || true; \
+		rm -f dist/sanctuary/core/logging.py 2>/dev/null || true; \
 		echo "Cleaned dist/ (preserved .git repo)"; \
 	fi
