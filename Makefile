@@ -14,7 +14,7 @@ build:
 
 # Build then deploy all nodes from the universal deploy script
 deploy: build
-	uv run python scripts/deploy.py
+	uv run python scripts/deploy.py $(if $(NODE),--node "$(NODE)")
 
 # Build, tag, authenticate, and push the camouflaged container to Docker Hub
 docker-push:

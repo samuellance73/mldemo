@@ -1,6 +1,7 @@
 import argparse
 import os
 import subprocess
+import json
 import sys
 from pathlib import Path
 
@@ -71,11 +72,11 @@ def main():
         )
         sys.exit(1)
 
-    # 2. Inject missing build-time files (e.g. whoami.txt)
-    whoami_file = dist_dir / "whoami.txt"
-    if not whoami_file.exists():
-        logger.info("Injecting dummy whoami.txt for Docker Hub build...")
-        whoami_file.write_text("dockerhub\n")
+    # 2. Inject missing build-time files (e.g. metadata.json)
+    metadata_file = dist_dir / "metadata.json"
+    if not metadata_file.exists():
+        logger.info("Injecting dummy metadata.json for Docker Hub build...")
+        metadata_file.write_text(json.dumps({"node_name": "dockerhub"}) + "\n")
 
     # 3. Build the Docker image
     logger.info(f"Building Docker image: {full_image_name}...")

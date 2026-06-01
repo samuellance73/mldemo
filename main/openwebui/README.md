@@ -1,55 +1,37 @@
 ---
-title: Sanctuary Open WebUI
-emoji: 🤖
-colorFrom: blue
-colorTo: red
+title: Open WebUI
+emoji: 💡
+colorFrom: gray
+colorTo: blue
 sdk: docker
-app_port: 7860
+sdk_version: "latest"
 pinned: false
 ---
 
-# Sanctuary Open WebUI 🤖
+# Open WebUI Docker Setup
 
-This is a standalone **Open WebUI** deployment designed to provide a ChatGPT-like interface for the Sanctuary LLM proxy backend.
+This directory contains the `Dockerfile` for setting up Open WebUI within your project.
 
-## 🚀 Deployment Instructions
+## Dockerfile
 
-This project is integrated into the Sanctuary monorepo automation pipeline.
+The `Dockerfile` uses the official `ghcr.io/open-webui/open-webui:main` image as its base. It exposes port `8080`, which is the default port for Open WebUI.
 
-### Prerequisites
-Make sure you have your target node configured in `manifests/nodes.yaml`:
+### Building the Docker Image
 
-```yaml
-  openwebui:
-    hf-repo: "your-username/openwebui-space"
-    token-env: "HF_TOKEN"
-    create-repo: true
-    space-sdk: docker
-    repo-type: space
-    custom-dir: "openwebui"
-```
+To build the Docker image, navigate to this directory in your terminal and run:
 
-### Build & Deploy
-Deploy this space using the main repository automation targets:
 ```bash
-make deploy
+docker build -t open-webui .
 ```
 
-## 🔧 Configuration
+### Running the Docker Container
 
-Open WebUI connects to the Sanctuary LLM proxy backend. Configure the following Space Secrets:
+After building, you can run the Open WebUI container using:
 
-- **`OPENAI_API_BASE_URL`**: The URL of your LLM proxy endpoint (e.g., `https://server-01.your-space.hf.space/v1/`)
-- **`OPENAI_API_KEY`**: Your LLM proxy API key (if required)
-- **`WEBUI_SECRET_KEY`**: Secret key for session management (generate a random string)
+```bash
+docker run -d -p 8080:8080 --name open-webui-container open-webui
+```
 
-## 📝 Features
+This will start the Open WebUI container in detached mode and map port 8080 of your host to port 8080 of the container.
 
-- ChatGPT-like interface for LLM interactions
-- Support for multiple LLM providers via the Sanctuary proxy
-- Conversation history management
-- Code highlighting and syntax support
-- Responsive design for web and mobile
-
-> [!NOTE]
-> This deployment uses the official Open WebUI Docker image and connects to the Sanctuary LLM proxy service running on backend nodes.
+You can then access Open WebUI in your web browser at `http://localhost:8080`.

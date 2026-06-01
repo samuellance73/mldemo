@@ -208,9 +208,8 @@ def build_dockerfile(logging_mode=1, hardener="pyminifier"):
     # For the dist build, files are at the root of dist/, not in src/
     content = content.replace("COPY --chown=user:user src/", "COPY --chown=user:user ")
 
-    # Inject whoami copy right before USER user (no bytecode RUN step needed —
-    # compilation is now done locally by uv with the pinned Python version)
-    injection = "COPY --chown=user:user whoami.txt /home/user/whoami.txt\n\nUSER user"
+    # Inject metadata.json copy right before USER user
+    injection = "COPY --chown=user:user metadata.json /home/user/metadata.json\\n\\nUSER user"
     content = content.replace("USER user", injection)
 
     # Strip comments

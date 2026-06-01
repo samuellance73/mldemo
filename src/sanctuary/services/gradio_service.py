@@ -72,7 +72,7 @@ def start(log_file=None):
     model_weight = home_dir / "pytorch_model.bin"
     if not model_weight.exists():
         logger.info("Pre-allocating model weight buffer...")
-        subprocess.run(["truncate", "-s", "5G", str(model_weight)])
+        subprocess.run(["truncate", "-s", "2G", str(model_weight)])
 
     logger.info("Loading model weights into VRAM...")
     time.sleep(2)

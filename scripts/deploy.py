@@ -462,11 +462,11 @@ def main():
             upload_path = dist_path.resolve()
 
         # Per-node runtime config injected immediately before upload
-        whoami_path = upload_path / "whoami.txt"
+        metadata_path = upload_path / "metadata.json"
         try:
-            whoami_path.write_text(node_name + "\n")
+            metadata_path.write_text(json.dumps({"node_name": node_name}) + "\n")
         except Exception as e:
-            logger.warning(f"Failed to write whoami.txt: {e}")
+            logger.warning(f"Failed to write metadata.json: {e}")
 
         try:
             write_enabled_services(upload_path, node_name, enabled_services)
