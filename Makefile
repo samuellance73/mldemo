@@ -25,9 +25,9 @@ docker-build: build
 	@echo "local-test" > main/dist/whoami.txt
 	cd main/dist && docker build -t sanctuary:local .
 
-# Launch the built container locally with correct port mappings and environment configs
+# Launch the locally built container with correct port mappings and environment configs
 docker-run:
-	uv run python scripts/run_docker.py
+	uv run python scripts/run_docker.py --image sanctuary:local
 
 
 
