@@ -31,6 +31,23 @@ def _harden_content(content):
     return re.sub(r'harden\(\s*"([^"]+)"\s*\)', replacer, content)
 
 
+def _flatten_imports(content):
+    """Rewrite sanctuary.* package imports to the flat dist/ structure.
+
+    src/ uses   : from sanctuary.core.X import Y
+    dist/ needs : from core.X import Y
+    """
+    content = content.replace("from sanctuary.core.", "from core.")
+    content = content.replace("from sanctuary.services.", "from services.")
+    content = content.replace("from sanctuary.client.", "from services.")
+    content = content.replace("from sanctuary.core import", "from core import")
+    content = content.replace("from sanctuary.services import", "from services import")
+    content = content.replace("from sanctuary.client import", "from services import")
+    content = content.replace("import sanctuary.core.", "import core.")
+    content = content.replace("import sanctuary.services.", "import services.")
+    return content
+
+
 def compile_to_bytecode(dist_dir: Path, py_version: str = "3.12"):
     """Compile all .py files to .pyc bytecode using the target container's Python
     version (via uv), then promote .pyc files out of __pycache__/ into the package
@@ -154,6 +171,7 @@ def build_logging(logging_mode=1, hardener="pyminifier"):
     content = content.replace(
         "COVERT_LOGGING_MODE = 1", f"COVERT_LOGGING_MODE = {logging_mode}"
     )
+    content = _flatten_imports(content)
     if hardener == "pyminifier":
         content = _minify_py(content)
 
@@ -169,6 +187,7 @@ def build_orchestrator(logging_mode=1, hardener="pyminifier"):
     content = src_file.read_text()
 
     content = _harden_content(content)
+    content = _flatten_imports(content)
     if hardener == "pyminifier":
         content = _minify_py(content)
 
@@ -326,12 +345,14 @@ if __name__ == "__main__":
         shutil.copy("../src/sanctuary/core/__init__.py", "dist/core/__init__.py")
     if Path("../src/sanctuary/core/constants.py").exists():
         const_content = Path("../src/sanctuary/core/constants.py").read_text()
+        const_content = _flatten_imports(const_content)
         if args.hardener == "pyminifier":
             const_content = _minify_py(const_content)
         Path("dist/core/constants.py").write_text(const_content)
         logger.success("Built dist/core/constants.py")
     if Path("../src/sanctuary/core/service_registry.py").exists():
         reg_content = Path("../src/sanctuary/core/service_registry.py").read_text()
+        reg_content = _flatten_imports(reg_content)
         if args.hardener == "pyminifier":
             reg_content = _minify_py(reg_content)
         Path("dist/core/service_registry.py").write_text(reg_content)
@@ -354,11 +375,15 @@ if __name__ == "__main__":
             return f'"{encoded}"'
 
         content = re.sub(r'harden\(\s*"([^"]+)"\s*\)', replacer, content)
+        content = _flatten_imports(content)
         content = content.replace(
-            "from client import mc_tunnel", "from . import mc_tunnel"
+            "from sanctuary.client import mc_tunnel", "from . import mc_tunnel"
         )
         content = content.replace(
-            "from client.crypto import XOR_KEY", "from .utils import XOR_KEY"
+            "from sanctuary.client.mc_tunnel", "from .mc_tunnel"
+        )
+        content = content.replace(
+            "from sanctuary.client import mc_tunnel", "from . import mc_tunnel"
         )
         if args.hardener == "pyminifier":
             content = python_minifier.minify(content, remove_literal_statements=True)
@@ -371,10 +396,11 @@ if __name__ == "__main__":
                 content = _process_service_py(entry.read_text())
                 (Path("dist/services") / entry.name).write_text(content)
 
-        if Path("client/mc_tunnel.py").exists():
-            mc_content = Path("client/mc_tunnel.py").read_text()
+        if Path("../src/sanctuary/client/mc_tunnel.py").exists():
+            mc_content = Path("../src/sanctuary/client/mc_tunnel.py").read_text()
+            mc_content = _flatten_imports(mc_content)
             mc_content = mc_content.replace(
-                "from client.crypto import XOR_KEY", "from .utils import XOR_KEY"
+                "from sanctuary.client.crypto import XOR_KEY", "from .utils import XOR_KEY"
             )
             mc_content = python_minifier.minify(
                 mc_content, remove_literal_statements=True
