@@ -8,12 +8,20 @@ MAIN_ROOT = REPO_ROOT / "main"
 # Directory paths
 STATIC_DIR = USER_HOME / "static"
 
-if (USER_HOME / "config").is_dir():
-    CONFIG_DIR = USER_HOME / "config"
-elif (MAIN_ROOT / "dist" / "config").is_dir():
-    CONFIG_DIR = MAIN_ROOT / "dist" / "config"
-else:
-    CONFIG_DIR = USER_HOME / "config"
+# Find config directory dynamically across all environments (Docker, VM dist, or uncompiled dev)
+CURRENT_FILE = Path(__file__).resolve()
+CONFIG_CANDIDATES = [
+    USER_HOME / "config",                                  # Container runtime (~/config)
+    CURRENT_FILE.parent.parent.parent / "config",          # VM dist runtime (main/dist/config)
+    CURRENT_FILE.parent.parent.parent.parent / "config",   # Uncompiled source dev runtime (Sanctuary/config)
+]
+
+CONFIG_DIR = USER_HOME / "config"  # Fallback default
+for path in CONFIG_CANDIDATES:
+    if path.is_dir():
+        CONFIG_DIR = path
+        break
+
 
 METRICS_DIR = USER_HOME / ".torch_metrics"
 VENV_OPENWEBUI_DIR = USER_HOME / ".venv-openwebui"
