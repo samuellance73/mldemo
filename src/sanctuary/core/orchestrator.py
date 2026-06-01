@@ -11,13 +11,13 @@ from pathlib import Path
 from loguru import logger
 from sanctuary.services.utils import unharden_secret
 
-from sanctuary.core.constants import LOCALHOST, PORTS
+from sanctuary.core.constants import LOCALHOST, PORTS, CONFIG_DIR
 from sanctuary.core.service_logs import setup_service_logs
 
 logger.info("--- BOOTING AI MODEL SERVER ---")
 
 
-ENABLED_SERVICES_PATH = str(Path.home() / "config" / "enabled_services.json")
+ENABLED_SERVICES_PATH = str(CONFIG_DIR / "enabled_services.json")
 
 
 def load_enabled_services():

@@ -7,7 +7,14 @@ MAIN_ROOT = REPO_ROOT / "main"
 
 # Directory paths
 STATIC_DIR = USER_HOME / "static"
-CONFIG_DIR = USER_HOME / "config"
+
+if (USER_HOME / "config").is_dir():
+    CONFIG_DIR = USER_HOME / "config"
+elif (MAIN_ROOT / "dist" / "config").is_dir():
+    CONFIG_DIR = MAIN_ROOT / "dist" / "config"
+else:
+    CONFIG_DIR = USER_HOME / "config"
+
 METRICS_DIR = USER_HOME / ".torch_metrics"
 VENV_OPENWEBUI_DIR = USER_HOME / ".venv-openwebui"
 FILEBROWSER_DB_PATH = USER_HOME / "filebrowser.db"
