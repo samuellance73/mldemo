@@ -9,7 +9,6 @@ def start(log_file, pwd=None):
 
     logger.info("Starting GOST (system-bridge) multiplexed websocket proxy...")
 
-    # The server runs locally behind Nginx, hence plain mws is used
     cmd = [
         "/usr/bin/system-bridge",
         "-L",

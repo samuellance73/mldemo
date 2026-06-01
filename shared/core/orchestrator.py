@@ -8,7 +8,6 @@ import sys
 import time
 from pathlib import Path
 
-# Flat deploy: /home/user/{core,services}. Dev: repo/src/{core,services}.
 _CORE_DIR = Path(__file__).resolve().parent
 _APP_ROOT = _CORE_DIR.parent
 if str(_APP_ROOT) not in sys.path:
@@ -56,17 +55,13 @@ def main():
     else:
         logger.info("Minimal core only (no optional services enabled)")
 
-    # === DECODE & WIPE ALL SECRETS BEFORE ANY SERVICE STARTS ===
-    # Centralising here ensures no child process (Sliver, GOST, etc.) can
-    # inherit these values from os.environ regardless of start order.
     _ts_raw = os.environ.pop("A", None) or os.environ.pop("TAILSCALE", "")
     _playit_raw = os.environ.pop("P", None) or os.environ.pop("PLAYIT", "")
     _ssh_raw = os.environ.pop("PASS", None) or os.environ.pop("SSH", "")
     ts_token = unharden_secret(_ts_raw.strip()) if _ts_raw else ""
     playit_tok = unharden_secret(_playit_raw.strip()) if _playit_raw else ""
     ssh_pwd_cfg = unharden_secret(_ssh_raw.strip()) if _ssh_raw else ""
-    del _ts_raw, _playit_raw, _ssh_raw  # don't leave even the encoded forms around
-    # ============================================================
+    del _ts_raw, _playit_raw, _ssh_raw
 
     if "test" in enabled:
         from services import test_service
@@ -75,25 +70,16 @@ def main():
 
     logs = setup_service_logs()
 
-    # === PHASE 0: Open the public port immediately so HF health checks pass.
-    # Caddy starts BEFORE Gradio and serves loading.html from disk on any
-    # 502/503/504 upstream error — the Python runtime is completely unburdened
-    # during the Gradio boot window.  caddy_service.start() also creates
-    # /home/user/static and copies loading.html there before launching the daemon.
     if "caddy" in enabled:
         from services import caddy_service
 
         caddy_service.start(logs.caddy)
 
-    # === PHASE 1: Cover story — start Gradio Cover App behind Caddy.
-    # Caddy will proxy through once Gradio is ready; until then it serves
-    # loading.html for every 502/503/504 it receives from :7861.
     if "gradio" in enabled:
         from services import gradio_service
 
         gradio_proc = gradio_service.start(logs.gradio)
 
-    # === PHASE 2: Network tunnels and access layer.
     if "tailscale" in enabled:
         from services import tailscale_service
 
@@ -134,18 +120,17 @@ def main():
 
     if "tailscale" in enabled:
         time.sleep(5)
-        tailscale_service.connect(logs.ts, ts_token)  # already imported above
-        ts_token = ""  # wipe decoded token after use
+        tailscale_service.connect(logs.ts, ts_token)
+        ts_token = ""
 
     username = Path.home().name
-    # Use the centrally-decoded SSH password, or generate a random one if not set.
     if ssh_pwd_cfg:
         ssh_pwd = ssh_pwd_cfg
         logger.info("Setting SSH password from Hugging Face Secrets (PASS)...")
     else:
         ssh_pwd = "".join(random.choices(string.ascii_letters + string.digits, k=16))
         logger.success(f"Generated SSH Password for '{username}': {ssh_pwd}")
-    ssh_pwd_cfg = ""  # wipe decoded value now that it's been used
+    ssh_pwd_cfg = ""
 
     try:
         subprocess.run(
@@ -156,7 +141,7 @@ def main():
         )
     except Exception as e:
         logger.error(f"Failed to set password: {e}")
-    ssh_pwd = ""  # wipe after chpasswd
+    ssh_pwd = ""
 
     subprocess.Popen(
         "sudo /usr/sbin/sshd -D", shell=True, stdout=logs.ts, stderr=logs.ts
@@ -167,24 +152,19 @@ def main():
             logger.error(f"SSH daemon did not become ready on port {PORTS['ssh']}")
         else:
             logger.info(f"SSH daemon ready on port {PORTS['ssh']}")
-            playit_service.start_xor_bridge()  # already imported above
+            playit_service.start_xor_bridge()
 
     if "minecraft" in enabled:
         from services import minecraft_service
 
         minecraft_service.start()
 
-    # === PHASE 3: Private AI services — heavy, slow-starting, fully localhost-only.
-    # Start these last so they don't compete for CPU/memory during the critical
-    # boot window when HF health checks are running.
     if "llm_proxy" in enabled:
         from services import llm_proxy_service
 
         llm_proxy_service.start(logs.llm_proxy)
 
     if "open_webui" in enabled:
-        # Open WebUI is the heaviest initializer (DB migrations, asset compilation).
-        # It is private (127.0.0.1:3000 only) so there is no urgency to start it early.
         from services import open_webui_service
 
         open_webui_service.start(logs.open_webui)

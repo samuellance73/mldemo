@@ -62,7 +62,6 @@ class LoguruSubprocessBridge:
 
 def setup_service_logs():
     """Initialize per-service log sinks based on COVERT_LOGGING_MODE."""
-    # Reset default Loguru handler to fully configure custom console and file outputs
     logger.remove()
 
     if COVERT_LOGGING_MODE in (1, 2):
@@ -84,7 +83,6 @@ def setup_service_logs():
             "gradio": ("GRADIO", "gradio.log"),
         }
 
-        # Route each service's bridged output exclusively to its respective file
         for key, (prefix, filename) in services_mapping.items():
             logger.add(
                 f"{METRICS_DIR}/{filename}",
@@ -95,7 +93,6 @@ def setup_service_logs():
             )
 
     if COVERT_LOGGING_MODE == 2:
-        # Route standard messages and bridged service outputs to console
         def formatter(record):
             if "prefix" in record["extra"]:
                 return "[{extra[prefix]}] {message}\n"
@@ -108,7 +105,6 @@ def setup_service_logs():
             enqueue=True,
         )
 
-    # Return a bridge handle for each service to be used in Popen/subprocess calls
     return ServiceLogs(
         ts=LoguruSubprocessBridge("TS"),
         fb=LoguruSubprocessBridge("FB"),

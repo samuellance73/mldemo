@@ -5,9 +5,6 @@ from pathlib import Path
 from core.constants import SLIVER_HOME
 from loguru import logger
 
-# Keys that Sliver legitimately needs. Explicitly allowlist rather than
-# passing the full os.environ, which may still contain decoded secrets
-# (PASS/SSH, etc.) at the time this service starts.
 _SLIVER_ENV_ALLOWLIST = ("HOME", "PATH", "USER", "SHELL", "LANG", "TERM")
 
 

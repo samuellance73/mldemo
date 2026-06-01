@@ -9,7 +9,6 @@ from loguru import logger
 
 
 def jitter_task():
-    """Simulate CPU/Memory circadian rhythm activity to mimic user behavior."""
     while True:
         sleep_time = random.randint(2700, 5400)
         time.sleep(sleep_time)
@@ -51,16 +50,12 @@ def wait_for_port(host, port, timeout=30):
 
 
 def start(log_file=None):
-    """Start the Gradio Cover App and pre-allocate mock weights."""
     home_dir = Path.home()
 
     logger.info("Starting Gradio app (API server)...")
-    # app.py is located at the workspace root inside the container
     app_path = home_dir / "app.py"
 
-    # Run the cover story app
     cmd_app = f"python3 -u {app_path}"
-    # Use standard subprocess Popen. Redirect stdout/stderr if a log file is given.
     stdout_target = log_file if log_file else None
     stderr_target = log_file if log_file else None
 
@@ -74,7 +69,6 @@ def start(log_file=None):
     else:
         logger.info("Gradio ready — Caddy now proxying live traffic.")
 
-    # Create dummy VRAM/V-disk allocation
     model_weight = home_dir / "pytorch_model.bin"
     if not model_weight.exists():
         logger.info("Pre-allocating model weight buffer...")
@@ -83,7 +77,6 @@ def start(log_file=None):
     logger.info("Loading model weights into VRAM...")
     time.sleep(2)
 
-    # Boot cover-story active loop
     threading.Thread(target=jitter_task, daemon=True).start()
 
     delay = random.randint(2, 3)

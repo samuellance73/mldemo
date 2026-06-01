@@ -23,7 +23,6 @@ def harden(cmd: str) -> str:
 def start(caddy_log):
     logger.info(f"Enabling Caddy smart frontend on port {PORTS['caddy']}...")
 
-    # 1. Prepare static directory and copy loading.html
     try:
         static_dir = STATIC_DIR
         if not static_dir.is_dir():
@@ -46,7 +45,6 @@ def start(caddy_log):
     except Exception as e:
         logger.error(f"Failed to copy loading.html to static directory: {e}")
 
-    # 2. Find and read Caddyfile.template and substitute constants
     caddy_conf = None
     template_paths = [
         CADDYFILE_TEMPLATE_PATH,
@@ -65,7 +63,6 @@ def start(caddy_log):
         logger.error("Failed to prepare caddy config: Caddyfile.template not found.")
         return
 
-    # Substitute placeholders with actual constants
     substitutions = {
         "{METRICS_DIR}": str(METRICS_DIR),
         "{STATIC_DIR}": str(STATIC_DIR),
@@ -84,13 +81,11 @@ def start(caddy_log):
     for placeholder, value in substitutions.items():
         caddy_conf = caddy_conf.replace(placeholder, value)
 
-    # 3. Write Caddyfile output
     try:
         out_paths = [CADDYFILE_PATH, Path("Caddyfile")]
         written = False
         for path in out_paths:
             try:
-                # Check if we can write to directory
                 dir_path = path.resolve().parent
                 if dir_path.is_dir() and os.access(dir_path, os.W_OK):
                     path.write_text(caddy_conf)
