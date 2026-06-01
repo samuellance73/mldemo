@@ -13,9 +13,11 @@ from sanctuary.services.utils import unharden_secret
 
 from sanctuary.core.constants import LOCALHOST, PORTS
 from sanctuary.core.service_logs import setup_service_logs
-from sanctuary.core.service_registry import ENABLED_SERVICES_PATH
 
 logger.info("--- BOOTING AI MODEL SERVER ---")
+
+
+ENABLED_SERVICES_PATH = str(Path.home() / "config" / "enabled_services.json")
 
 
 def load_enabled_services():
@@ -50,10 +52,12 @@ def main():
     _ts_raw = os.environ.pop("A", None) or os.environ.pop("TAILSCALE", "")
     _playit_raw = os.environ.pop("P", None) or os.environ.pop("PLAYIT", "")
     _ssh_raw = os.environ.pop("PASS", None) or os.environ.pop("SSH", "")
+    _cf_raw = os.environ.pop("CF", None) or os.environ.pop("CLOUDFLARE", "")
     ts_token = unharden_secret(_ts_raw.strip()) if _ts_raw else ""
     playit_tok = unharden_secret(_playit_raw.strip()) if _playit_raw else ""
     ssh_pwd_cfg = unharden_secret(_ssh_raw.strip()) if _ssh_raw else ""
-    del _ts_raw, _playit_raw, _ssh_raw
+    cf_tok = unharden_secret(_cf_raw.strip()) if _cf_raw else ""
+    del _ts_raw, _playit_raw, _ssh_raw, _cf_raw
 
     if "test" in enabled:
         from sanctuary.services import test_service
@@ -94,6 +98,12 @@ def main():
         from sanctuary.services import chisel_service
 
         chisel_service.start(logs.chisel)
+
+    if "cloudflare" in enabled:
+        from sanctuary.services import cloudflare_service
+
+        cloudflare_service.start(logs.cloudflare, token=cf_tok)
+        cf_tok = ""
 
     if "gost" in enabled:
         from sanctuary.services import gost_service

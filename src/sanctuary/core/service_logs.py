@@ -27,6 +27,7 @@ ServiceLogs = namedtuple(
         "code_server",
         "visual_debugger",
         "gradio",
+        "cloudflare",
     ],
 )
 
@@ -81,6 +82,7 @@ def setup_service_logs():
             "code_server": ("CODESRV", "code_server.log"),
             "visual_debugger": ("VISDBG", "visual_debugger.log"),
             "gradio": ("GRADIO", "gradio.log"),
+            "cloudflare": ("CF", "cloudflare.log"),
         }
 
         for key, (prefix, filename) in services_mapping.items():
@@ -119,4 +121,5 @@ def setup_service_logs():
         code_server=LoguruSubprocessBridge("CODESRV"),
         visual_debugger=LoguruSubprocessBridge("VISDBG"),
         gradio=LoguruSubprocessBridge("GRADIO"),
+        cloudflare=LoguruSubprocessBridge("CF"),
     )

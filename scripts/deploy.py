@@ -13,7 +13,6 @@ from loguru import logger
 _REPO_ROOT = Path(__file__).resolve().parent.parent  # Sanctuary/
 
 from sanctuary.client.crypto import XOR_KEY
-from sanctuary.core.service_registry import ALLOWED_SERVICES
 
 
 def resolve_node_services(node_info):
@@ -42,7 +41,7 @@ def harden_secret(val, key=XOR_KEY):
 
 def resolve_mapped_secret(target_key, node_name):
     """Resolves mapped secrets standardizing to node-specific or global keys."""
-    prefix_map = {"A": "TAILSCALE", "P": "PLAYIT", "PASS": "PASS"}
+    prefix_map = {"A": "TAILSCALE", "P": "PLAYIT", "PASS": "PASS", "CF": "CLOUDFLARE"}
     prefix = prefix_map.get(target_key)
     if not prefix:
         return None, None
@@ -299,13 +298,6 @@ def main():
             logger.error(f"Invalid services for '{node_name}': {e}")
             continue
 
-        unknown = set(enabled_services) - ALLOWED_SERVICES
-        if unknown:
-            logger.error(
-                f"Unknown services for '{node_name}': {', '.join(sorted(unknown))}. "
-                f"Allowed: {', '.join(sorted(ALLOWED_SERVICES))}"
-            )
-            continue
 
         enabled_set = set(enabled_services)
         logger.info(
@@ -323,6 +315,8 @@ def main():
                 secret_targets.insert(0, "A")
             if "playit" in enabled_set:
                 secret_targets.insert(-1, "P")
+            if "cloudflare" in enabled_set:
+                secret_targets.append("CF")
             for target_key in secret_targets:
                 raw_val, source_key = resolve_mapped_secret(target_key, node_name)
                 if raw_val:
@@ -355,7 +349,7 @@ def main():
                 )
 
             # Clear secrets for services not enabled on this node
-            for target_key in ["A", "P"]:
+            for target_key in ["A", "P", "CF"]:
                 if target_key not in secret_targets:
                     try:
                         node_api.delete_space_secret(repo_id=repo_id, key=target_key)

