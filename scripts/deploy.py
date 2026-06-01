@@ -11,15 +11,9 @@ from huggingface_hub import HfApi
 from loguru import logger
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent  # Sanctuary/
-_MAIN_ROOT = _REPO_ROOT / "main"  # Sanctuary/main/
-_SRC_ROOT = _MAIN_ROOT / "src"  # Sanctuary/main/src/
-_SHARED_ROOT = _REPO_ROOT / "shared"  # Sanctuary/shared/
-for _p in (_SRC_ROOT, _MAIN_ROOT, _SHARED_ROOT):
-    if str(_p) not in sys.path:
-        sys.path.insert(0, str(_p))
 
-from client.crypto import XOR_KEY
-from core.service_registry import ALLOWED_SERVICES
+from sanctuary.client.crypto import XOR_KEY
+from sanctuary.core.service_registry import ALLOWED_SERVICES
 
 
 def resolve_node_services(node_info):

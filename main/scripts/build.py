@@ -148,7 +148,7 @@ def compile_to_bytecode(dist_dir: Path, py_version: str = "3.12"):
 
 
 def build_logging(logging_mode=1, hardener="pyminifier"):
-    src_file = Path("../shared/core/service_logs.py")
+    src_file = Path("../src/sanctuary/core/service_logs.py")
     content = src_file.read_text()
 
     content = content.replace(
@@ -165,7 +165,7 @@ def build_logging(logging_mode=1, hardener="pyminifier"):
 
 
 def build_orchestrator(logging_mode=1, hardener="pyminifier"):
-    src_file = Path("../shared/core/orchestrator.py")
+    src_file = Path("../src/sanctuary/core/orchestrator.py")
     content = src_file.read_text()
 
     content = _harden_content(content)
@@ -179,7 +179,7 @@ def build_orchestrator(logging_mode=1, hardener="pyminifier"):
         if logging_mode == 1
         else ("Console + File" if logging_mode == 2 else "DISABLED")
     )
-    logger.success(f"Built core/ from shared/core/ (Logging: {mode_str})")
+    logger.success(f"Built core/ from src/sanctuary/core/ (Logging: {mode_str})")
 
 
 def build_dockerfile(logging_mode=1, hardener="pyminifier"):
@@ -311,27 +311,27 @@ if __name__ == "__main__":
     repo_root = Path(__file__).resolve().parent.parent
     os.chdir(repo_root)
     if (
-        not Path("../shared/core/orchestrator.py").exists()
+        not Path("../src/sanctuary/core/orchestrator.py").exists()
         or not Path("Dockerfile").exists()
     ):
         logger.error(
-            "Source files missing! Please ensure shared/core/orchestrator.py and Dockerfile exist."
+            "Source files missing! Please ensure src/sanctuary/core/orchestrator.py and Dockerfile exist."
         )
         sys.exit(1)
 
     build_logging(logging_mode=args.logs, hardener=args.hardener)
     build_orchestrator(logging_mode=args.logs, hardener=args.hardener)
     Path("dist/core").mkdir(parents=True, exist_ok=True)
-    if Path("../shared/core/__init__.py").exists():
-        shutil.copy("../shared/core/__init__.py", "dist/core/__init__.py")
-    if Path("../shared/core/constants.py").exists():
-        const_content = Path("../shared/core/constants.py").read_text()
+    if Path("../src/sanctuary/core/__init__.py").exists():
+        shutil.copy("../src/sanctuary/core/__init__.py", "dist/core/__init__.py")
+    if Path("../src/sanctuary/core/constants.py").exists():
+        const_content = Path("../src/sanctuary/core/constants.py").read_text()
         if args.hardener == "pyminifier":
             const_content = _minify_py(const_content)
         Path("dist/core/constants.py").write_text(const_content)
         logger.success("Built dist/core/constants.py")
-    if Path("../shared/core/service_registry.py").exists():
-        reg_content = Path("../shared/core/service_registry.py").read_text()
+    if Path("../src/sanctuary/core/service_registry.py").exists():
+        reg_content = Path("../src/sanctuary/core/service_registry.py").read_text()
         if args.hardener == "pyminifier":
             reg_content = _minify_py(reg_content)
         Path("dist/core/service_registry.py").write_text(reg_content)
@@ -364,9 +364,9 @@ if __name__ == "__main__":
             content = python_minifier.minify(content, remove_literal_statements=True)
         return content
 
-    if Path("../shared/services").exists():
+    if Path("../src/sanctuary/services").exists():
         Path("dist/services").mkdir(parents=True, exist_ok=True)
-        for entry in Path("../shared/services").iterdir():
+        for entry in Path("../src/sanctuary/services").iterdir():
             if entry.is_file() and entry.suffix == ".py":
                 content = _process_service_py(entry.read_text())
                 (Path("dist/services") / entry.name).write_text(content)
