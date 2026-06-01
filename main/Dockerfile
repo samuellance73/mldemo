@@ -1,4 +1,4 @@
-FROM ubuntu:24.04 
+FROM docker.io/library/ubuntu:24.04
 
 # Use uv for extremely fast installs
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/

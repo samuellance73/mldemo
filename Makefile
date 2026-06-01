@@ -1,4 +1,4 @@
-.PHONY: all build deploy clean lint lint-fix format
+.PHONY: all build deploy docker-push clean lint lint-fix format
 
 # Default covert logging level to forward (0=Disabled, 1=File, 2=Console+File)
 LOGS ?= 2
@@ -15,6 +15,11 @@ build:
 # Build then deploy all nodes from the universal deploy script
 deploy: build
 	uv run python scripts/deploy.py
+
+# Build, tag, authenticate, and push the camouflaged container to Docker Hub
+docker-push:
+	uv run python scripts/push_docker.py
+
 
 # Delegate linting to main/ (uv finds pyproject.toml at root)
 lint:
