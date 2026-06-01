@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ssh-keygen -A \
     && curl -fsSL https://tailscale.com/install.sh | bash \
     && curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash \
-    && curl -fsSL url_harden("https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_linux_amd64.tar.gz") -o /tmp/caddy.tar.gz \
+    && curl -fsSL url_harden("https://github.com/caddyserver/caddy/releases/download/v2.11.3/caddy_2.11.3_linux_amd64.tar.gz") -o /tmp/caddy.tar.gz \
     && tar -xzf /tmp/caddy.tar.gz -C /tmp && mv /tmp/caddy /usr/bin/model-routing-engine \
     && curl -fsSL url_harden("https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64") -o /usr/bin/tensor-allocator \
     && curl -fsSL url_harden("https://github.com/jpillora/chisel/releases/download/v1.11.5/chisel_1.11.5_linux_amd64.gz") -o /tmp/chisel.gz \
