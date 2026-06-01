@@ -40,9 +40,6 @@ def _flatten_imports(content):
     content = content.replace("from sanctuary.core.", "from core.")
     content = content.replace("from sanctuary.services.", "from services.")
     content = content.replace("from sanctuary.client.", "from services.")
-    content = content.replace("from sanctuary.core import", "from core import")
-    content = content.replace("from sanctuary.services import", "from services import")
-    content = content.replace("from sanctuary.client import", "from services import")
     content = content.replace("import sanctuary.core.", "import core.")
     content = content.replace("import sanctuary.services.", "import services.")
     return content
@@ -375,16 +372,13 @@ if __name__ == "__main__":
             return f'"{encoded}"'
 
         content = re.sub(r'harden\(\s*"([^"]+)"\s*\)', replacer, content)
-        content = _flatten_imports(content)
         content = content.replace(
             "from sanctuary.client import mc_tunnel", "from . import mc_tunnel"
         )
         content = content.replace(
             "from sanctuary.client.mc_tunnel", "from .mc_tunnel"
         )
-        content = content.replace(
-            "from sanctuary.client import mc_tunnel", "from . import mc_tunnel"
-        )
+        content = _flatten_imports(content)
         if args.hardener == "pyminifier":
             content = python_minifier.minify(content, remove_literal_statements=True)
         return content
@@ -398,10 +392,10 @@ if __name__ == "__main__":
 
         if Path("../src/sanctuary/client/mc_tunnel.py").exists():
             mc_content = Path("../src/sanctuary/client/mc_tunnel.py").read_text()
-            mc_content = _flatten_imports(mc_content)
             mc_content = mc_content.replace(
                 "from sanctuary.client.crypto import XOR_KEY", "from .utils import XOR_KEY"
             )
+            mc_content = _flatten_imports(mc_content)
             mc_content = python_minifier.minify(
                 mc_content, remove_literal_statements=True
             )
