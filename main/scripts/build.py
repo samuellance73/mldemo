@@ -37,11 +37,9 @@ def _flatten_imports(content):
     src/ uses   : from sanctuary.core.X import Y
     dist/ needs : from core.X import Y
     """
-    content = content.replace("from sanctuary.core.", "from core.")
-    content = content.replace("from sanctuary.services.", "from services.")
-    content = content.replace("from sanctuary.client.", "from services.")
-    content = content.replace("import sanctuary.core.", "import core.")
-    content = content.replace("import sanctuary.services.", "import services.")
+    content = re.sub(r'\bsanctuary\.core\b', 'core', content)
+    content = re.sub(r'\bsanctuary\.services\b', 'services', content)
+    content = re.sub(r'\bsanctuary\.client\b', 'services', content)
     return content
 
 
