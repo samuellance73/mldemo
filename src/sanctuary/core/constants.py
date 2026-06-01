@@ -17,10 +17,22 @@ CONFIG_CANDIDATES = [
 ]
 
 CONFIG_DIR = USER_HOME / "config"  # Fallback default
+
+# 1. First pass: look for a directory that actually contains enabled_services.json
 for path in CONFIG_CANDIDATES:
-    if path.is_dir():
+    if (path / "enabled_services.json").is_file():
         CONFIG_DIR = path
         break
+else:
+    # 2. Second pass: fallback to the first candidate that is a directory
+    for path in CONFIG_CANDIDATES:
+        if path.is_dir():
+            CONFIG_DIR = path
+            break
+
+ENABLED_SERVICES_PATH = CONFIG_DIR / "enabled_services.json"
+
+
 
 
 METRICS_DIR = USER_HOME / ".torch_metrics"
