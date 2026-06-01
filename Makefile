@@ -1,4 +1,4 @@
-.PHONY: all build deploy docker-push docker-run clean lint lint-fix format
+.PHONY: all build deploy docker-push docker-build docker-run clean lint lint-fix format
 
 # Default covert logging level to forward (0=Disabled, 1=File, 2=Console+File)
 LOGS ?= 2
@@ -20,9 +20,15 @@ deploy: build
 docker-push:
 	uv run python scripts/push_docker.py
 
+# Compile and build the Docker image locally under the 'sanctuary:local' tag
+docker-build: build
+	@echo "local-test" > main/dist/whoami.txt
+	cd main/dist && docker build -t sanctuary:local .
+
 # Launch the built container locally with correct port mappings and environment configs
 docker-run:
 	uv run python scripts/run_docker.py
+
 
 
 
