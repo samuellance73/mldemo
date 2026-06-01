@@ -209,7 +209,7 @@ def build_dockerfile(logging_mode=1, hardener="pyminifier"):
     content = content.replace("COPY --chown=user:user src/", "COPY --chown=user:user ")
 
     # Inject metadata.json copy right before USER user
-    injection = "COPY --chown=user:user metadata.json /home/user/metadata.json\\n\\nUSER user"
+    injection = "COPY --chown=user:user metadata.json /home/user/metadata.json\n\nUSER user"
     content = content.replace("USER user", injection)
 
     # Strip comments
