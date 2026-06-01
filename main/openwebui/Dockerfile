@@ -35,8 +35,8 @@ EXPOSE 7860
 EXPOSE 41641/udp
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:7860/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-7860}/health || exit 1
 
 # Start script to run both services
 COPY start.sh /start.sh

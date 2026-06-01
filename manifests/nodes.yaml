@@ -17,3 +17,11 @@ nodes:
     repo-type: space
     services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "llm_proxy", "gradio"]
 #    services: ["caddy", "filebrowser","chisel", "gost", "visual_debugger"]
+  openwebui:
+    hf-repo: "AlisaAjer/openwebui"
+    token-env: "HF2"
+    push-secrets: false
+    create-repo: true
+    space-sdk: docker
+    repo-type: space
+    custom-dir: "openwebui"

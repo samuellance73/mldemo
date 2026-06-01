@@ -19,7 +19,12 @@ logger.info("--- BOOTING AI MODEL SERVER ---")
 
 
 def load_enabled_services():
-    """Load per-node service list written at deploy time."""
+    """Load per-node service list written at deploy time, allowing env overrides."""
+    env_services = os.environ.get("SERVICES")
+    if env_services:
+        logger.info("Using services configuration from environment: {}", env_services)
+        return frozenset(s.strip().lower() for s in env_services.split(",") if s.strip())
+
     try:
         with open(ENABLED_SERVICES_PATH, "r") as f:
             data = json.load(f)
