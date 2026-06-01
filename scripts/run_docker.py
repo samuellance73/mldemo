@@ -101,19 +101,19 @@ def main():
     master_key = os.getenv("LITELLM_MASTER_KEY") or ""
 
     # 4. Start the container with appropriate arguments
+    # Port mapping: container_port → host_port (Cloud Shell Web Preview supports
+    # 8080, 8081, 8082, 8083, 8084 and a handful of others like 3000, 4200, 5000)
     logger.info(f"Spawning container '{args.name}' from '{image_name}'...")
     run_cmd = [
-        "docker",
-        "run",
-        "-d",
-        "--name",
-        args.name,
-        "-p",
-        f"{args.port}:7860",
-        "-p",
-        f"{args.ssh_port}:2222",
-        "-e",
-        f"PASS={pass_cfg}",
+        "docker", "run", "-d",
+        "--name", args.name,
+        "-p", f"{args.port}:7860",       # Caddy public gateway → 8080
+        "-p", f"{args.ssh_port}:2222",   # SSH admin shell    → 2222
+        "-p", "8081:6801",               # Filebrowser        → 8081
+        "-p", "8082:7861",               # Gradio cover app   → 8082
+        "-p", "8083:8080",               # LiteLLM proxy      → 8083
+        "-p", "3000:3000",               # Open WebUI         → 3000
+        "-e", f"PASS={pass_cfg}",
     ]
     if ts_key:
         run_cmd.extend(["-e", f"TAILSCALE={ts_key}"])
@@ -133,13 +133,16 @@ def main():
 
     # 5. Print a connection guide
     logger.info("================================================================")
-    logger.info("🖥️  CONNECTION PORTS & LINKS (LOCAL HOST / CLOUD SHELL):")
+    logger.info("🖥️  CONNECTION GUIDE (localhost / Cloud Shell Web Preview):")
     logger.info("================================================================")
-    logger.info(f"🔗 Public Web Gateway: http://localhost:{args.port}")
-    logger.info(f"   (Or use Google Cloud Shell Web Preview on port {args.port})")
+    logger.info(f"🔗 Caddy  : http://localhost:{args.port} (preview: {args.port})")
+    logger.info("📁 Filebrowser    : http://localhost:8081            (preview: 8081)")
+    logger.info("🤖 Gradio App     : http://localhost:8082            (preview: 8082)")
+    logger.info("🧠 LiteLLM Proxy  : http://localhost:8083            (preview: 8083)")
+    logger.info("💬 Open WebUI     : http://localhost:3000            (preview: 3000)")
     logger.info(
-        f"🔑 SSH Admin Shell  : ssh user@localhost -p {args.ssh_port} "
-        f"(Password: '{pass_cfg}')"
+        f"🔑 SSH Shell      : ssh user@localhost -p {args.ssh_port} "
+        f"(password: '{pass_cfg}')"
     )
     logger.info("================================================================")
 
