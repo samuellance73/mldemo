@@ -55,7 +55,7 @@ LOCALHOST = "127.0.0.1"
 PORTS = {
     "caddy": 7860,
     "caddy_secondary": 7890,
-    "gradio": 7861,
+    "portal": 7861,
     "ssh": 2222,
     "chisel": 6789,
     "gost": 6790,

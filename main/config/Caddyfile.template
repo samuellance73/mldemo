@@ -61,10 +61,10 @@
         reverse_proxy {LOCALHOST}:{VISUAL_DEBUGGER_PORT}
     }
 
-    # Default: route all other public traffic to Gradio (port {GRADIO_PORT})
+    # Default: route all other public traffic to FastAPI + React (port {PORTAL_PORT})
     handle {
-        reverse_proxy {LOCALHOST}:{GRADIO_PORT} {
-            # Inform Gradio of the real scheme so it generates https:// asset URLs.
+        reverse_proxy {LOCALHOST}:{PORTAL_PORT} {
+            # Inform the server of the real scheme so it generates correct https:// asset URLs.
             header_up X-Forwarded-Proto https
         }
     }

@@ -74,10 +74,7 @@ def main():
 
         caddy_service.start(logs.caddy)
 
-    if "gradio" in enabled:
-        from sanctuary.services import gradio_service
 
-        gradio_proc = gradio_service.start(logs.gradio)
 
     if "tailscale" in enabled:
         from sanctuary.services import tailscale_service
@@ -187,14 +184,11 @@ def main():
     logger.success("Model loaded successfully. Background services active.")
     logger.info("Background services are active.")
 
-    if "gradio" in enabled and "gradio_proc" in locals():
-        gradio_proc.wait()
-    else:
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            logger.info("Shutting down orchestrator...")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        logger.info("Shutting down orchestrator...")
 
 
 if __name__ == "__main__":

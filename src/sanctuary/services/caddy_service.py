@@ -76,7 +76,7 @@ def start(caddy_log):
         "{LLM_PROXY_PORT}": str(PORTS["llm_proxy"]),
         "{FILEBROWSER_PORT}": str(PORTS["filebrowser"]),
         "{VISUAL_DEBUGGER_PORT}": str(PORTS["visual_debugger"]),
-        "{GRADIO_PORT}": str(PORTS["gradio"]),
+
     }
 
     for placeholder, value in substitutions.items():

@@ -26,7 +26,7 @@ ServiceLogs = namedtuple(
         "llm_proxy",
         "code_server",
         "visual_debugger",
-        "gradio",
+        "portal",             # Renamed from "gradio"
         "cloudflare",
     ],
 )
@@ -81,7 +81,7 @@ def setup_service_logs():
             "llm_proxy": ("LITELLM", "llm_proxy.log"),
             "code_server": ("CODESRV", "code_server.log"),
             "visual_debugger": ("VISDBG", "visual_debugger.log"),
-            "gradio": ("GRADIO", "gradio.log"),
+            "portal": ("APP", "portal.log"), # Renamed from "gradio"
             "cloudflare": ("CF", "cloudflare.log"),
         }
 
@@ -120,6 +120,6 @@ def setup_service_logs():
         llm_proxy=LoguruSubprocessBridge("LITELLM"),
         code_server=LoguruSubprocessBridge("CODESRV"),
         visual_debugger=LoguruSubprocessBridge("VISDBG"),
-        gradio=LoguruSubprocessBridge("GRADIO"),
+        portal=LoguruSubprocessBridge("APP"),
         cloudflare=LoguruSubprocessBridge("CF"),
     )

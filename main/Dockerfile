@@ -45,7 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install AI dependencies using uv
 RUN uv pip install --system --break-system-packages --no-cache-dir \
-    gradio huggingface_hub loguru urllib3 uvicorn fastapi
+    huggingface_hub loguru urllib3 uvicorn fastapi
 
 # Download a tiny model config for mimicry
 RUN python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='gpt2', filename='config.json')"
