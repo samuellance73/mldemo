@@ -107,12 +107,13 @@ def main():
     run_cmd = [
         "docker", "run", "-d",
         "--name", args.name,
-        "-p", f"{args.port}:7860",       # Caddy public gateway → 8080
-        "-p", f"{args.ssh_port}:2222",   # SSH admin shell    → 2222
-        "-p", "9000:9000",               # Filebrowser
-        "-p", "8082:7861",               # Gradio cover app   → 8082
-        "-p", "8083:8080",               # LiteLLM proxy      → 8083
-        "-p", "3000:3000",               # Open WebUI         → 3000
+        "-p", "7860:7860",       # Caddy public gateway 1:1
+        "-p", "2222:2222",       # SSH admin shell 1:1
+        "-p", "9000:9000",       # Filebrowser 1:1
+        "-p", "7861:7861",       # Gradio cover app 1:1
+        "-p", "8080:8080",       # LiteLLM proxy 1:1
+        "-p", "3000:3000",       # Open WebUI 1:1
+        "-p", "8501:8501",       # VNC display 1:1
         "-e", f"PASS={pass_cfg}",
     ]
     if ts_key:
