@@ -8,7 +8,7 @@ from sanctuary.client.gost_client import run_gost_client
 
 CACHE_DIR = Path("~/.cache/sanctuary/ligolo").expanduser()
 HUB_MESH_PATH = "/tensor-mesh"
-WEB_UI_PORT = 6801
+WEB_UI_PORT = 9000
 
 
 def _cache_path(name):

@@ -1,7 +1,9 @@
-FROM ghcr.io/open-webui/open-webui:main
+FROM ghcr.io/open-webui/open-webui:main-slim
 
 # Expose the port Open WebUI runs on
-EXPOSE 8080
+EXPOSE 7860
+
+ENV PORT=7860
 
 # You can add further customizations here if needed
 # For example, copying custom configurations or models

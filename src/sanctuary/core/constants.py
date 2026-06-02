@@ -62,7 +62,7 @@ PORTS = {
     "model_sync": 6795,
     "sliver": 11601,
     "llm_proxy": 8080,
-    "filebrowser": 6801,
+    "filebrowser": 9000,
     "socks_proxy": 1080,
     "playit_xor_bridge": 25565,
     "minecraft": 25566,

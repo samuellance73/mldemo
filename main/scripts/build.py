@@ -342,6 +342,11 @@ if __name__ == "__main__":
     else:
         Path("dist/sanctuary/services/__init__.py").write_text("")
 
+    if Path("../src/sanctuary/common/__init__.py").exists():
+        shutil.copy("../src/sanctuary/common/__init__.py", "dist/sanctuary/common/__init__.py")
+    else:
+        Path("dist/sanctuary/common/__init__.py").write_text("")
+
     if Path("../src/sanctuary/core/constants.py").exists():
         const_content = Path("../src/sanctuary/core/constants.py").read_text()
         if args.hardener == "pyminifier":
@@ -394,6 +399,16 @@ if __name__ == "__main__":
             Path("dist/sanctuary/services/mc_tunnel.py").write_text(mc_content)
 
         logger.success("Processed and copied services to dist/sanctuary/services")
+
+    if Path("../src/sanctuary/common").exists():
+        Path("dist/sanctuary/common").mkdir(parents=True, exist_ok=True)
+        for entry in Path("../src/sanctuary/common").iterdir():
+            if entry.is_file() and entry.suffix == ".py":
+                content = entry.read_text()
+                if args.hardener == "pyminifier":
+                    content = python_minifier.minify(content, remove_literal_statements=True)
+                (Path("dist/sanctuary/common") / entry.name).write_text(content)
+        logger.success("Processed and copied common to dist/sanctuary/common")
 
     if Path("src/README.md").exists():
         shutil.copy("src/README.md", "dist/README.md")

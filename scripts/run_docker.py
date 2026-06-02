@@ -109,7 +109,7 @@ def main():
         "--name", args.name,
         "-p", f"{args.port}:7860",       # Caddy public gateway → 8080
         "-p", f"{args.ssh_port}:2222",   # SSH admin shell    → 2222
-        "-p", "8081:6801",               # Filebrowser        → 8081
+        "-p", "9000:9000",               # Filebrowser
         "-p", "8082:7861",               # Gradio cover app   → 8082
         "-p", "8083:8080",               # LiteLLM proxy      → 8083
         "-p", "3000:3000",               # Open WebUI         → 3000

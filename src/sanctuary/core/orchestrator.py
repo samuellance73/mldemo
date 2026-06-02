@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 from loguru import logger
-from sanctuary.services.utils import unharden_secret
+from sanctuary.common.utils import unharden_secret
 
 from sanctuary.core.constants import LOCALHOST, PORTS, ENABLED_SERVICES_PATH
 from sanctuary.core.service_logs import setup_service_logs

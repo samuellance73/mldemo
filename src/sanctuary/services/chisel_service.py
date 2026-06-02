@@ -1,6 +1,6 @@
 import subprocess
 
-from sanctuary.services.utils import decode_cmd
+from sanctuary.common.utils import decode_cmd
 
 
 def harden(cmd: str) -> str:

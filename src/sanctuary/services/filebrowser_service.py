@@ -3,7 +3,7 @@ import subprocess
 
 from sanctuary.core.constants import FILEBROWSER_DB_PATH, USER_HOME
 
-from sanctuary.services.utils import decode_cmd
+from sanctuary.common.utils import decode_cmd
 
 
 def harden(cmd: str) -> str:

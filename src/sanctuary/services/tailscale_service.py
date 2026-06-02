@@ -7,7 +7,7 @@ from pathlib import Path
 from sanctuary.core.constants import TAILSCALE_SOCKET_PATH, TAILSCALE_STATE_DIR
 from loguru import logger
 
-from sanctuary.services.utils import decode_cmd
+from sanctuary.common.utils import decode_cmd
 
 
 def harden(cmd: str) -> str:

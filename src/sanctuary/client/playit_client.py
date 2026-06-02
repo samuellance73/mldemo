@@ -3,7 +3,7 @@ import sys
 import threading
 
 from sanctuary.client import mc_tunnel
-from sanctuary.client.common import log_debug, log_error, log_info, pipe
+from sanctuary.common.common import log_debug, log_error, log_info, pipe
 
 
 def probe_relay(host, port, timeout=5.0):

@@ -10,7 +10,7 @@ except ImportError:
 from sanctuary.core.constants import LOCALHOST, PLAYIT_SOCKET_PATH, PORTS
 from loguru import logger
 
-from sanctuary.services.utils import decode_cmd
+from sanctuary.common.utils import decode_cmd
 
 
 def harden(cmd: str) -> str:

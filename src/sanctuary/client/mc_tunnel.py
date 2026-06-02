@@ -7,7 +7,7 @@ import struct
 import threading
 import uuid
 
-from sanctuary.client.crypto import XOR_KEY
+from sanctuary.common.utils import XOR_KEY
 
 PROTOCOL_VERSION = 763
 TUNNEL_CHANNEL = "bungeecord:main"

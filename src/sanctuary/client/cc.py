@@ -5,11 +5,11 @@ import sys
 import time
 from pathlib import Path
 
-import sanctuary.client.common as common
+import sanctuary.common.common as common
 import sanctuary.client.node as node_cmd
 from sanctuary.client import ligolo_client
 from sanctuary.client.chisel_client import run_chisel_client
-from sanctuary.client.common import get_node_url
+from sanctuary.common.common import get_node_url
 from sanctuary.client.gost_client import run_gost_client
 from sanctuary.client.playit_client import run_probe, start_playit_bridge
 from sanctuary.core.constants import LOCALHOST, PORTS
@@ -189,7 +189,7 @@ def main():
     hub_parser.add_argument(
         "-L",
         dest="local_forward",
-        help="Port forward via chisel/gost (e.g., 6801:127.0.0.1:6801 for Web UI)",
+        help="Port forward via chisel/gost (e.g., 9000:127.0.0.1:9000 for Web UI)",
     )
     hub_parser.add_argument(
         "--auth",

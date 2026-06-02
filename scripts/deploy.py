@@ -12,7 +12,7 @@ from loguru import logger
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent  # Sanctuary/
 
-from sanctuary.client.crypto import XOR_KEY
+from sanctuary.common.utils import XOR_KEY
 
 
 def resolve_node_services(node_info):

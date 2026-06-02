@@ -12,7 +12,7 @@ from sanctuary.core.constants import (
 )
 from loguru import logger
 
-from sanctuary.services.utils import unharden_secret
+from sanctuary.common.utils import unharden_secret
 
 PORT = PORTS["llm_proxy"]
 PREFIX = "[llm-proxy]"

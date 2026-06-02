@@ -6,7 +6,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from sanctuary.services.utils import decode_cmd
+from sanctuary.common.utils import decode_cmd
 
 PREFIX = "[VISDBG]"
 
