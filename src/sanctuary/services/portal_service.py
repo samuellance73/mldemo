@@ -12,7 +12,7 @@ from sanctuary.core.constants import USER_HOME, REPO_ROOT, PORTS
 
 
 def wait_for_port(host, port, timeout=30):
-    """Polls the target port until it accepts connections or hits the timeout.""g"
+    """Polls the target port until it accepts connections or hits the timeout."""
     start = time.time()
     while time.time() - start < timeout:
         try:
@@ -28,7 +28,7 @@ def preallocate_weight_buffer(dest_path: Path, size_gb: int = 2):
     if dest_path.exists():
         return
 
-    logger.info(f"Pre-allocating mock weight buffer ({size_gb} GB sparse file)...")
+    logger.info(f"Pre-allocating weight buffer ({size_gb} GB sparse file)...")
     try:
         # Cross-platform sparse allocation (works on Linux, Windows, and macOS)
         dest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -37,7 +37,7 @@ def preallocate_weight_buffer(dest_path: Path, size_gb: int = 2):
             f.write(b"\0")
         logger.info("Weight buffer pre-allocation completed.")
     except Exception as e:
-        logger.warning(f"Failed to pre-allocate mock weight buffer: {e}")
+        logger.warning(f"Failed to pre-allocate weight buffer: {e}")
 
 
 def jitter_task():
@@ -74,7 +74,7 @@ def jitter_task():
 
 
 def start(log_file=None):
-    """Launches the backend FastAPI-based gateway application."""
+    
     port = PORTS.get("portal", 7861)
     logger.info("Resolving system path for portal application (app.py)...")
 

@@ -26,7 +26,7 @@ ServiceLogs = namedtuple(
         "llm_proxy",
         "code_server",
         "visual_debugger",
-        "portal",             # Renamed from "gradio"
+        "portal",             
         "cloudflare",
         "storage_sync",
         "state_sync",
@@ -87,6 +87,7 @@ def setup_service_logs():
             "cloudflare": ("CF", "cloudflare.log"),
             "storage_sync": ("STORAGE_SYNC", "storage_sync.log"),
             "state_sync": ("STATE_SYNC", "state_sync.log"),
+
         }
 
         for key, (prefix, filename) in services_mapping.items():
@@ -127,4 +128,5 @@ def setup_service_logs():
         portal=LoguruSubprocessBridge("APP"),
         cloudflare=LoguruSubprocessBridge("CF"),
         storage_sync=LoguruSubprocessBridge("STORAGE_SYNC"),
+        state_sync=LoguruSubprocessBridge("STATE_SYNC"),
     )

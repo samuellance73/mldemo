@@ -4,16 +4,12 @@ import sys
 import threading
 import time
 from pathlib import Path
-from dotenv import load_dotenv
 
 # Import your corrected storage sync service
 from sanctuary.services import storage_sync_service
 
-# Load environment configurations
-load_dotenv()
-
 # Configuration Constants
-SYNC_INTERVAL_SECONDS = 1800  # 30 minutes
+SYNC_INTERVAL_SECONDS = 120  # 30 minutes
 LOCAL_DIR = Path("./my_local_data")
 
 # Read configurations from environment variables (Never hardcode secrets!)

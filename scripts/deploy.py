@@ -228,6 +228,7 @@ def main():
     state_path = nodes_path.resolve().parent / "state.json"
 
     for node_name, node_info in nodes.items():
+        storage_config = node_info.get("storage") or {}
         repo_id = node_info.get("hf-repo")
         if not repo_id:
             logger.warning(
@@ -358,6 +359,45 @@ def main():
                         logger.debug(
                             f"Secret '{target_key}' did not exist or could not be deleted: {e}"
                         )
+
+            # Storage secrets
+            if "storage_sync" in enabled_set and storage_config:
+                provider = storage_config.get("provider")
+                if provider == "huggingface":
+                    token_env = storage_config.get("token-env")
+                    if token_env:
+                        raw_val = os.getenv(token_env)
+                        if raw_val:
+                            obf_val = harden_secret(raw_val)
+                            try:
+                                node_api.add_space_secret(repo_id=repo_id, key=token_env, value=obf_val)
+                                pushed_keys[token_env] = token_env
+                            except Exception as e:
+                                logger.error(f"Failed to push storage secret '{token_env}': {e}")
+                        else:
+                            try:
+                                node_api.delete_space_secret(repo_id=repo_id, key=token_env)
+                                deleted_keys.append(token_env)
+                            except Exception as e:
+                                logger.debug(f"Storage secret '{token_env}' did not exist or could not be deleted: {e}")
+                elif provider == "s3":
+                    for env_key, target_key in [("access-key-env", None), ("secret-key-env", None)]:
+                        env_name = storage_config.get(env_key)
+                        if env_name:
+                            raw_val = os.getenv(env_name)
+                            if raw_val:
+                                obf_val = harden_secret(raw_val)
+                                try:
+                                    node_api.add_space_secret(repo_id=repo_id, key=env_name, value=obf_val)
+                                    pushed_keys[env_name] = env_name
+                                except Exception as e:
+                                    logger.error(f"Failed to push S3 secret '{env_name}': {e}")
+                            else:
+                                try:
+                                    node_api.delete_space_secret(repo_id=repo_id, key=env_name)
+                                    deleted_keys.append(env_name)
+                                except Exception as e:
+                                    logger.debug(f"S3 secret '{env_name}' did not exist or could not be deleted: {e}")
 
             # LLM_KEYS: push when llm_proxy is enabled, delete otherwise
             if "llm_proxy" in enabled_set:
