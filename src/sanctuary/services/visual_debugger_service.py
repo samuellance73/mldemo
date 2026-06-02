@@ -6,6 +6,8 @@ from pathlib import Path
 
 from loguru import logger
 
+from sanctuary.core.constants import PORTS
+
 PREFIX = "[VISDBG]"
 
 # Process aliases
@@ -17,8 +19,8 @@ _DN = subprocess.DEVNULL
 def start(log):
     """
     VNC-over-Tunnel visual debugger.
-    Configured to match the camouflaged binary paths pre-baked into the Dockerfile,
-    while using local UNIX sockets for robust display verification and bypassing
+    Configured to run an optimized minimal XFCE4 desktop environment,
+    using local UNIX sockets for robust display verification and bypassing
     SSL check crashes via mock certificates.
     """
     display_num = "18231"
@@ -31,7 +33,8 @@ def start(log):
         "display-config",
         "Xvnc",
         "xorg-ipc-server",
-        "layout-decorator",
+        "xfce4-session",
+        "xfwm4",
         "data-renderer"
     ]
     for t in t_kills:
@@ -54,10 +57,10 @@ def start(log):
     cfg_dir.mkdir(parents=True, exist_ok=True)
 
     # Write kasmvnc.yaml with mock SSL certificate paths to bypass existence check crashes
-    payload_cfg = """
+    payload_cfg = f"""
 network:
   interface: 127.0.0.1
-  websocket_port: 8501
+  websocket_port: {PORTS["visual_debugger"]}
   udp:
     public_ip: 127.0.0.1
   ssl:
@@ -78,12 +81,12 @@ command_line:
     (cfg_dir / "kasmvnc.yaml").write_text(payload_cfg.strip() + "\n")
 
     # Write xstartup using local UNIX socket bindings (DISPLAY=:)
-    # Executes 'layout-decorator' (the renamed fluxbox binary)
+    # Executes 'xfce4-session' instead of Fluxbox
     payload_sh = f"""#!/bin/sh
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
 export DISPLAY={display}
-exec layout-decorator
+exec xfce4-session
 """
     sh_path = cfg_dir / "xstartup"
     sh_path.write_text(payload_sh.strip() + "\n")

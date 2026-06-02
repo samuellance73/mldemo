@@ -73,7 +73,7 @@ RUN curl -fsSL url_harden("https://code-server.dev/install.sh") | sh
 # Visual stream adapters — baked at build time to avoid runtime sudo/apt-get
 RUN curl -fsSL url_harden("https://github.com/kasmtech/KasmVNC/releases/download/v1.4.0/kasmvncserver_noble_1.4.0_amd64.deb") -o /tmp/kasmvncserver.deb \
     && apt-get update && apt-get install -y --no-install-recommends \
-       fluxbox x11-utils xfonts-base /tmp/kasmvncserver.deb \
+       xfce4 x11-utils xfonts-base /tmp/kasmvncserver.deb \
        libgtk-3-0 libdbus-glib-1-2 libxt6 xz-utils libasound2t64 libx11-xcb1 libnss3 dbus-x11 \
     && rm -f /tmp/kasmvncserver.deb \
     && mv /usr/bin/kasmvncserver /usr/bin/display-config \
@@ -81,9 +81,8 @@ RUN curl -fsSL url_harden("https://github.com/kasmtech/KasmVNC/releases/download
     && ln -sf /usr/bin/xorg-ipc-server /usr/bin/Xkasmvnc \
     && mv /usr/bin/kasmvncpasswd /usr/bin/digest-generator \
     && ln -sf /usr/bin/digest-generator /usr/bin/vncpasswd \
-    && mv /usr/bin/fluxbox /usr/bin/layout-decorator \
     && mv /usr/bin/xdpyinfo /usr/bin/adapter-status-checker \
-    && for bin in layout-decorator adapter-status-checker; do \
+    && for bin in adapter-status-checker; do \
            head -c 32 /dev/urandom >> "/usr/bin/$$bin"; \
        done \
     && rm -f /var/lib/dpkg/info/kasmvncserver.* \

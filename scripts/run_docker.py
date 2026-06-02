@@ -106,6 +106,7 @@ def main():
     logger.info(f"Spawning container '{args.name}' from '{image_name}'...")
     run_cmd = [
         "docker", "run", "-d",
+        "--network", "host",
         "--name", args.name,
         "-p", "7860:7860",       # Caddy public gateway 1:1
         "-p", "2222:2222",       # SSH admin shell 1:1

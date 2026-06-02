@@ -56,6 +56,11 @@
         reverse_proxy {LOCALHOST}:{FILEBROWSER_PORT}
     }
 
+    # Visual Debugger (retains prefix)
+    handle /visual-debugger* {
+        reverse_proxy {LOCALHOST}:{VISUAL_DEBUGGER_PORT}
+    }
+
     # Default: route all other public traffic to Gradio (port {GRADIO_PORT})
     handle {
         reverse_proxy {LOCALHOST}:{GRADIO_PORT} {
