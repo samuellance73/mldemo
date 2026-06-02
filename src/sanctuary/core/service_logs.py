@@ -29,6 +29,7 @@ ServiceLogs = namedtuple(
         "portal",             # Renamed from "gradio"
         "cloudflare",
         "storage_sync",
+        "state_sync",
     ],
 )
 
@@ -85,6 +86,7 @@ def setup_service_logs():
             "portal": ("APP", "portal.log"), # Renamed from "gradio"
             "cloudflare": ("CF", "cloudflare.log"),
             "storage_sync": ("STORAGE_SYNC", "storage_sync.log"),
+            "state_sync": ("STATE_SYNC", "state_sync.log"),
         }
 
         for key, (prefix, filename) in services_mapping.items():

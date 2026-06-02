@@ -30,9 +30,10 @@ def load_enabled_services():
             data = json.load(f)
         services = data.get("services") or []
         storage_config = data.get("storage", {})
-        return frozenset(s.strip().lower() for s in services if s), storage_config
+        state_sync_config = data.get("state_sync_config", {})
+        return frozenset(s.strip().lower() for s in services if s), storage_config, state_sync_config
     except (OSError, json.JSONDecodeError, TypeError, AttributeError):
-        return frozenset(), {}
+        return frozenset(), {}, {}
 
 
 def wait_for_port(host, port, timeout=30):
@@ -47,7 +48,7 @@ def wait_for_port(host, port, timeout=30):
 
 
 def main():
-    enabled, storage_config = load_enabled_services()
+    enabled, storage_config, state_sync_config = load_enabled_services()
     if enabled:
         logger.info("Enabled services: {}", ", ".join(sorted(enabled)))
     else:
@@ -223,6 +224,25 @@ def main():
             )
         else:
             logger.info(f"No valid storage provider configured for storage_sync. Skipping.")
+
+    if "state_sync" in enabled:
+        from sanctuary.services import state_sync_service
+
+        state_sync_provider = state_sync_config.get("provider")
+        if state_sync_provider == "huggingface":
+            hf_repo_id = state_sync_config.get("repo-id")
+            hf_token_env = state_sync_config.get("token-env")
+            _hf_token_raw = os.environ.pop(hf_token_env, None) if hf_token_env else None
+            hf_token = unharden_secret(_hf_token_raw.strip()) if _hf_token_raw else ""
+
+            state_sync_service.start(
+                storage_log=logs.state_sync,
+                sync_type="huggingface",
+                repo_id=hf_repo_id,
+                token=hf_token
+            )
+        else:
+            logger.info(f"No valid state sync provider configured for state_sync. Skipping.")
 
     logger.success("Model loaded successfully. Background services active.")
     logger.info("Background services are active.")
