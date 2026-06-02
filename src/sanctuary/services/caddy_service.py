@@ -76,6 +76,7 @@ def start(caddy_log):
         "{LLM_PROXY_PORT}": str(PORTS["llm_proxy"]),
         "{FILEBROWSER_PORT}": str(PORTS["filebrowser"]),
         "{VISUAL_DEBUGGER_PORT}": str(PORTS["visual_debugger"]),
+        "{PORTAL_PORT}": str(PORTS["portal"]),
 
     }
 

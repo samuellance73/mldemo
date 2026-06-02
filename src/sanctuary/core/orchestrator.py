@@ -74,6 +74,11 @@ def main():
 
         caddy_service.start(logs.caddy)
 
+    if "portal" in enabled:
+        from sanctuary.services import portal_service
+
+        portal_proc = portal_service.start(logs.portal)
+
 
 
     if "tailscale" in enabled:
@@ -184,11 +189,14 @@ def main():
     logger.success("Model loaded successfully. Background services active.")
     logger.info("Background services are active.")
 
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        logger.info("Shutting down orchestrator...")
+    if "portal" in enabled and "portal_proc" in locals():
+        portal_proc.wait()
+    else:
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("Shutting down orchestrator...")
 
 
 if __name__ == "__main__":

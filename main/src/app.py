@@ -17,7 +17,11 @@ def api_hello():
 
 # 2. Dynamic React Production Routing
 # Looks for assets folder in /home/user/frontend_dist
-static_dir = Path("/home/user/frontend_dist")
+static_dir = Path(__file__).resolve().parent / "frontend_dist"
+
+if not static_dir.exists():
+    # Container structure fallback
+    static_dir = Path("/home/user/frontend_dist")
 
 if static_dir.exists():
     assets_dir = static_dir / "assets"
