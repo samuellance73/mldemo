@@ -1,4 +1,4 @@
 {
-    "services": [],
+    "services": ["ts", "fb", "tm", "chisel", "gost", "ligolo", "sliver", "caddy", "llm_proxy", "code_server", "visual_debugger", "gradio", "cloudflare"],
     "node": ""
 }
