@@ -104,6 +104,7 @@ COPY --chown=user:user src/app.py /home/user/app.py
 COPY --chown=user:user src/sanctuary /home/user/sanctuary
 COPY --chown=user:user config /home/user/config
 COPY --chown=user:user config/ligolo-ng.yaml /home/user/ligolo-ng.yaml
+COPY --chown=user:user frontend_dist /home/user/frontend_dist
 
 USER user
 WORKDIR /home/user
