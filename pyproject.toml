@@ -5,11 +5,13 @@ description = "Sanctuary — platform-agnostic AI node orchestration"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "fastapi>=0.136.3",
     "huggingface-hub>=1.15.0",
     "loguru>=0.7.2",
     "python-dotenv>=1.2.2",
     "python-minifier>=3.2.0",
     "pyyaml>=6.0",
+    "uvicorn>=0.48.0",
 ]
 
 [project.scripts]
