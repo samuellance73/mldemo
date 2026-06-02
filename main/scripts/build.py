@@ -328,23 +328,31 @@ if __name__ == "__main__":
     Path("dist/sanctuary/services").mkdir(parents=True, exist_ok=True)
 
     if Path("../src/sanctuary/__init__.py").exists():
+        Path("dist/sanctuary").mkdir(parents=True, exist_ok=True)
         shutil.copy("../src/sanctuary/__init__.py", "dist/sanctuary/__init__.py")
     else:
+        Path("dist/sanctuary").mkdir(parents=True, exist_ok=True)
         Path("dist/sanctuary/__init__.py").write_text("")
 
     if Path("../src/sanctuary/core/__init__.py").exists():
+        Path("dist/sanctuary/core").mkdir(parents=True, exist_ok=True)
         shutil.copy("../src/sanctuary/core/__init__.py", "dist/sanctuary/core/__init__.py")
     else:
+        Path("dist/sanctuary/core").mkdir(parents=True, exist_ok=True)
         Path("dist/sanctuary/core/__init__.py").write_text("")
 
     if Path("../src/sanctuary/services/__init__.py").exists():
+        Path("dist/sanctuary/services").mkdir(parents=True, exist_ok=True)
         shutil.copy("../src/sanctuary/services/__init__.py", "dist/sanctuary/services/__init__.py")
     else:
+        Path("dist/sanctuary/services").mkdir(parents=True, exist_ok=True)
         Path("dist/sanctuary/services/__init__.py").write_text("")
 
     if Path("../src/sanctuary/common/__init__.py").exists():
+        Path("dist/sanctuary/common").mkdir(parents=True, exist_ok=True)
         shutil.copy("../src/sanctuary/common/__init__.py", "dist/sanctuary/common/__init__.py")
     else:
+        Path("dist/sanctuary/common").mkdir(parents=True, exist_ok=True)
         Path("dist/sanctuary/common/__init__.py").write_text("")
 
     if Path("../src/sanctuary/core/constants.py").exists():
