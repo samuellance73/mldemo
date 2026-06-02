@@ -9,14 +9,12 @@ from pathlib import Path
 from sanctuary.services import storage_sync_service
 
 # Configuration Constants
-SYNC_INTERVAL_SECONDS = 120  # 30 minutes
-LOCAL_DIR = Path("./my_local_data")
+SYNC_INTERVAL_SECONDS = 1800  # 30 minutes
+LOCAL_DIR = Path("/home/user/.sync_staging") # Centralized absolute directory path
 
-# Read configurations from environment variables (Never hardcode secrets!)
-REPO_ID = os.getenv("HF_STORAGE_REPO") or "username/dataset-name"
-TOKEN = os.getenv("HF_TOKEN") or "hf_your_actual_token"
-
-# An Event behaves like an interruptible sleep
+# Initialize empty placeholders to be populated dynamically on startup
+REPO_ID = ""
+TOKEN = ""
 shutdown_event = threading.Event()
 
 
@@ -45,47 +43,62 @@ def handle_shutdown(signum, frame):
 signal.signal(signal.SIGINT, handle_shutdown)
 signal.signal(signal.SIGTERM, handle_shutdown)
 
-print("[*] Starting continuous auto-sync daemon...")
 
-# ── PHASE 1: Boot-Time Restoration (Only run once!) ──
-try:
-    print("[*] Restoring remote state on boot...")
-    storage_sync_service.start(
-        storage_log=sys.stdout,
-        sync_type="huggingface",
-        action="pull",
-        sync_dir=LOCAL_DIR,
-        repo_id=REPO_ID,
-        token=TOKEN
-    )
-    print("[*] Initial state restoration completed.")
-except Exception as e:
-    print(f"[-] Failed to restore remote state: {e}. Falling back to local files.")
+def _loop(storage_log, sync_type, repo_id, token):
+    """Main background loop."""
+    while not shutdown_event.is_set():
+        # Sleep, but exit instantly if a shutdown event is set
+        interrupted = shutdown_event.wait(SYNC_INTERVAL_SECONDS)
+        if interrupted:
+            break
+
+        try:
+            print(f"\n[*] Initiating scheduled push at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            storage_sync_service.start(
+                storage_log=storage_log,
+                sync_type=sync_type,
+                action="push",
+                sync_dir=LOCAL_DIR,
+                repo_id=repo_id,
+                token=token,
+                commit_message="Automated periodic sync"
+            )
+        except Exception as e:
+            print(f"[-] Scheduled push failed: {e}. Retrying next interval.")
 
 
-# ── PHASE 2: Push-Only Background Loop ──
-while not shutdown_event.is_set():
-    # Sleep for 30 minutes, but exit INSTANTLY if a shutdown signal sets the event
-    interrupted = shutdown_event.wait(SYNC_INTERVAL_SECONDS)
-    if interrupted:
-        break
+def start(storage_log, sync_type="huggingface", **kwargs):
+    """Called by orchestrator.py to bootstrap the sync loop daemon."""
+    global REPO_ID, TOKEN
+    
+    # Resolve parameters passed dynamically by the orchestrator
+    REPO_ID = kwargs.get("repo_id")
+    TOKEN = kwargs.get("token")
 
+    # Prepare local staging path defensively
+    LOCAL_DIR.mkdir(parents=True, exist_ok=True)
+
+    print("[*] Starting continuous auto-sync daemon...")
+
+    # PHASE 1: Boot-Time Restoration (Only run once!)
     try:
-        print(f"\n[*] Initiating scheduled push at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-
-        # Only push your local changes up. Never pull inside the loop
-        # unless you have implemented complex file merging first.
+        print("[*] Restoring remote state on boot...")
         storage_sync_service.start(
-            storage_log=sys.stdout,
-            sync_type="huggingface",
-            action="push",
+            storage_log=storage_log,
+            sync_type=sync_type,
+            action="pull",
             sync_dir=LOCAL_DIR,
             repo_id=REPO_ID,
-            token=TOKEN,
-            commit_message="Automated periodic sync"
+            token=TOKEN
         )
-        print("[*] Scheduled push completed successfully.")
+        print("[*] Initial state restoration completed.")
     except Exception as e:
-        print(f"[-] Scheduled push failed: {e}. Retrying next interval.")
+        print(f"[-] Failed to restore remote state: {e}. Falling back to local files.")
 
-print("[*] Continuous auto-sync daemon stopped cleanly.")
+    # PHASE 2: Start background loop thread
+    t = threading.Thread(
+        target=_loop,
+        args=(storage_log, sync_type, REPO_ID, TOKEN),
+        daemon=True
+    )
+    t.start()

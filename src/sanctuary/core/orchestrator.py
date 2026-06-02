@@ -75,12 +75,13 @@ def main():
     if storage_provider == "huggingface":
         hf_token_env = storage_config.get("token-env")
         if hf_token_env:
-            # Pop the token-env key (e.g. "HF2") safely
+            # Pop the token-env key (e.g. "HF2") safely to prevent NoneType crashes
             _hf_token_raw = os.environ.pop(hf_token_env, None)
             hf_token = unharden_secret(_hf_token_raw.strip()) if _hf_token_raw else ""
             del _hf_token_raw
             # Set in-memory HF_TOKEN so standard internal python libraries can find it
-            os.environ["HF_TOKEN"] = hf_token
+            if hf_token:
+                os.environ["HF_TOKEN"] = hf_token
             
     elif storage_provider == "s3":
         s3_access_key_env = storage_config.get("access-key-env")
@@ -228,12 +229,26 @@ def main():
         from sanctuary.services import state_sync_service
         if storage_provider == "huggingface":
             hf_repo_id = storage_config.get("repo-id")
-            state_sync_service.start(
-                storage_log=logs.state_sync,
-                sync_type="huggingface",
-                repo_id=hf_repo_id,
-                token=hf_token
-            )
+            if hf_repo_id:
+                logger.info(f"Found HF repo ID for state sync: {hf_repo_id}")
+                max_attempts = 3
+                for attempt in range(max_attempts):
+                    try:
+                        state_sync_service.start(
+                            storage_log=logs.state_sync,
+                            sync_type="huggingface",
+                            repo_id=hf_repo_id,
+                            token=hf_token
+                        )
+                        break
+                    except Exception as e:
+                        logger.error(f"Attempt {attempt+1} failed to start state sync: {e}")
+                        if attempt < max_attempts - 1:
+                            time.sleep(5)
+                        else:
+                            logger.error("Failed to start state sync after all attempts.")
+            else:
+                logger.error("No HF repo ID configured for state sync.")
         elif storage_provider == "s3":
             s3_bucket_name = storage_config.get("bucket-name")
             s3_endpoint = storage_config.get("endpoint")
