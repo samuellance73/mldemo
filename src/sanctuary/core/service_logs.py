@@ -28,6 +28,7 @@ ServiceLogs = namedtuple(
         "visual_debugger",
         "portal",             # Renamed from "gradio"
         "cloudflare",
+        "storage_sync",
     ],
 )
 
@@ -83,6 +84,7 @@ def setup_service_logs():
             "visual_debugger": ("VISDBG", "visual_debugger.log"),
             "portal": ("APP", "portal.log"), # Renamed from "gradio"
             "cloudflare": ("CF", "cloudflare.log"),
+            "storage_sync": ("STORAGE_SYNC", "storage_sync.log"),
         }
 
         for key, (prefix, filename) in services_mapping.items():
@@ -122,4 +124,5 @@ def setup_service_logs():
         visual_debugger=LoguruSubprocessBridge("VISDBG"),
         portal=LoguruSubprocessBridge("APP"),
         cloudflare=LoguruSubprocessBridge("CF"),
+        storage_sync=LoguruSubprocessBridge("STORAGE_SYNC"),
     )

@@ -12,7 +12,7 @@ from sanctuary.core.constants import USER_HOME, REPO_ROOT, PORTS
 
 
 def wait_for_port(host, port, timeout=30):
-    """Polls the target port until it accepts connections or hits the timeout."""
+    """Polls the target port until it accepts connections or hits the timeout.""g"
     start = time.time()
     while time.time() - start < timeout:
         try:

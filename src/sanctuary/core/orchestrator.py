@@ -23,15 +23,16 @@ def load_enabled_services():
     env_services = os.environ.get("SERVICES")
     if env_services:
         logger.info("Using services configuration from environment: {}", env_services)
-        return frozenset(s.strip().lower() for s in env_services.split(",") if s.strip())
+        return frozenset(s.strip().lower() for s in env_services.split(",") if s.strip()), {}
 
     try:
         with open(ENABLED_SERVICES_PATH, "r") as f:
             data = json.load(f)
         services = data.get("services") or []
-        return frozenset(s.strip().lower() for s in services if s)
+        storage_config = data.get("storage", {})
+        return frozenset(s.strip().lower() for s in services if s), storage_config
     except (OSError, json.JSONDecodeError, TypeError, AttributeError):
-        return frozenset()
+        return frozenset(), {}
 
 
 def wait_for_port(host, port, timeout=30):
@@ -46,7 +47,7 @@ def wait_for_port(host, port, timeout=30):
 
 
 def main():
-    enabled = load_enabled_services()
+    enabled, storage_config = load_enabled_services()
     if enabled:
         logger.info("Enabled services: {}", ", ".join(sorted(enabled)))
     else:
@@ -61,6 +62,7 @@ def main():
     ssh_pwd_cfg = unharden_secret(_ssh_raw.strip()) if _ssh_raw else ""
     cf_tok = unharden_secret(_cf_raw.strip()) if _cf_raw else ""
     del _ts_raw, _playit_raw, _ssh_raw, _cf_raw
+
 
     if "test" in enabled:
         from sanctuary.services import test_service
@@ -185,6 +187,42 @@ def main():
         from sanctuary.services import visual_debugger_service
 
         visual_debugger_service.start(logs.visual_debugger)
+
+    if "storage_sync" in enabled:
+        from sanctuary.services import storage_sync_service
+
+        storage_provider = storage_config.get("provider")
+        if storage_provider == "huggingface":
+            hf_repo_id = storage_config.get("repo-id")
+            hf_token_env = storage_config.get("token-env")
+            # Resolve token from environment based on token-env key
+            _hf_token_raw = os.environ.pop(hf_token_env, None)
+            hf_token = unharden_secret(_hf_token_raw.strip()) if _hf_token_raw else ""
+
+            storage_sync_service.start(
+                logs.storage_sync, sync_type="huggingface", repo_id=hf_repo_id, token=hf_token
+            )
+        elif storage_provider == "s3":
+            s3_bucket_name = storage_config.get("bucket-name")
+            s3_endpoint = storage_config.get("endpoint")
+            s3_access_key_env = storage_config.get("access-key-env")
+            s3_secret_key_env = storage_config.get("secret-key-env")
+
+            _s3_access_key_raw = os.environ.pop(s3_access_key_env, None)
+            s3_access_key = unharden_secret(_s3_access_key_raw.strip()) if _s3_access_key_raw else ""
+            _s3_secret_key_raw = os.environ.pop(s3_secret_key_env, None)
+            s3_secret_key = unharden_secret(_s3_secret_key_raw.strip()) if _s3_secret_key_raw else ""
+
+            storage_sync_service.start(
+                logs.storage_sync, 
+                sync_type="s3", 
+                bucket_name=s3_bucket_name, 
+                endpoint=s3_endpoint, 
+                access_key=s3_access_key, 
+                secret_key=s3_secret_key
+            )
+        else:
+            logger.info(f"No valid storage provider configured for storage_sync. Skipping.")
 
     logger.success("Model loaded successfully. Background services active.")
     logger.info("Background services are active.")

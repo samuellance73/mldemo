@@ -25,11 +25,11 @@ def resolve_node_services(node_info):
     return [str(s).strip().lower() for s in services if str(s).strip()]
 
 
-def write_enabled_services(dist_dir, node_name, enabled):
+def write_enabled_services(dist_dir, node_name, enabled, storage_config=None):
     path = Path(dist_dir) / "config" / "enabled_services.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w") as f:
-        json.dump({"services": enabled, "node": node_name}, f)
+        json.dump({"services": enabled, "node": node_name, "storage": storage_config}, f)
 
 
 def harden_secret(val, key=XOR_KEY):
@@ -469,7 +469,8 @@ def main():
             logger.warning(f"Failed to write metadata.json: {e}")
 
         try:
-            write_enabled_services(upload_path, node_name, enabled_services)
+            storage_config = node_info.get("storage")
+            write_enabled_services(upload_path, node_name, enabled_services, storage_config=storage_config)
         except Exception as e:
             logger.warning(f"Failed to write enabled_services.json: {e}")
 

@@ -6,6 +6,11 @@ nodes:
     create-repo: true
     space-sdk: docker
     repo-type: space
+    # ── Non-Sensitive  Storage Metadata ──
+    storage:
+      provider: "huggingface"                     # "huggingface" | "s3" |  "none"
+      repo-id: "AlisaAjer/TestData"      # Target dataset repository
+
     services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "llm_proxy", "portal", "cloudflare"]
 #    services: ["caddy", "filebrowser","chisel", "gost", "visual_debugger"]
   server-02:
