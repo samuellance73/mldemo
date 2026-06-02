@@ -22,7 +22,7 @@ docker-push:
 
 # Compile and build the Docker image locally under the 'sanctuary:local' tag
 docker-build: build
-	@echo "local-test" > main/dist/whoami.txt
+
 	cd main/dist && docker build -t sanctuary:local .
 
 # Launch the locally built container with correct port mappings and environment configs
