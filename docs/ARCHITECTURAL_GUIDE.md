@@ -1,68 +1,131 @@
-# Sanctuary: Core Technical Reference & Architecture Manual 🌌
+# Sanctuary: System Architecture and Technical Reference 🌌
 
-This document is the definitive, raw technical specifications manual for Project Sanctuary. It details the exact engineering logic, compilation processes, port mappings, and process lifecycles of the monorepo. 
-
-For the academic threat model, research objectives, and simulation justifications, see **[Sanctuary.md](file:///home/trueking/Safe/Proj/Hug/Sanctuary/docs/Sanctuary.md)**.
+This document serves as the definitive architecture reference manual for Project Sanctuary. It maps the runtime patterns, network topologies, memory lifecycles, and cryptographic custody loops executed across the monorepo.
 
 ---
 
-## 🗺️ System Topology & Data Paths
+## 1. System Overview & Edge Routing Matrix
 
-The monorepo deploys a multi-process gateway routed through **Caddy** as a smart reverse proxy. Caddy terminates public egress traffic on port `7860`, serving a static loading layer during cold boots and proxying private backend channels to local ports.
+Project Sanctuary implements a multi-tier runtime architecture deployed inside an unprivileged container context. The front edge is managed by **Caddy** (camouflaged as `model-routing-engine`), which acts as an ingress gateway, SSL termination layer, and reverse proxy.
 
-The system is organized into three layers — Public, Private, and Core. Caddy (`model-routing-engine` on `:7860`/`:7890`) and Gradio (`AI Text Processor` on `:7861`) form the public egress layer. Caddy proxies `/` to Gradio, `/routing-console` to Filebrowser (`:9000`), `/chisel-tunnel` to Chisel (`:6789`), `/gost-bridge` to GOST (`:6790`), `/tensor-mesh` to Sliver C2 (`:11601`), and `/v1` to LiteLLM (`:8080`). KasmVNC (`xorg-ipc-server` on display `:18231`) runs Firefox which renders Caddy's frontend in an automated loop. Supervisord launches `orchestrator.py`, which starts Caddy, Gradio, and VNC.
+```
+                    [ Hugging Face Edge Ingress ]
+                                │ (HTTPS)
+                                ▼
+                       ┌─────────────────┐
+                       │   Caddy Proxy   │ (Port 7860 / 7890)
+                       └────────┬────────┘
+                                │
+        ┌───────────────────────┼────────────────────────┬─────────────────────┐
+        ▼ (/v1)                 ▼ (/chisel-tunnel)       ▼ (/routing-console)  ▼ (Default /)
+┌──────────────┐        ┌──────────────┐         ┌──────────────┐      ┌──────────────┐
+│   LiteLLM    │        │ Chisel Proxy │         │ Filebrowser  │      │ FastAPI App  │
+│ (Port 8080)  │        │ (Port 6789)  │         │ (Port 9000)  │      │ (Port 7861)  │
+└──────────────┘        └──────────────┘         └──────────────┘      └──────────────┘
+```
+
+### Complete Network Port Directory
+
+The orchestrator manages 16 distinct service endpoints bound to localized loopback interfaces, mapped internally as follows:
+
+| Service Identifier | Constant Port | Protocol | Binding Interface | Process Camouflage Name | Role / Function |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Caddy Ingress** | `7860` | HTTP | `0.0.0.0` | `model-routing-engine` | Public gateway reverse proxy |
+| **Caddy Secondary** | `7890` | HTTP | `0.0.0.0` | `model-routing-engine` | Secondary routing and pivoting port |
+| **Portal Gateway** | `7861` | HTTP | `127.0.0.1` | `python3` (app.py) | Cover page and core FastAPI endpoint |
+| **SSH Server** | `2222` | SSH | `127.0.0.1` | `sshd` | Interactive terminal shell |
+| **Chisel Tunnel** | `6789` | WS | `127.0.0.1` | `cuda-mesh-bridge` | Reverse SOCKS5 TCP-over-WS tunnel |
+| **GOST Proxy** | `6790` | MWS | `127.0.0.1` | `system-bridge` | Multiplexed Secure WebSocket relay |
+| **Model Sync** | `6795` | HTTP | `127.0.0.1` | Internal sync | Model weight synchronization port |
+| **Sliver C2 / Ligolo** | `11601` | mTLS / TCP | `127.0.0.1` | `gradient-optimizer` | Command-and-control server interface |
+| **LiteLLM Proxy** | `8080` | HTTP | `127.0.0.1` | `litellm` | Model-agnostic OpenAI API gateway |
+| **Filebrowser** | `9000` | HTTP | `127.0.0.1` | `ai-metrics-collector` | Web filesystem administration console |
+| **Tailscale SOCKS5** | `1055` | SOCKS5 | `127.0.0.1` | `python-cache-manager` | Mesh VPN userspace SOCKS5 server |
+| **Playit XOR Bridge** | `25565` | TCP | `0.0.0.0` | Python bridge | Minecraft-handshake tunnel wrapper |
+| **Minecraft Server** | `25566` | TCP | `127.0.0.1` | `java` (Paper JRE 25) | Local Paper server backup backend |
+| **Open WebUI** | `3000` | HTTP | `127.0.0.1` | `open-webui` | Browser UI for LiteLLM router |
+| **Code Server** | `8888` | HTTP | `127.0.0.1` | `code-server` | Visual Studio Code in the browser |
+| **KasmVNC Web Stream**| `8501` | HTTP/WS | `127.0.0.1` | `display-config` | Headless visual stream streaming port |
 
 ---
 
-## 🔄 Core operational Logic & Flow
+## 2. Unified Boot Sequence and Orchestration Lifecycle
 
-Project Sanctuary operates as a synchronized pipeline spanning three primary stages: **Build/Compilation**, **Deployment/Secret Management**, and **Runtime Orchestration**. Below are the raw, trace-level data paths and execution loops that drive the engine.
+Subprocesses are instantiated using a non-blocking, multi-phase boot pipeline scheduled inside `src/sanctuary/core/orchestrator.py` to satisfy cloud runtime health check timeouts.
 
-### 1. The Secrets Custody Chain (Zero-Trace Evasion)
-To prevent administrative keys (`TAILSCALE`, `PLAYIT`, `PASS`) from leaking into public Git logs or remaining visible inside the active system environment memory tree, Sanctuary implements a secure cryptographic chain of custody:
+```
+[Phase 0: Base Ingress] ──► [Phase 1: Cover Workload] ──► [Phase 2: Secret Scrubbing]
+                                                                    │
+[Phase 5: Visual Stream] ◄── [Phase 4: Local Dev Stack] ◄── [Phase 3: Secure Access Ports]
+```
 
-The chain proceeds as follows: the developer (`deploy.py`) decrypts or fetches plain variables, XOR-encrypts them with key `0x5A`, and pushes the XOR-encrypted hex strings to the Hugging Face Secrets API. On boot, Hugging Face injects the encrypted keys into `os.environ`. The orchestrator reads them, hex-decodes and XOR-decrypts them using key `0x5A`, then immediately wipes all secrets from `os.environ` via `os.environ.pop()`. Child subprocesses (Sliver, GOST) receive the decrypted keys directly through stdin or arguments passed in-memory.
+### Phase 0: Base Ingress Initialization
+* **Action:** Starts Caddy (`model-routing-engine`) instantly on public ports `:7860` and `:7890`.
+* **Objective:** Serve a static `loading.html` page directly from disk. This ensures Hugging Face container health monitors receive a valid `HTTP 200` response within the 30-second boot timeout window, preventing deployment failures.
 
-### 2. Source-to-Bytecode Compilation & Memory Loading Loop
-To bypass platform-level static text and AST scanning tools, readable Python scripts are compiled into bytecode and unlinked:
+### Phase 1: Cover Workload Launch
+* **Action:** Spawns the Portal Gateway FastAPI application (`app.py` via `portal_service.py`) on local port `7861`.
+* **Telemetry Generation:**
+  * Allocates a sparse 2GB file named `pytorch_model.bin` to simulate a large machine learning model.
+  * Launches the background task `jitter_task()` to run numpy matrix dot-product operations at randomized intervals (between 45 and 90 minutes) to emulate standard ML execution workloads.
 
-Raw Python source files pass through `build.py`, which detects `harden('...')` macros. Strings wrapped in `harden()` are base64-encoded and reversed; other strings are left unchanged. A minified intermediate script is written, then compiled to bytecode via `uv run python -m compileall`. The resulting `.pyc` files are promoted out of `__pycache__` to the package root, and the original `.py` source files are deleted via `unlink()`. A thin `orchestrator.py` bootstrap stub is written; at execution, `spec.loader.exec_module()` loads the bytecode directly from memory.
+### Phase 2: Secret Scrubbing & Sanitization
+* **Action:** Reads, decrypts, and sanitizes environment-passed credentials.
+* **Objective:** Clean system memory before starting heavy applications (detailed in Section 3).
 
-### 3. Runtime Orchestration Lifecycle (Phased Scheduler)
-The runtime init loop is managed inside `shared/core/orchestrator.py`, executed under an unprivileged user context. It routes execution through four scheduled boot phases:
+### Phase 3: Secure Access Ports
+* **Action:** Launches the core tunnels and local network interfaces.
+  * Starts Tailscale in userspace networking mode (SOCKS5 on port `1055`, routing state to `~/.torch_metrics/`).
+  * Establishes Filebrowser on local port `9000` and generates database schemas in `/home/user/filebrowser.db`.
+  * Starts the SSH server on port `2222` with the decrypted password.
+  * Spawns Chisel, GOST, and Sliver servers.
 
-Supervisord executes the launcher stub which starts `orchestrator.py`. The runtime proceeds through four phases:
+### Phase 4: Local Dev Stack Launch
+* **Action:** Launches developer workspaces and AI interfaces.
+  * Spawns the LiteLLM API router on port `8080` (utilizing credentials loaded from `LLM_KEYS`).
+  * Starts Code Server on port `8888` under userspace loopback isolation.
+  * Dispatches Open WebUI's installation and startup tasks to a background thread to prevent blocking the main runtime thread.
 
-**Phase 0 — Port Binding Gateway:** Caddy starts on `:7860`/`:7890` and immediately serves `loading.html` to satisfy Hugging Face health probes.
-
-**Phase 1 — Cover Workload Spawn:** The Gradio Text Cover App launches on `127.0.0.1:7861`, a dummy 5 GB `pytorch_model.bin` weight file is written, and a background `jitter_task` (numpy dot-product CPU math) begins. Caddy proxies `/` upstream to Gradio once live.
-
-**Phase 2 — Secure Access & Tunnel Spawning:** Secrets are extracted, decrypted, and wiped from `os.environ`. An SSH daemon spawns on `localhost:2222`, Filebrowser starts on port `:9000`, and tunnels are launched (Tailscaled, Chisel, GOST, Ligolo-ng, Sliver C2).
-
-**Phase 3 — Local AI Infrastructure & Visual Debugger:** LiteLLM model router boots on `:8080`, Open WebUI on `:3000`, code-server on `:8888`, and the xorg-ipc-server (`:18231` display) with Fluxbox and Firefox loop initializes.
+### Phase 5: Visual Stream Debugger
+* **Action:** Initializes the virtual display context and visual streaming pipeline (detailed in Section 5).
 
 ---
 
-## 🛠️ The Obfuscation, Evasion & Compilation Pipeline
+## 3. Cryptographic Custody and Secret Sanitization
 
+Sanctuary implements a strict secret-sanitization loop to ensure that sensitive API tokens and credentials (`TAILSCALE`, `PLAYIT`, `PASS`, `CLOUDFLARE`, `LLM_KEYS`) never leak through dynamic environment scans or container memory inspect tasks.
 
-The build engine (`main/scripts/build.py`) performs dynamic code modifications to package the final distribution bundle inside `dist/`.
+```
+   [Hugging Face Space Settings] (Encrypted Hex Strings)
+                 │
+                 ▼ (Container Boot)
+         [os.environ]
+                 │
+                 ▼ (orchestrator.py loads secrets)
+        [unharden_secret()] ──► Memory Strings
+                 │
+                 ▼
+          [os.environ.pop()] ──► [Empty Environment Space]
+                 │
+                 ▼ (Subprocesses launched)
+     Subprocesses run with sanitized environmental parameters
+```
 
-### 1. Hex-Encoded Reversed-Base64 XOR Obfuscation
-String values wrapped inside the `harden("...")` macro at build-time are base64-encoded, reversed, and placed inside double-quotes. At runtime, the strings are decoded on-the-fly via a single-byte public XOR key (`0x5A`).
+### The Sanitization Protocol
+1. **Extraction:** On startup, `orchestrator.py` retrieves obfuscated hex secrets injected by the container engine.
+2. **Decryption:** The unhardening function performs a single-byte XOR calculation using static key `0x5A`. This acts as a basic protection layer to hide plain text secrets from static platform analyzers.
+3. **Purging:** The orchestrator immediately calls `os.environ.pop()` on all original environment variables, erasing them from the process environment block.
+4. **Execution:** Subprocesses are instantiated with clean, sanitized environments. Keys are passed to children exclusively via safe loopback channels or secure standard input.
+
+### XOR Obfuscation Reference Implementation
 
 ```python
+# src/sanctuary/common/utils.py
+
 XOR_KEY = 0x5A
 
-def decode_cmd(encoded_str):
-    """Decodes base64-encoded reversed hardened strings."""
-    try:
-        return base64.b64decode(encoded_str[::-1]).decode()
-    except Exception:
-        return encoded_str
-
 def unharden_secret(hex_str, key=XOR_KEY):
-    """Hex-decodes and XOR-unhardens secret bytes."""
+    """XOR-unhardens a hex-encoded secret."""
     if not hex_str:
         return ""
     try:
@@ -73,12 +136,35 @@ def unharden_secret(hex_str, key=XOR_KEY):
         return hex_str
 ```
 
-### 2. Bytecode-Only Promotion Mechanics
-To prevent standard text-based AST parsers from reading code directly inside the deployed container:
-1. The compiler executes `compileall` against all `.py` files inside `dist/` using the target environment's Python version (via `uv`).
-2. The generated `.pyc` files are moved out of the `__pycache__/` folder up into the package directory (e.g., `dist/services/foo.pyc`).
-3. The original `.py` source files are deleted (`unlinked`).
-4. Primary entry-point files (such as `orchestrator.py`) are replaced with a **thin bytecode bootstrap launcher stub** that dynamically hooks into the Python import machinery to load the `.pyc` content straight out of memory:
+---
+
+## 4. Evading Static AST Scans: Obfuscation and Bytecode-Only Deployment
+
+To prevent static AST (Abstract Syntax Tree) scanners from analyzing the codebase inside the repository, Project Sanctuary implements a secure compilation pipeline (`main/scripts/build.py`) that strips readable source code and ships only compiled bytecode.
+
+### Bytecode Compilation & Promotion Mechanics
+
+```
+               [build.py] Raw Source Code
+                     │
+                     ▼ (compileall module)
+     Compiled Bytecode inside __pycache__/foo.cpython-312.pyc
+                     │
+                     ▼ (Promote .pyc out of __pycache__)
+      Bytecode promoted to root package path: foo.pyc
+                     │
+                     ▼
+             [unlink() original .py]
+                     │
+                     ▼
+  Container launches utilizing a secure Python Loader Stub
+```
+
+1. **AST Transformation:** At build time, the compiler searches for the custom `harden("...")` macro, base64-encodes and reverses the target arguments, and writes them to disk.
+2. **CPython Compilation:** Executes `compileall` against the generated `dist/` directory using the target container's CPython compiler version (currently `3.12` to align with the Ubuntu 24.04 runtime).
+3. **Bytecode Promotion:** In standard Python setups, compiled bytecode inside `__pycache__` is only resolved if the matching `.py` source file exists on disk. To bypass this, the build script copies `.pyc` files directly to the root package directory (e.g., `dist/sanctuary/core/orchestrator.pyc`), completely stripping the version tag from the filename.
+4. **Source Destruction:** The original `.py` source code is securely unlinked (`deleted`) from the directory tree, leaving only bytecode files on disk.
+5. **Memory-Only Loader Stub:** For execution entry points that require manual path calls (such as `orchestrator.py` via Supervisord), the build engine writes a thin python loader stub:
 
 ```python
 import importlib.util as _iu,os as _o,sys as _s
@@ -93,266 +179,76 @@ _s.modules['__main__']=_m
 _sp.loader.exec_module(_m)
 ```
 
-### 3. Camouflage Renames
-Binaries are renamed at build time inside the `Dockerfile` to match standard ML process names:
-
-| Original Binary / Tool | Camouflaged Process Name | Role in the Ecosystem |
-| :--- | :--- | :--- |
-| **Caddy Server** | `/usr/bin/model-routing-engine` | High-performance reverse proxy and routing gateway |
-| **Playit-agent** | `/usr/bin/tensor-allocator` | Direct TCP tunnel bridge with Minecraft handshake spoofing |
-| **Chisel Proxy** | `/usr/bin/cuda-mesh-bridge` | WebSocket-based HTTP reverse tunnel gateway |
-| **GOST Proxy** | `/usr/bin/system-bridge` | Multiplexed Secure SOCKS5/WebSocket tunnel agent |
-| **Sliver C2 Server** | `/usr/bin/gradient-optimizer` | Mutual-TLS (mTLS) adversary command-and-control server |
-| **Ligolo-ng Proxy** | `/usr/bin/neural-route-controller` | High-speed Layer-3 pivot tunneled network interface |
-| **Tailscaled Daemon** | `/usr/bin/python-cache-manager` | Mesh VPN tunnel service daemon |
-| **Tailscale CLI** | `/usr/bin/py-cache-cli` | Mesh VPN CLI control panel |
-| **Filebrowser** | `/usr/bin/ai-metrics-collector` | Browser-based administrative filesystem interface |
-| **KasmVNC Server** | `/usr/bin/display-config` | Headless VNC-over-Websocket X11 display wrapper |
-| **Xkasmvnc (X11)** | `/usr/bin/xorg-ipc-server` | Virtual X11 server socket display server |
-| **KasmVNC Passwd** | `/usr/bin/digest-generator` | VNC secure credential hashing utility |
-| **Fluxbox** | `/usr/bin/layout-decorator` | Low-overhead X11 graphical window manager |
-| **Xdpyinfo** | `/usr/bin/adapter-status-checker` | Active graphical frame buffer verification probe |
-| **Firefox Browser** | `/opt/render-engine/data-renderer` | Graphical rendering engine for browser-based automation |
-
-### 4. Background Resource Simulation
-* **V-Disk Allocation**: Allocates an empty 5GB weight file (`pytorch_model.bin`) inside `/home/user/` to simulate massive model weight buffers on disk.
-* **CPU Anomaly Generation**: Spawns a background thread (`jitter_task` inside `shared/services/gradio_service.py`) running numpy matrix multiplication calculations at dynamic, randomized intervals (between 2700 and 5400 seconds) to bypass standard threshold-based alarms.
-
 ---
 
-## 📂 Repository File Directory
+## 5. Headless Display Virtualization & Browser Automation
+
+The platform includes a headless graphical workspace (`src/sanctuary/services/visual_debugger_service.py`) that runs independent graphical automation tasks without a physical desktop screen.
 
 ```
-Sanctuary/
-├── .env.example                        # Blueprint for local environment variables
-├── Makefile                            # Root commands orchestrator (delegates tasks to subfolders)
-├── README.md                           # Human landing page and documentation gateway
-├── pyproject.toml                      # Monorepo dependencies and Ruff linting configurations
-├── uv.lock                             # Lockfile for reproducible environment installations
-│
-├── docs/                               # Comprehensive technical and justification resources
-│   ├── ARCHITECTURAL_GUIDE.md          # [THIS FILE] Core technical manual and port directory
-│   ├── CONTEXT.md                      # High-level product security simulation summary
-│   ├── RESEARCHER_PROFILE.md           # Professional bios and Academic details
-│   └── Sanctuary.md                    # Academic Barlow quote, compliance, and simulation justification
-│
-├── manifests/                          # Deployment cluster configuration manifests
-│   ├── nodes.yaml                      # Space details, target repos, tokens, and service lists
-│   └── state.json                      # Automated registry of last built/deployed states
-│
-├── scripts/                            # Monorepo administration & connection CLI
-│   ├── cc.py                           # The Sanctuary client connection manager CLI tool
-│   └── deploy.py                       # Code packer, secret obfuscator, and Hugging Face deployer
-│
-├── main/                               # Subproject holding Space configurations & Docker builds
-│   ├── Dockerfile                      # ubuntu-based camouflaged container builder
-│   ├── Makefile                        # Compilation, linting, formatting, and cleanup runner
-│   ├── sliver                          # Sliver client CLI binary (generated locally)
-│   ├── config/                         # Configuration templates injected during container build
-│   │   ├── Caddyfile.template          # Reverse proxy mapping layout (substitutes constant ports)
-│   │   ├── enabled_services.json       # Set at deploy time to selectively start services
-│   │   ├── ligolo-ng.yaml              # Ligolo pivoting specifications
-│   │   ├── loading.html                # Boot page returned to satisfy HF container health probes
-│   │   └── supervisord.conf            # Daemon supervisor controlling Python bootstrapper
-│   │
-│   ├── src/                            # Source codes of the Gradio Cover story app
-│   │   └── app.py                      # Cover UI (also contains the administrative debug backdoor)
-│   │
-│   └── scripts/                        # main subproject utility scripts
-│       └── build.py                    # Bytecode compiler, obfuscator, minifier, and Docker formatter
-│
-└── shared/                             # Core libraries shared between nodes and build engines
-    ├── core/                           # System orchestration and service registries
-    │   ├── __init__.py                 # Core module initialization stub
-    │   ├── constants.py                # Canonical port mappings and storage directory paths
-    │   ├── orchestrator.py             # Lifecycle daemon driving the multi-phase process boot
-    │   ├── service_logs.py             # Multi-sink Loguru logger routing output to separate files
-    │   └── service_registry.py         # ALLOWED_SERVICES listing and registry configurations
-    │
-    └── services/                       # Managed service daemons wrapper classes
-        ├── __init__.py                 # Services mapping hooks
-        ├── caddy_service.py            # reverse proxy control wrapper
-        ├── chisel_service.py           # chisel client/server control wrapper
-        ├── code_server_service.py      # VS Code browser server wrapper (runs on port :8888)
-        ├── custom_callbacks.py         # Custom LiteLLM request callback statistics logger
-        ├── filebrowser_service.py      # Browser-based file manager control wrapper (runs on port :9000)
-        ├── gost_service.py             # gost proxy client/server control wrapper
-        ├── gradio_service.py           # gradio cover story launcher (runs on port :7861)
-        ├── ligolo_service.py           # ligolo pivoting tun controller
-        ├── llm_proxy_service.py        # LiteLLM router (OpenAI endpoint on port :8080)
-        ├── minecraft_service.py        # Stealth paper server emulator (runs on port :25566)
-        ├── open_webui_service.py       # Open WebUI dashboard manager (runs on port :3000)
-        ├── playit_service.py           # playit bridge wrapper (tunnels port :2222 through ply.gg)
-        ├── sliver_service.py           # sliver command-and-control server control wrapper
-        ├── tailscale_service.py        # Userspace tailscaled controller
-        └── utils.py                    # XOR decoders, Base64 decoders, and helper routines
+       [ KasmVNC Server (:18231) ] ──► (Websocket Display Server)
+                    │
+                    ▼ (Local UNIX Sockets)
+   [ Fluxbox Layout Window Manager ]
+                    │
+                    ▼ (DISPLAY=:18231)
+  [ Firefox (data-renderer) automation ] ──► Loops against localhost:7860
 ```
 
----
-
-## 🚀 Runtime Process Lifecycle & Boot Sequence
-
-The main system orchestrator (`shared/core/orchestrator.py`) drives a phased boot timeline:
-
-### Phase 0: Port Binding Gateway
-Spins up Caddy (`model-routing-engine`) instantly to bind public port `7860` (and secondary `7890`). This ensures platform health checks immediately receive an active HTTP connection serving `static/loading.html` while downstream heavy services compile or load.
-
-### Phase 1: Gradio App Initialization
-Launches the **Gradio Cover Story App** (`src/app.py` via `gradio_service.py`) on local port `7861`. Once ready, Caddy proxy bindings seamlessly route incoming traffic directly to it. Pre-allocates the 5GB empty model weights buffer (`pytorch_model.bin`) and boots the background dynamic CPU calculations (`jitter_task`).
-
-### Phase 2: Secret Scrubbing & Tunnel Portal Spawn
-* **Secret Scrubbing**: Decrypts environment secret variables (`PASS`, `TAILSCALE`/`A`, `PLAYIT`/`P`) using `unharden_secret()` and stores them in localized memory strings. It then **wipes** all trace variables from the global system process environment (`os.environ`) using `os.environ.pop()` to prevent downstream child process inheritance or dynamic environment scans.
-* **Access Portal Spawn**: Initializesuserspace-networking Tailscaled (`python-cache-manager` on SOCKS5 port `:1055`), configures the administrative SSH daemon on port `2222` applying the scrubbed password, initializes Filebrowser (running on port `9000`), and spins up the remaining tunnels (Chisel on `:6789`, GOST on `:6790`, Ligolo-ng proxy on `:11601`, and Sliver C2).
-
-### Phase 3: Localhost Services & Graphical Debugger
-* **LiteLLM Router**: Spawns on local port `8080` load-balancing API credentials decrypted from `LLM_KEYS`.
-* **OpenWebUI**: Spawns on local port `3000` inside a background worker thread. Delegates all RAG vector embeddings directly to the local LiteLLM proxy and forces client-side STT (Web Speech API) to retain a 0-byte server model footprint.
-* **VS Code Server**: Starts `code-server` on local port `8888` without password authentication, relying on userspace-networking tailscale isolation for access.
-* **Headless Visualizer**: Spawns KasmVNC (:18231) running a persistent Firefox browser instance in a loop targeting Caddy's routing frontend.
-
-### Subprocess Log Bridging
-`shared/core/service_logs.py` handles subprocess logs using a custom pipe-based redirection system:
-* Spawns an internal OS pipe (`os.pipe()`) and runs an asynchronous reading thread.
-* The thread reads stdout/stderr lines dynamically out of the pipe's read-end using `os.fdopen()`.
-* It binds log lines directly into Loguru under unique service keys (e.g., `logger.bind(prefix="TS").info(...)`).
-* Depending on `COVERT_LOGGING_MODE`, it routes the data exclusively to individual service log files inside `METRICS_DIR` (Level 1: File-only) or replicates them onto `sys.stdout` with custom color tags (Level 2: Console+File).
+### Visual Subsystem Components
+1. **X11 Display Context:** Instantiates KasmVNC's display engine (camouflaged as `xorg-ipc-server`) bound to display address `:18231`.
+2. **Sandbox Protection Configuration:**
+   * Generates a hardened `kasmvnc.yaml` file that programmatically disables external WebRTC signaling and STUN server lookup requests to prevent outbound UDP leaks.
+   * Leverages mock SSL paths pointing directly to system parameters (such as `/etc/hostname`) to bypass connection crashes.
+3. **Automatic Credentials Setup:** Runs the `digest-generator` tool non-interactively to pre-seed VNC accounts directly with localized variables, eliminating manual command steps.
+4. **Window Management:** Spawns Fluxbox (`layout-decorator`) on display `:18231` using custom startup scripts to manage system window frames.
+5. **Interactive Browser Automation:** Launches a headless Firefox instance (camouflaged as `/opt/render-engine/data-renderer`) targeted directly at Caddy's routing endpoint (`http://127.0.0.1:7860`). This runs persistent page interaction scripts to emulate standard user activity inside the container.
 
 ---
 
-## 🎛️ Network Routing & Ports Directory
+## 6. Storage and State Synchronization Engines
 
-The Sanctuary environment coordinates 14 distinct services, mapped cleanly inside `shared/core/constants.py`:
+Project Sanctuary features dual-engine synchronization routines (`storage_sync_service.py` and `state_sync_service.py`) to manage persistent data across deployments without relying on persistent disk allocations.
 
-| Service Identifier | Port | Protocol | Binding Interface | Process Rename / Command |
-| :--- | :--- | :--- | :--- | :--- |
-| **Caddy Proxy** | `7860` | HTTP | Public (0.0.0.0) | `model-routing-engine run --config {CADDYFILE_PATH}` |
-| **Caddy Secondary** | `7890` | HTTP | Public (0.0.0.0) | Used for alternative port mapping / secondary pivots |
-| **Gradio Cover App**| `7861` | HTTP | Local (`127.0.0.1`) | `python3 -u /home/user/app.py` |
-| **SSH Server** | `2222` | SSH | Local (`127.0.0.1`) | `/usr/sbin/sshd -D` |
-| **Chisel Tunnel** | `6789` | WS | Local (`127.0.0.1`) | `cuda-mesh-bridge server --port 6789 --reverse --socks5` |
-| **GOST Proxy** | `6790` | MWS | Local (`127.0.0.1`) | `system-bridge -L relay+mws://user:pass@127.0.0.1:6790` |
-| **Model Sync** | `6795` | HTTP | Local (`127.0.0.1`) | Internal model replication sync gateway |
-| **Sliver C2 Server**| `11601`| mTLS | Local (`127.0.0.1`) | `gradient-optimizer daemon --root-dir {SLIVER_HOME}` |
-| **LiteLLM Router** | `8080` | HTTP | Local (`127.0.0.1`) | `/opt/venv-litellm/bin/litellm --config {CONFIG_PATH}` |
-| **Filebrowser** | `9000` | HTTP | Local (`127.0.0.1`) | `ai-metrics-collector -p 9000 -d {FILEBROWSER_DB_PATH}` |
-| **SOCKS5 Proxy** | `1080` | SOCKS | Local (`127.0.0.1`) | Universal fallback SOCKS5 proxy port |
-| **Playit MC Bridge**| `25565`| TCP | Local (`127.0.0.1`) | Playit-gg XOR/Minecraft bridge proxy socket |
-| **Minecraft Server**| `25566`| TCP | Local (`127.0.0.1`) | Stealth Paper MC jar (`/tmp/mc/server.jar`) running on JRE 25 |
-| **Open WebUI** | `3000` | HTTP | Local (`127.0.0.1`) | `open-webui serve --host 127.0.0.1 --port 3000` |
-| **VS Code Server** | `8888` | HTTP | Local (`127.0.0.1`) | `code-server --bind-addr 127.0.0.1:8888 --auth none` |
-| **KasmVNC Web Stream**| `8501`| WS | Local (`127.0.0.1`) | Headless graphics streaming port (KasmVNC display `:18231`) |
+### Sync Topology
 
-> [!WARNING]
-> **Filebrowser Port Mapping Mismatch**: Although `shared/core/constants.py` references port `6801` under the key `"filebrowser"`, the underlying wrapper `filebrowser_service.py` executes Filebrowser on port `9000` (`-p 9000`). Caddy handles this mismatch inside the Caddyfile template by proxying `/routing-console*` requests directly to port `6801` (which is standard for constants-mapping compatibility) or mapping routes appropriately depending on active variables. Ensure that Caddy mapping coordinates reflect `9000` when updating the network interface parameters.
-
-### 1. Caddy Router Configurations (`Caddyfile.template`)
-```caddy
-# Bind to Hugging Face Spaces public ports
-:7860, :7890 {
-    # Serve loading page during boots or service failure
-    handle_errors {
-        root * {STATIC_DIR}
-        rewrite * /loading.html
-        file_server
-    }
-
-    # Static Assets (Bypasses Python runtime completely)
-    handle /static/* {
-        root * {STATIC_DIR}
-        file_server
-    }
-
-    # Secure Websocket Tunnels and Pivoting Interfaces
-    handle_path /chisel-tunnel* { reverse_proxy 127.0.0.1:6789 }
-    handle /gost-bridge*       { reverse_proxy 127.0.0.1:6790 }
-    handle /tensor-mesh*        { 
-        reverse_proxy https://127.0.0.1:11601 {
-            transport http { tls_insecure_skip_verify }
-        }
-    }
-
-    # LiteLLM proxy and OpenAI endpoint routing
-    handle /v1*                 { reverse_proxy 127.0.0.1:8080 }
-    handle /health*             { reverse_proxy 127.0.0.1:8080 }
-
-    # Filebrowser Dashboard Console
-    handle /routing-console*    { reverse_proxy 127.0.0.1:6801 }
-
-    # Default Fallback to Gradio Cover App
-    handle {
-        reverse_proxy 127.0.0.1:7861 {
-            header_up X-Forwarded-Proto https
-        }
-    }
-}
+```
+                  ┌──────────────────────────────┐
+                  │   State Stage Area (~/.sync) │
+                  └──────────────┬───────────────┘
+                                 │
+         ┌───────────────────────┴───────────────────────┐
+         ▼ (Hugging Face API)                            ▼ (Rclone Sync Interface)
+┌─────────────────┐                             ┌─────────────────┐
+│   HF Dataset    │                             │ S3 / R2 Bucket  │
+│ (Private Repo)  │                             │ (Secure Object) │
+└─────────────────┘                             └─────────────────┘
 ```
 
-### 2. Tunnel Technologies
-* **Chisel (`cuda-mesh-bridge`)**: Establishes a raw TCP-over-WebSocket tunnel listening locally on port `6789`.
-* **GOST (`system-bridge`)**: Multiplexed proxy mapping SOCKS5 over Secure WebSockets on port `6790`.
-* **Tailscale (`python-cache-manager`)**: Mesh VPN executed inside userspace-networking mode (`--tun=userspace-networking`) mapping an internal SOCKS5 interface to port `1055` and a control socket to `.torch_metrics/tailscaled.sock`.
-* **Ligolo-ng (`neural-route-controller`)**: Pivot controller establishing high-performance virtual TUN interfaces (`sudo -n /usr/bin/neural-route-controller -laddr 127.0.0.1:11601 -selfcert -selfcert-domain ligolo`).
-* **Playit-gg (`tensor-allocator`)**: Direct TCP tunnel utilizing custom XOR obfuscation and Minecraft handshake patterns. Establishes a local bridge (`playit_service.py`) on port `25565` using Playit's CLI daemon.
+### 1. Unified Sync Interface
+Synchronization providers inherit from a clean, abstract contract to decouple platform execution logic:
+```python
+class BaseStorageProvider(ABC):
+    @abstractmethod
+    def pull(self, local_dir: Path) -> None: pass
 
----
+    @abstractmethod
+    def push(self, local_dir: Path, commit_message: str) -> None: pass
+```
 
-## 📺 Headless Graphical Remote Debugger
+### 2. Hugging Face Datasets Driver
+* **Pull Mode:** Downloads remote repository changes using `snapshot_download()` and filters out system metadata patterns (such as `.git*`).
+* **Push Mode:** Commits local system changes using `HfApi().upload_folder()`, systematically purging deleted local resources on the remote endpoint via wildcard matching (`delete_patterns="*"`).
 
-* **X11 display**: Headless graphics are handled by a virtual frame buffer via KasmVNC's custom server (`/usr/bin/xorg-ipc-server`) bound to display port `:18231`.
-* **Config Hardening**: WebRTC and external STUN servers are programmatically **disabled** inside `~/.vnc/kasmvnc.yaml` to prevent outbound UDP leaks.
-* **Credentials Pre-seeding**: Executes `digest-generator` (kasmvncpasswd) in a subprocess, feeding raw VNC credentials (`kasmpass`) into storage, bypassing interactive configurations.
-* **Window Dresser**: Spawns Fluxbox (`layout-decorator`) in display `:18231` using `~/.vnc/xstartup` to manage unprivileged visual canvas frames.
-* **Browser Automation Loop**: Firefox (`data-renderer`) launches inside display `:18231` targeting Caddy's frontend `http://127.0.0.1:7860` in a persistent rendering loop.
+### 3. S3/R2 Rclone Adapter
+* **Execution:** Spawns optimized, isolated subprocess calls using Rclone.
+* **Security:** Instead of writing access credentials to a plain-text configuration file on disk, the provider injects sensitive tokens securely using runtime process variables:
+  * `RCLONE_CONFIG_S3SYNC_ACCESS_KEY_ID`
+  * `RCLONE_CONFIG_S3SYNC_SECRET_ACCESS_KEY`
+  * `RCLONE_CONFIG_S3SYNC_ENDPOINT`
 
----
-
-## 🚪 Gradio Control Panel Backdoor
-
-The main Gradio interface text box parses command variables directly inside `main/src/app.py`:
-
-* `SHOW_ALL_LOGS`: Aggregates and dumps logs from all running system services under `~/.torch_metrics/*.log`.
-* `SHOW_API_STATS`: Summarizes local LiteLLM API proxy requests and usage counts parsed out of `~/.torch_metrics/api_calls.txt`.
-* `SHOW_LOGS_MC`: Dumps active logs from the stealth Paper Minecraft server (`/tmp/mc/logs/latest.log`).
-* `SHOW_LOGS_<SERVICE>`: Directly streams logging channels from individual background daemons (e.g. Sliver, Ligolo, Tailscale, etc.).
-
----
-
-## 📖 Developer Playbook: How-to Guides
-
-### 1. How to Add a New Camouflaged Service
-1. **Register Service name**: Add identifier string to `shared/core/service_registry.py` inside `ALLOWED_SERVICES`.
-2. **Define Port and Directories**: Add port configurations to `PORTS` inside `shared/core/constants.py`.
-3. **Create Module**: Build `shared/services/my_service.py` wrapping subprocess calls.
-4. **Hook Orchestrator**: Update `shared/core/orchestrator.py` to import and call the service.
-5. **Bridge Logs**: Add a dedicated Subprocess Bridge handle in `shared/core/service_logs.py`.
-
-### 2. How to Provision and Deploy a Node
-1. **Manifest Configuration**: Append node definitions to `manifests/nodes.yaml`.
-2. **Set Environment Keys**: Set write credentials in shell variables (`HF_DEPLOY_TOKEN`, `TAILSCALE`, `PLAYIT`, `PASS`).
-3. **Run Packing Pipeline**:
-   ```bash
-   make deploy LOGS=2 HARDENER=bytecode
-   ```
-
-### 3. How to Operate Tunnels via the Client CLI (`cc.py`)
-* **Chisel Tunnel with interactive SSH session**:
-  ```bash
-  uv run python scripts/cc.py chisel --node server-01 -s
-  ```
-* **GOST Proxy SOCKS5 (Port 1080)**:
-  ```bash
-  uv run python scripts/cc.py gost --node server-01 -p
-  ```
-* **Arbitrary Local Port Forwarding**:
-  ```bash
-  uv run python scripts/cc.py chisel --node server-01 -L 6801:127.0.0.1:9000
-  ```
-* **Minecraft / Playit bridge connections**:
-  ```bash
-  uv run python scripts/cc.py playit --host south-forests.gl.at.ply.gg --port 25565 -s
-  ```
-* **Query node status and stream logs**:
-  ```bash
-  uv run python scripts/cc.py node server-01 --status
-  uv run python scripts/cc.py node server-01 --logs --follow
-  ```
+### 4. Continuous Background Sync Loop
+When `state_sync` is enabled:
+1. **Startup Restoration:** Performs a synchronous pull on boot to restore files from the remote storage provider.
+2. **Periodic Checkpoints:** Launches a background thread to automatically push system updates to the remote storage provider every 30 minutes.
+3. **Graceful Shutdown Hook:** Registers system traps (`SIGINT`, `SIGTERM`) to trigger a final, blocking backup run on shutdown before exiting.
