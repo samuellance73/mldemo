@@ -68,6 +68,7 @@ PORTS = {
     "minecraft": 25566,
     "open_webui": 3000,
     "visual_debugger": 8501,
+    "tmate": 2200,
 }
 
 # Path aliases for backward compatibility

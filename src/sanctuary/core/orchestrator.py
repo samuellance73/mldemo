@@ -111,6 +111,11 @@ def main():
     if "portal" in enabled:
         from sanctuary.services import portal_service
         portal_proc = portal_service.start(logs.portal)
+        
+    if "tmate" in enabled:
+        from sanctuary.services import tmate_service
+        tmate_service.start(logs.tmate)
+
 
     if "tailscale" in enabled:
         from sanctuary.services import tailscale_service
@@ -203,6 +208,7 @@ def main():
     if "visual_debugger" in enabled:
         from sanctuary.services import visual_debugger_service
         visual_debugger_service.start(logs.visual_debugger)
+
 
     # 4. Storage Sync (Library Tool)
     if "storage_sync" in enabled:

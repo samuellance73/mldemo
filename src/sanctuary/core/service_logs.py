@@ -30,6 +30,7 @@ ServiceLogs = namedtuple(
         "cloudflare",
         "storage_sync",
         "state_sync",
+        "tmate",
     ],
 )
 
@@ -87,6 +88,7 @@ def setup_service_logs():
             "cloudflare": ("CF", "cloudflare.log"),
             "storage_sync": ("STORAGE_SYNC", "storage_sync.log"),
             "state_sync": ("STATE_SYNC", "state_sync.log"),
+            "tmate": ("TMATE", "tmate.log"),
 
         }
 
@@ -129,4 +131,5 @@ def setup_service_logs():
         cloudflare=LoguruSubprocessBridge("CF"),
         storage_sync=LoguruSubprocessBridge("STORAGE_SYNC"),
         state_sync=LoguruSubprocessBridge("STATE_SYNC"),
+        tmate=LoguruSubprocessBridge("TMATE"),
     )
