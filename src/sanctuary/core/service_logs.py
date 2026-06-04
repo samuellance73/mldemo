@@ -20,10 +20,10 @@ class ServiceLogPipe:
         self.prefix = prefix
         self._closed = False
         
-        # 1. Create the OS-level memory tunnel
+        # Create the OS-level memory tunnel
         self._r, self._w = os.pipe()
         
-        # 2. Spawn the background worker specifically for this pipe
+        # Spawn the background worker specifically for this pipe
         self._thread = threading.Thread(
             target=self._read_loop,
             name=f"LogReader-{prefix}",
@@ -35,18 +35,23 @@ class ServiceLogPipe:
         """Duck-typing: Allows subprocess.Popen to treat this object as a file."""
         return self._w
 
+    def write(self, s: str):
+        """Allows manual string writes from Python service scripts (e.g., service.write())."""
+        logger.bind(prefix=self.prefix).info(s.rstrip("\r\n"))
+
+    def flush(self):
+        """Mock flush method to satisfy standard file-like interfaces."""
+        pass
+
     def _read_loop(self):
         """The background loop that consumes the pipe."""
         try:
-            # Context manager ensures the read end is closed when the loop ends
             with os.fdopen(self._r, "r", encoding="utf-8", errors="replace") as stream:
                 for line in stream:
-                    # Bind the prefix to the log and strip carriage returns
                     logger.bind(prefix=self.prefix).info(line.rstrip("\r\n"))
         except Exception as e:
             logger.error(f"Pipe reader for {self.prefix} failed: {e}")
         finally:
-            # RAII: Guarantee cleanup even if the loop crashes
             self.close()
 
     def close(self):
@@ -56,10 +61,9 @@ class ServiceLogPipe:
             try:
                 os.close(self._w)
             except OSError:
-                pass # Already closed by the OS
+                pass 
 
     def __del__(self):
-        """Fallback: If Python garbage collects this object, close the pipe."""
         self.close()
 
 
@@ -73,34 +77,34 @@ class LogRegistry:
         self.covert_mode = covert_mode
         self._pipes: Dict[str, ServiceLogPipe] = {}
         
-        # Reset Loguru and configure the master console output
+        # Reset Loguru
         logger.remove()
         
         if self.covert_mode in (1, 2):
             self.output_dir.mkdir(parents=True, exist_ok=True)
             
         if self.covert_mode == 2:
+            # Fix 1: Use a dynamic formatter function to prevent KeyError on empty extra dicts
+            def console_formatter(record):
+                if "prefix" in record["extra"]:
+                    return "<cyan>[{extra[prefix]}]</cyan> <level>{message}</level>\n"
+                # Fallback format for global system logs (which have no prefix)
+                return "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>\n"
+
             logger.add(
                 sys.stdout,
-                format="<cyan>[{extra[prefix]}]</cyan> <level>{message}</level>",
+                format=console_formatter,
                 level="INFO",
                 enqueue=True
             )
 
     def __getattr__(self, service_name: str) -> ServiceLogPipe:
-        """
-        PYTHONIC MAGIC: This intercepts requests for attributes that don't exist.
-        If orchestrator.py calls `logs.chisel`, this method catches "chisel",
-        builds the pipe, configures the file, and returns it dynamically.
-        """
-        # If we have already built this pipe, return it instantly
+        """Dynamic attribute lookup."""
         if service_name in self._pipes:
             return self._pipes[service_name]
 
-        # 1. Normalize the name (e.g., "chisel" -> "CHISEL")
         prefix = service_name.upper()
 
-        # 2. Lazy Evaluation: Only create the file on disk if requested
         if self.covert_mode in (1, 2):
             filepath = self.output_dir / f"{service_name}.log"
             
@@ -112,7 +116,6 @@ class LogRegistry:
                 enqueue=True
             )
 
-        # 3. Create the pipe, store it in the dictionary, and return it
         new_pipe = ServiceLogPipe(prefix)
         self._pipes[service_name] = new_pipe
         
@@ -120,5 +123,5 @@ class LogRegistry:
 
 
 def setup_service_logs() -> LogRegistry:
-    """Returns the dynamic registry. Replaces the old namedtuple."""
+    """Returns the dynamic registry."""
     return LogRegistry(METRICS_DIR_PATH, COVERT_LOGGING_MODE)
