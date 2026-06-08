@@ -21,7 +21,7 @@ nodes:
     create-repo: true
     space-sdk: docker
     repo-type: space
-    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "llm_proxy" ]
+    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "llm_proxy"]
 #    services: ["caddy", "filebrowser","chisel", "gost", "visual_debugger"]
   
   openwebui:

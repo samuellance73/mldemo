@@ -23,6 +23,43 @@ CONFIG_PATH = (
 )
 
 
+def _load_yaml_config() -> dict:
+    """Load the raw llm_keys.yaml (or equivalent) as a dict, or return {}."""
+    paths = [Path("llm_keys.yaml"), LITELLM_KEYS_PATH]
+    for path in paths:
+        if path.exists():
+            try:
+                import yaml
+
+                with path.open() as f:
+                    return yaml.safe_load(f) or {}
+            except Exception as e:
+                logger.error(f"{PREFIX} Error reading {path}: {e}")
+    return {}
+
+
+def _parse_providers(providers: dict) -> list[tuple[str, str, str]]:
+    """Parse the 'providers' section of llm_keys.yaml into (provider, model, key) tuples."""
+    entries = []
+    for provider, keys in providers.items():
+        provider_clean = provider.lower().strip()
+        if isinstance(keys, str):
+            entries.append((provider_clean, "*", keys.strip()))
+        elif isinstance(keys, list):
+            for k in keys:
+                if isinstance(k, str) and k:
+                    entries.append((provider_clean, "*", k.strip()))
+                elif isinstance(k, dict):
+                    model = k.get("model")
+                    specific_keys = k.get("keys", [])
+                    if model and isinstance(specific_keys, list):
+                        for sk in specific_keys:
+                            if sk and isinstance(sk, str):
+                                entries.append((provider_clean, model.strip(), sk.strip()))
+                    elif model and isinstance(specific_keys, str) and specific_keys:
+                        entries.append((provider_clean, model.strip(), specific_keys.strip()))
+    return entries
+
 def _load_keys() -> list[tuple[str, str, str]]:
     """Load keys from the encrypted LLM_KEYS environment variable, or fallback to llm_keys.yaml.
 
@@ -56,108 +93,69 @@ def _load_keys() -> list[tuple[str, str, str]]:
             logger.error(f"{PREFIX} Failed to parse LLM_KEYS environment variable: {e}")
 
     # 2. Fallback path: Load from physical yaml file (local development environment)
-    paths = [Path("llm_keys.yaml"), LITELLM_KEYS_PATH]
-    for path in paths:
-        if path.exists():
-            try:
-                import yaml
+    data = _load_yaml_config()
+    if data:
+        entries = _parse_providers(data.get("providers", {}))
+        if entries:
+            logger.info(f"{PREFIX} Loaded {len(entries)} keys from llm_keys.yaml")
+            return entries
 
-                with path.open() as f:
-                    data = yaml.safe_load(f) or {}
 
-                providers = data.get("providers", {})
-                for provider, keys in providers.items():
-                    provider_clean = provider.lower().strip()
-                    if isinstance(keys, list):
-                        for k in keys:
-                            if isinstance(k, str) and k:
-                                entries.append((provider_clean, "*", k.strip()))
-                            elif isinstance(k, dict):
-                                model = k.get("model")
-                                specific_keys = k.get("keys", [])
-                                if model and isinstance(specific_keys, list):
-                                    for sk in specific_keys:
-                                        if sk and isinstance(sk, str):
-                                            entries.append(
-                                                (
-                                                    provider_clean,
-                                                    model.strip(),
-                                                    sk.strip(),
-                                                )
-                                            )
-                                elif model and isinstance(k.get("keys"), str):
-                                    sk = k.get("keys")
-                                    if sk:
-                                        entries.append(
-                                            (provider_clean, model.strip(), sk.strip())
-                                        )
-                    elif isinstance(keys, str):
-                        entries.append((provider_clean, "*", keys.strip()))
-                if entries:
-                    logger.info(f"{PREFIX} Loaded {len(entries)} keys from {path}")
-                    return entries
-            except Exception as e:
-                logger.error(f"{PREFIX} Error loading keys from {path}: {e}")
 
     return []
 
 
 def _build_config() -> str:
     """Build litellm.yaml from loaded keys and return the YAML string."""
+    import yaml
+
     entries = _load_keys()
     if not entries:
         return ""
 
-    model_entries = []
+    # Build model_list as a proper list of dicts
+    model_list = []
     for provider, model_name, api_key in entries:
-        # Wildcard routing enables dynamic prefix matching (e.g. deepseek/*)
         if model_name == "*" or model_name == f"{provider}/*":
-            model_entry = (
-                f'  - model_name: "{provider}/*"\n'
-                f"    litellm_params:\n"
-                f"      model: {provider}/*\n"
-                f'      api_key: "{api_key}"\n'
-                f"    model_info:\n"
-                f'      owned_by: "{provider}"\n'
-            )
+            model_list.append({
+                "model_name": f"{provider}/*",
+                "litellm_params": {"model": f"{provider}/*", "api_key": api_key},
+                "model_info": {"owned_by": provider},
+            })
         else:
-            # Backwards compatibility / specific named model mapping
-            if model_name.startswith(f"{provider}/"):
-                model_path = model_name
-            else:
-                model_path = f"{provider}/{model_name}"
+            model_path = model_name if model_name.startswith(f"{provider}/") else f"{provider}/{model_name}"
+            model_list.append({
+                "model_name": model_name,
+                "litellm_params": {"model": model_path, "api_key": api_key},
+                "model_info": {"owned_by": provider},
+            })
 
-            model_entry = (
-                f'  - model_name: "{model_name}"\n'
-                f"    litellm_params:\n"
-                f"      model: {model_path}\n"
-                f'      api_key: "{api_key}"\n'
-                f"    model_info:\n"
-                f'      owned_by: "{provider}"\n'
-            )
-        model_entries.append(model_entry)
+    # Defaults — overridable via llm_keys.yaml top-level sections
+    yaml_cfg = _load_yaml_config()
+    router_settings = {
+        "routing_strategy": "usage-based-routing-v2",
+        "num_retries": 3,
+        "retry_after": 5,
+        **(yaml_cfg.get("router_settings") or {}),
+    }
+    litellm_settings = {
+        "check_provider_endpoint": True,
+        "drop_params": True,
+        **(yaml_cfg.get("litellm_settings") or {}),
+    }
 
-    model_list_block = "".join(model_entries)
+    config: dict = {
+        "model_list": model_list,
+        "router_settings": router_settings,
+        "litellm_settings": litellm_settings,
+        "general_settings": {},
+    }
 
     master_key = os.environ.get("LITELLM_MASTER_KEY", "").strip()
-    master_key_line = f'  master_key: "{master_key}"\n' if master_key else ""
+    if master_key:
+        config["general_settings"]["master_key"] = master_key
 
-    return (
-        "model_list:\n"
-        f"{model_list_block}"
-        "\n"
-        "router_settings:\n"
-        "  routing_strategy: usage-based-routing-v2\n"
-        "  num_retries: 3\n"
-        "  retry_after: 5\n" 
-        "\n"
-        "litellm_settings:\n"
-        "  check_provider_endpoint: true\n"
-        "  drop_params: true\n"
-        "\n"
-        "general_settings:\n"
-        f"{master_key_line}"
-    )
+    return yaml.dump(config, default_flow_style=False, allow_unicode=True)
 
 
 def start(log):

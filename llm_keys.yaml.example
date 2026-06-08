@@ -23,7 +23,7 @@ providers:
     - "sk-deepseekKeyTwoHere"
 
   cerebras:
-    - "csk-ef2c6djw9kwm2x2x8eyf5d485nthr6thy5rxe9n9wf2wn56y"
+    - "csk-cerebrasKeyOneHere"
 
   gemini:
     - "AIzaSyGeminiKeyOneHere"
@@ -39,3 +39,20 @@ providers:
   #   - model: "gpt-4o"
   #     keys:
   #       - "sk-dedicatedGpt4Key..."
+
+# --- LiteLLM Router Settings (Optional) ---
+# Merged on top of hardcoded defaults. Omitted keys keep their defaults.
+# Defaults: routing_strategy=usage-based-routing-v2, num_retries=3, retry_after=5
+router_settings:
+  routing_strategy: usage-based-routing-v2  # simple-shuffle | least-busy | latency-based-routing
+  num_retries: 3
+  retry_after: 5
+  # allowed_fails: 3                        # failures before a key is cooled-down
+  # cooldown_time: 60                       # seconds a failed key stays out of rotation
+
+# --- LiteLLM Settings (Optional) ---
+# Merged on top of defaults (check_provider_endpoint=true, drop_params=true).
+litellm_settings:
+  check_provider_endpoint: true
+  drop_params: true
+  # request_timeout: 120
