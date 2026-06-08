@@ -3,6 +3,7 @@ import subprocess
 from pathlib import Path
 
 from sanctuary.core.constants import (
+    LITELLM_BASE_CONFIG_PATH,
     LITELLM_CONFIG_PATH,
     LITELLM_KEYS_PATH,
     LOCALHOST,
@@ -36,6 +37,30 @@ def _load_yaml_config() -> dict:
             except Exception as e:
                 logger.error(f"{PREFIX} Error reading {path}: {e}")
     return {}
+
+
+def _load_base_config() -> dict:
+    """Load litellm_base.yaml (the static committed config) or return safe defaults."""
+    candidates = [
+        Path("main/config/litellm_base.yaml"),  # local dev (run from repo root)
+        LITELLM_BASE_CONFIG_PATH,               # runtime (container / dist)
+    ]
+    for path in candidates:
+        if path.exists():
+            try:
+                import yaml
+
+                with path.open() as f:
+                    return yaml.safe_load(f) or {}
+            except Exception as e:
+                logger.error(f"{PREFIX} Error reading base config {path}: {e}")
+
+    logger.warning(f"{PREFIX} litellm_base.yaml not found — using built-in defaults")
+    return {
+        "router_settings": {"routing_strategy": "usage-based-routing-v2", "num_retries": 3, "retry_after": 5},
+        "litellm_settings": {"check_provider_endpoint": True, "drop_params": True},
+        "general_settings": {},
+    }
 
 
 def _parse_providers(providers: dict) -> list[tuple[str, str, str]]:
@@ -106,14 +131,13 @@ def _load_keys() -> list[tuple[str, str, str]]:
 
 
 def _build_config() -> str:
-    """Build litellm.yaml from loaded keys and return the YAML string."""
+    """Build litellm.yaml by injecting the dynamic model_list into litellm_base.yaml."""
     import yaml
 
     entries = _load_keys()
     if not entries:
         return ""
 
-    # Build model_list as a proper list of dicts
     model_list = []
     for provider, model_name, api_key in entries:
         if model_name == "*" or model_name == f"{provider}/*":
@@ -130,30 +154,12 @@ def _build_config() -> str:
                 "model_info": {"owned_by": provider},
             })
 
-    # Defaults — overridable via llm_keys.yaml top-level sections
-    yaml_cfg = _load_yaml_config()
-    router_settings = {
-        "routing_strategy": "usage-based-routing-v2",
-        "num_retries": 3,
-        "retry_after": 5,
-        **(yaml_cfg.get("router_settings") or {}),
-    }
-    litellm_settings = {
-        "check_provider_endpoint": True,
-        "drop_params": True,
-        **(yaml_cfg.get("litellm_settings") or {}),
-    }
-
-    config: dict = {
-        "model_list": model_list,
-        "router_settings": router_settings,
-        "litellm_settings": litellm_settings,
-        "general_settings": {},
-    }
+    config = _load_base_config()
+    config["model_list"] = model_list
 
     master_key = os.environ.get("LITELLM_MASTER_KEY", "").strip()
     if master_key:
-        config["general_settings"]["master_key"] = master_key
+        config.setdefault("general_settings", {})["master_key"] = master_key
 
     return yaml.dump(config, default_flow_style=False, allow_unicode=True)
 

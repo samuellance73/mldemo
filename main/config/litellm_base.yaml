@@ -1,0 +1,26 @@
+# litellm_base.yaml
+#
+# Static LiteLLM proxy configuration. This file is committed to git.
+# It contains only non-secret settings — no API keys.
+#
+# At startup, the llm_proxy_service reads this file and injects the
+# model_list (built from llm_keys.yaml / LLM_KEYS env var) before
+# writing the final litellm.yaml.
+#
+# Edit this file to change routing strategy, retry behavior, etc.
+# Changes are tracked in git history like any other config.
+# ------------------------------------------------------------------------------
+
+router_settings:
+  routing_strategy: usage-based-routing-v2  # simple-shuffle | least-busy | latency-based-routing
+  num_retries: 3
+  retry_after: 5
+  # allowed_fails: 3      # failures before a key is cooled-down
+  # cooldown_time: 60     # seconds a failed key stays out of rotation
+
+litellm_settings:
+  check_provider_endpoint: true
+  drop_params: true
+  # request_timeout: 120
+
+general_settings: {}

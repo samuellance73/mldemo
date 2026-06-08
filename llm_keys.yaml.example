@@ -40,19 +40,6 @@ providers:
   #     keys:
   #       - "sk-dedicatedGpt4Key..."
 
-# --- LiteLLM Router Settings (Optional) ---
-# Merged on top of hardcoded defaults. Omitted keys keep their defaults.
-# Defaults: routing_strategy=usage-based-routing-v2, num_retries=3, retry_after=5
-router_settings:
-  routing_strategy: usage-based-routing-v2  # simple-shuffle | least-busy | latency-based-routing
-  num_retries: 3
-  retry_after: 5
-  # allowed_fails: 3                        # failures before a key is cooled-down
-  # cooldown_time: 60                       # seconds a failed key stays out of rotation
-
-# --- LiteLLM Settings (Optional) ---
-# Merged on top of defaults (check_provider_endpoint=true, drop_params=true).
-litellm_settings:
-  check_provider_endpoint: true
-  drop_params: true
-  # request_timeout: 120
+# NOTE: Router and LiteLLM settings (routing_strategy, num_retries, etc.)
+# are configured in main/config/litellm_base.yaml, which is committed to git.
+# This file is for API keys only.
