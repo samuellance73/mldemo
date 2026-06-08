@@ -153,8 +153,7 @@ def _build_config() -> str:
         "\n"
         "litellm_settings:\n"
         "  check_provider_endpoint: true\n"
-        '  success_callback: ["helicone"]\n'
-        "  drop_params: true\n"  # <--- FIXED: Moved from general_settings to litellm_settings
+        "  drop_params: true\n"
         "\n"
         "general_settings:\n"
         f"{master_key_line}"
@@ -174,8 +173,6 @@ def start(log):
 
     Path(CONFIG_PATH).write_text(config_yaml)
     logger.info(f"{PREFIX} Config written to {CONFIG_PATH}")
-
-    os.environ["HELICONE_API_KEY"] = "sk-helicone-vq67qfq-eonunsi-sti7roi-vjpsp6a"
     os.environ["DISABLE_ADMIN_UI"] = "True"
 
     litellm_bin = (

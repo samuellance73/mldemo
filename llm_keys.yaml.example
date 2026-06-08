@@ -23,7 +23,7 @@ providers:
     - "sk-deepseekKeyTwoHere"
 
   cerebras:
-    - "cbs_cerebrasKeyOneHere"
+    - "csk-ef2c6djw9kwm2x2x8eyf5d485nthr6thy5rxe9n9wf2wn56y"
 
   gemini:
     - "AIzaSyGeminiKeyOneHere"

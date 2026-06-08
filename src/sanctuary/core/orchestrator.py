@@ -29,7 +29,7 @@ def load_enabled_services():
             data = json.load(f)
         services = data.get("services") or []
         # Unify all storage configurations into the single config block written by deploy.py
-        storage_config = data.get("storage", {})
+        storage_config = data.get("storage") or {}
         return frozenset(s.strip().lower() for s in services if s), storage_config
     except (OSError, json.JSONDecodeError, TypeError, AttributeError):
         return frozenset(), {}

@@ -10,7 +10,7 @@ from loguru import logger
 
 # Align python path to resolve src/ imports cleanly
 
-from sanctuary.core.service_logs import LoguruSubprocessBridge
+from sanctuary.core.service_logs import ServiceLogPipe
 from sanctuary.services import storage_sync_service
 
 
@@ -34,14 +34,14 @@ class TestStorageSyncService(unittest.TestCase):
             first_node_name = list(nodes_config["nodes"].keys())[0]
             node_info = nodes_config["nodes"][first_node_name]
             
-            self.hf_repo_id = node_info.get("storage", {}).get("repo-id") or node_info.get("hf-repo")
+            self.hf_repo_id = (node_info.get("storage") or {}).get("repo-id") or node_info.get("hf-repo")
             self.hf_token_env = node_info.get("token-env", "HF_TOKEN")
             self.hf_token = os.getenv(self.hf_token_env) or os.getenv("HF_TOKEN")
 
             if not self.hf_token:
                 self.skipTest(f"Missing HF token in {self.hf_token_env}")
                 
-            self.storage_log = LoguruSubprocessBridge("TEST_STORAGE_SYNC")
+            self.storage_log = ServiceLogPipe("TEST_STORAGE_SYNC")
             logger.info(f"Test setup complete for: {self.hf_repo_id}")
             
         except Exception as e:
