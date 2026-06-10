@@ -20,9 +20,20 @@ logger.info("--- BOOTING AI MODEL SERVER ---")
 def load_enabled_services():
     """Load per-node service list written at deploy time, allowing env overrides."""
     env_services = os.environ.get("SERVICES")
+    node_name = os.environ.get("NODE_NAME")
+    if not node_name:
+        try:
+            metadata_file = ENABLED_SERVICES_PATH.parent / "metadata.json"
+            if metadata_file.is_file():
+                with open(metadata_file, "r") as f:
+                    mdata = json.load(f)
+                node_name = mdata.get("node_name")
+        except Exception:
+            pass
+
     if env_services:
         logger.info("Using services configuration from environment: {}", env_services)
-        return frozenset(s.strip().lower() for s in env_services.split(",") if s.strip()), {}
+        return frozenset(s.strip().lower() for s in env_services.split(",") if s.strip()), {}, node_name or "default-node"
 
     try:
         with open(ENABLED_SERVICES_PATH, "r") as f:
@@ -30,9 +41,11 @@ def load_enabled_services():
         services = data.get("services") or []
         # Unify all storage configurations into the single config block written by deploy.py
         storage_config = data.get("storage") or {}
-        return frozenset(s.strip().lower() for s in services if s), storage_config
+        if not node_name:
+            node_name = data.get("node")
+        return frozenset(s.strip().lower() for s in services if s), storage_config, node_name or "default-node"
     except (OSError, json.JSONDecodeError, TypeError, AttributeError):
-        return frozenset(), {}
+        return frozenset(), {}, node_name or "default-node"
 
 
 def wait_for_port(host, port, timeout=30):
@@ -47,7 +60,8 @@ def wait_for_port(host, port, timeout=30):
 
 
 def main():
-    enabled, storage_config = load_enabled_services()
+    enabled, storage_config, node_name = load_enabled_services()
+    logger.info("Node Name: {}", node_name)
     if enabled:
         logger.info("Enabled services: {}", ", ".join(sorted(enabled)))
     else:
@@ -210,24 +224,37 @@ def main():
         visual_debugger_service.start(logs.visual_debugger)
 
 
-    # 4. Storage Sync (Library Tool)
+    # 4. Storage Sync (Library Tool) — one-shot push of current state on boot
     if "storage_sync" in enabled:
         from sanctuary.services import storage_sync_service
+        from sanctuary.core.constants import METRICS_DIR
+        from pathlib import Path
         if storage_provider == "huggingface":
             hf_repo_id = storage_config.get("repo-id")
             storage_sync_service.start(
-                logs.storage_sync, sync_type="huggingface", repo_id=hf_repo_id, token=hf_token
+                logs.storage_sync,
+                sync_type="huggingface",
+                action="push",
+                sync_dir=Path(METRICS_DIR),
+                commit_message="Boot-time state snapshot",
+                repo_id=hf_repo_id,
+                token=hf_token,
+                node_name=node_name
             )
         elif storage_provider == "s3":
             s3_bucket_name = storage_config.get("bucket-name")
             s3_endpoint = storage_config.get("endpoint")
             storage_sync_service.start(
                 logs.storage_sync, 
-                sync_type="s3", 
+                sync_type="s3",
+                action="push",
+                sync_dir=Path(METRICS_DIR),
+                commit_message="Boot-time state snapshot",
                 bucket_name=s3_bucket_name, 
                 endpoint=s3_endpoint, 
                 access_key=s3_access_key, 
-                secret_key=s3_secret_key
+                secret_key=s3_secret_key,
+                node_name=node_name
             )
 
     # 5. State Sync (Continuous Background Daemon)
@@ -244,7 +271,8 @@ def main():
                             storage_log=logs.state_sync,
                             sync_type="huggingface",
                             repo_id=hf_repo_id,
-                            token=hf_token
+                            token=hf_token,
+                            node_name=node_name
                         )
                         break
                     except Exception as e:
@@ -264,7 +292,8 @@ def main():
                 bucket_name=s3_bucket_name,
                 endpoint=s3_endpoint,
                 access_key=s3_access_key,
-                secret_key=s3_secret_key
+                secret_key=s3_secret_key,
+                node_name=node_name
             )
 
     logger.success("Model loaded successfully. Background services active.")

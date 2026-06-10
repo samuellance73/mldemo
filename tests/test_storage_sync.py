@@ -109,6 +109,68 @@ class TestStorageSyncService(unittest.TestCase):
         )
         logger.success("Hugging Face synchronization integration test passed.")
 
+    def test_huggingface_sync_node_roundtrip(self):
+        """Verifies a node-specific push, local deletion, pull, and comparison."""
+        
+        # Paths for distinct push and pull phases to prevent false-positives
+        push_dir = self.test_dir / "push_node_data"
+        pull_dir = self.test_dir / "pull_node_data"
+        
+        push_dir.mkdir()
+        pull_dir.mkdir()
+
+        # Step 1: Write initial test payload locally inside the node subdirectory
+        node_name = "server-99"
+        test_file_name = "test_node_file.txt"
+        payload_content = f"Sanctuary node integration verification token: {os.urandom(8).hex()}"
+        
+        node_push_dir = push_dir / node_name
+        node_push_dir.mkdir()
+        
+        local_file = node_push_dir / test_file_name
+        local_file.write_text(payload_content)
+
+        logger.info("Pushing test payload for node server-99 to Hugging Face...")
+        # Step 2: Push local_file to remote storage using node_name1
+        storage_sync_service.start(
+            self.storage_log,
+            action="push",
+            sync_type="huggingface",
+            repo_id=self.hf_repo_id,
+            token=self.hf_token,
+            sync_dir=push_dir,
+            node_name=node_name
+        )
+
+        # Step 3: Pull to a completely separate, clean directory
+        logger.info("Pulling payload for node server-99 from Hugging Face to a clean directory...")
+        storage_sync_service.start(
+            self.storage_log,
+            action="pull",
+            sync_type="huggingface",
+            repo_id=self.hf_repo_id,
+            token=self.hf_token,
+            sync_dir=pull_dir,
+            node_name=node_name
+        )
+
+        # Step 4: Verify the file pulled matches the file pushed inside node subfolder
+        pulled_file = pull_dir / node_name / test_file_name
+        
+        # Verify existence
+        self.assertTrue(
+            pulled_file.is_file(), 
+            f"The pulled node file {test_file_name} does not exist in the target directory."
+        )
+        
+        # Verify content matches original payload
+        self.assertEqual(
+            pulled_file.read_text(), 
+            payload_content,
+            "The pulled node file content does not match the original pushed payload."
+        )
+        logger.success("Hugging Face node-specific synchronization integration test passed.")
+
 
 if __name__ == '__main__':
     unittest.main()

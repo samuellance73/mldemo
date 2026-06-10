@@ -7,14 +7,17 @@ from pathlib import Path
 
 # Import your corrected storage sync service
 from sanctuary.services import storage_sync_service
+from sanctuary.core.constants import METRICS_DIR
 
 # Configuration Constants
-SYNC_INTERVAL_SECONDS = 1800  # 30 minutes
-LOCAL_DIR = Path("/home/user/.sync_staging") # Centralized absolute directory path
+SYNC_INTERVAL_SECONDS = 60  # Sync interval in seconds
+# Sync the real state directory where all services store their persistent data
+# (tailscale state, filebrowser.db, cloudflare URLs, ligolo fingerprints, etc.)
+LOCAL_DIR = Path(METRICS_DIR)
 
 # Initialize empty placeholders to be populated dynamically on startup
-REPO_ID = ""
-TOKEN = ""
+SYNC_KWARGS = {}
+SYNC_TYPE = "huggingface"
 shutdown_event = threading.Event()
 
 
@@ -24,12 +27,11 @@ def handle_shutdown(signum, frame):
     try:
         storage_sync_service.start(
             storage_log=sys.stdout,
-            sync_type="huggingface",
+            sync_type=SYNC_TYPE,
             action="push",
             sync_dir=LOCAL_DIR,
-            repo_id=REPO_ID,
-            token=TOKEN,
-            commit_message="Graceful shutdown state commit"
+            commit_message="Graceful shutdown state commit",
+            **SYNC_KWARGS
         )
         print("[*] Final state push successful.")
     except Exception as e:
@@ -44,7 +46,7 @@ signal.signal(signal.SIGINT, handle_shutdown)
 signal.signal(signal.SIGTERM, handle_shutdown)
 
 
-def _loop(storage_log, sync_type, repo_id, token):
+def _loop(storage_log, sync_type, sync_kwargs):
     """Main background loop."""
     while not shutdown_event.is_set():
         # Sleep, but exit instantly if a shutdown event is set
@@ -59,9 +61,8 @@ def _loop(storage_log, sync_type, repo_id, token):
                 sync_type=sync_type,
                 action="push",
                 sync_dir=LOCAL_DIR,
-                repo_id=repo_id,
-                token=token,
-                commit_message="Automated periodic sync"
+                commit_message="Automated periodic sync",
+                **sync_kwargs
             )
         except Exception as e:
             print(f"[-] Scheduled push failed: {e}. Retrying next interval.")
@@ -69,11 +70,11 @@ def _loop(storage_log, sync_type, repo_id, token):
 
 def start(storage_log, sync_type="huggingface", **kwargs):
     """Called by orchestrator.py to bootstrap the sync loop daemon."""
-    global REPO_ID, TOKEN
+    global SYNC_TYPE, SYNC_KWARGS
     
-    # Resolve parameters passed dynamically by the orchestrator
-    REPO_ID = kwargs.get("repo_id")
-    TOKEN = kwargs.get("token")
+    # Save options for background / shutdown processes
+    SYNC_TYPE = sync_type
+    SYNC_KWARGS = kwargs
 
     # Prepare local staging path defensively
     LOCAL_DIR.mkdir(parents=True, exist_ok=True)
@@ -88,8 +89,7 @@ def start(storage_log, sync_type="huggingface", **kwargs):
             sync_type=sync_type,
             action="pull",
             sync_dir=LOCAL_DIR,
-            repo_id=REPO_ID,
-            token=TOKEN
+            **kwargs
         )
         print("[*] Initial state restoration completed.")
     except Exception as e:
@@ -98,7 +98,7 @@ def start(storage_log, sync_type="huggingface", **kwargs):
     # PHASE 2: Start background loop thread
     t = threading.Thread(
         target=_loop,
-        args=(storage_log, sync_type, REPO_ID, TOKEN),
+        args=(storage_log, sync_type, SYNC_KWARGS),
         daemon=True
     )
     t.start()

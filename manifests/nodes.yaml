@@ -12,7 +12,7 @@ nodes:
       repo-id: "AlisaAjer/TestData"      # Target dataset repository
       token-env: "HF2"
 
-    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "llm_proxy", "portal", "cloudflare", "tmate"]
+    services: ["caddy", "filebrowser", "tailscale", "playit", "chisel", "gost", "ligolo", "sliver", "llm_proxy", "portal", "cloudflare", "tmate", "state_sync", "storage_sync"]
 #    services: ["caddy", "filebrowser","chisel", "gost", "visual_debugger"]
   server-02:
     hf-repo: "AlisaAjer/newrepo16"

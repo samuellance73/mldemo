@@ -37,30 +37,47 @@ class BaseStorageProvider(ABC):
 class HFDatasetProvider(BaseStorageProvider):
     """Hugging Face private dataset storage provider."""
 
-    def __init__(self, repo_id: str, token: str):
+    def __init__(self, repo_id: str, token: str, node_name: str = None):
         self.repo_id = repo_id
         self.token = token
+        self.node_name = node_name
         self.api = HfApi(token=token)
 
     def pull(self, local_dir: Path) -> None:
-        logger.info(f"Pulling from Hugging Face dataset '{self.repo_id}' to '{local_dir}'")
+        actual_local_dir = local_dir
+        allow_patterns = None
+        if self.node_name:
+            actual_local_dir = local_dir / self.node_name
+            actual_local_dir.mkdir(parents=True, exist_ok=True)
+            allow_patterns = [f"{self.node_name}/*"]
+
+        logger.info(f"Pulling from Hugging Face dataset '{self.repo_id}' (node: '{self.node_name}') to '{actual_local_dir}'")
         snapshot_download(
             repo_id=self.repo_id,
             repo_type="dataset",
             local_dir=str(local_dir),
             token=self.token,
-            ignore_patterns=[".git*", "README.md"]
+            ignore_patterns=[".git*", "README.md"],
+            allow_patterns=allow_patterns
         )
         logger.info(f"Successfully pulled Hugging Face dataset '{self.repo_id}'.")
 
     def push(self, local_dir: Path, commit_message: str) -> None:
-        logger.info(f"Pushing to Hugging Face dataset '{self.repo_id}' from '{local_dir}'")
+        actual_local_dir = local_dir
+        path_in_repo = None
+        if self.node_name:
+            actual_local_dir = local_dir / self.node_name
+            actual_local_dir.mkdir(parents=True, exist_ok=True)
+            path_in_repo = self.node_name
+
+        logger.info(f"Pushing to Hugging Face dataset '{self.repo_id}' (node: '{self.node_name}') from '{actual_local_dir}'")
         self.api.upload_folder(
-            folder_path=str(local_dir),
+            folder_path=str(actual_local_dir),
             repo_id=self.repo_id,
             repo_type="dataset",
             commit_message=commit_message,
-            delete_patterns="*"
+            delete_patterns="*",
+            path_in_repo=path_in_repo
         )
         logger.info(f"Successfully pushed to Hugging Face dataset '{self.repo_id}'.")
 
@@ -68,11 +85,12 @@ class HFDatasetProvider(BaseStorageProvider):
 class S3StorageProvider(BaseStorageProvider):
     """Headless S3/R2 storage provider utilizing pre-installed rclone."""
 
-    def __init__(self, bucket_name: str, endpoint: str, access_key: str, secret_key: str):
+    def __init__(self, bucket_name: str, endpoint: str, access_key: str, secret_key: str, node_name: str = None):
         self.bucket_name = bucket_name
         self.endpoint = endpoint
         self.access_key = access_key
         self.secret_key = secret_key
+        self.node_name = node_name
 
     def _get_rclone_env(self):
         env = os.environ.copy()
@@ -84,9 +102,16 @@ class S3StorageProvider(BaseStorageProvider):
         return env
 
     def pull(self, local_dir: Path) -> None:
-        logger.info(f"Pulling from S3 bucket '{self.bucket_name}' to '{local_dir}'")
+        remote_path = f"s3sync:{self.bucket_name}"
+        actual_local_dir = local_dir
+        if self.node_name:
+            remote_path = f"{remote_path}/{self.node_name}"
+            actual_local_dir = local_dir / self.node_name
+            actual_local_dir.mkdir(parents=True, exist_ok=True)
+
+        logger.info(f"Pulling from S3 bucket '{self.bucket_name}' (node: '{self.node_name}') to '{actual_local_dir}'")
         subprocess.run(
-            ["rclone", "sync", f"s3sync:{self.bucket_name}", str(local_dir)],
+            ["rclone", "sync", remote_path, str(actual_local_dir)],
             env=self._get_rclone_env(),
             check=True,
             capture_output=True
@@ -94,9 +119,16 @@ class S3StorageProvider(BaseStorageProvider):
         logger.info(f"Successfully pulled from S3 bucket '{self.bucket_name}'.")
 
     def push(self, local_dir: Path, commit_message: str) -> None:
-        logger.info(f"Pushing to S3 bucket '{self.bucket_name}' from '{local_dir}'")
+        remote_path = f"s3sync:{self.bucket_name}"
+        actual_local_dir = local_dir
+        if self.node_name:
+            remote_path = f"{remote_path}/{self.node_name}"
+            actual_local_dir = local_dir / self.node_name
+            actual_local_dir.mkdir(parents=True, exist_ok=True)
+
+        logger.info(f"Pushing to S3 bucket '{self.bucket_name}' (node: '{self.node_name}') from '{actual_local_dir}'")
         subprocess.run(
-            ["rclone", "sync", str(local_dir), f"s3sync:{self.bucket_name}"],
+            ["rclone", "sync", str(actual_local_dir), remote_path],
             env=self._get_rclone_env(),
             check=True,
             capture_output=True
@@ -109,6 +141,8 @@ def start(storage_log, sync_type: str = "huggingface", **kwargs):
     storage_log.write(f"[*] Starting Storage Sync Service for {sync_type}...\n")
     storage_log.flush()
 
+    node_name = kwargs.get("node_name")
+
     provider = None
     if sync_type == "huggingface":
         repo_id = kwargs.get("repo_id")
@@ -118,7 +152,7 @@ def start(storage_log, sync_type: str = "huggingface", **kwargs):
             storage_log.write("[-] Error: hf-repo ID and token are required.\n")
             storage_log.flush()
             return
-        provider = HFDatasetProvider(repo_id=repo_id, token=token)
+        provider = HFDatasetProvider(repo_id=repo_id, token=token, node_name=node_name)
     elif sync_type == "s3":
         bucket_name = kwargs.get("bucket_name")
         endpoint = kwargs.get("endpoint")
@@ -130,7 +164,11 @@ def start(storage_log, sync_type: str = "huggingface", **kwargs):
             storage_log.flush()
             return
         provider = S3StorageProvider(
-            bucket_name=bucket_name, endpoint=endpoint, access_key=access_key, secret_key=secret_key
+            bucket_name=bucket_name,
+            endpoint=endpoint,
+            access_key=access_key,
+            secret_key=secret_key,
+            node_name=node_name
         )
     else:
         logger.error(f"Unknown sync type: {sync_type}")
