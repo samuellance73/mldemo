@@ -12,11 +12,11 @@
 # ------------------------------------------------------------------------------
 
 router_settings:
-  routing_strategy: usage-based-routing-v2  # simple-shuffle | least-busy | latency-based-routing
-  num_retries: 3
-  retry_after: 5
-  # allowed_fails: 3      # failures before a key is cooled-down
-  # cooldown_time: 60     # seconds a failed key stays out of rotation
+  routing_strategy: simple-shuffle  # simple-shuffle | least-busy | latency-based-routing
+  num_retries: 5
+  retry_after: 1
+  allowed_fails: 1      # Cooldown key immediately on first 429/503 failure
+  cooldown_time: 300    # Keep rate-limited key out of rotation for 5 minutes
 
 litellm_settings:
   check_provider_endpoint: true
