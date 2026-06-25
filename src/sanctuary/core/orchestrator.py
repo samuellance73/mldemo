@@ -11,7 +11,7 @@ from pathlib import Path
 from loguru import logger
 from sanctuary.common.utils import unharden_secret
 
-from sanctuary.core.constants import LOCALHOST, PORTS, ENABLED_SERVICES_PATH
+from sanctuary.core.constants import LOCALHOST, METRICS_DIR, PORTS, ENABLED_SERVICES_PATH
 from sanctuary.core.service_logs import setup_service_logs
 
 logger.info("--- BOOTING AI MODEL SERVER ---")
@@ -227,8 +227,6 @@ def main():
     # 4. Storage Sync (Library Tool) — one-shot push of current state on boot
     if "storage_sync" in enabled:
         from sanctuary.services import storage_sync_service
-        from sanctuary.core.constants import METRICS_DIR
-        from pathlib import Path
         if storage_provider == "huggingface":
             hf_repo_id = storage_config.get("repo-id")
             storage_sync_service.start(

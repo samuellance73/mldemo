@@ -10,7 +10,7 @@ from sanctuary.services import storage_sync_service
 from sanctuary.core.constants import METRICS_DIR
 
 # Configuration Constants
-SYNC_INTERVAL_SECONDS = 60  # Sync interval in seconds
+SYNC_INTERVAL_SECONDS = 180  # Sync interval in seconds
 # Sync the real state directory where all services store their persistent data
 # (tailscale state, filebrowser.db, cloudflare URLs, ligolo fingerprints, etc.)
 LOCAL_DIR = Path(METRICS_DIR)
