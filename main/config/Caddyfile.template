@@ -74,6 +74,9 @@
     handle /sw.js {
         reverse_proxy {LOCALHOST}:{SCRAMJET_PORT}
     }
+    handle /wisp* {
+        reverse_proxy {LOCALHOST}:{SCRAMJET_PORT}
+    }
 
     # Default: route all other public traffic to FastAPI + React (port {PORTAL_PORT})
     handle {

@@ -64,7 +64,7 @@ RUN userdel -f ubuntu && useradd -m -u 1000 -s /bin/bash user && \
 
 # Create isolated virtual environments to resolve package version conflicts
 RUN uv venv /opt/venv-litellm && \
-    uv pip install --python /opt/venv-litellm --no-cache-dir "litellm[proxy]" && \
+    uv pip install --python /opt/venv-litellm --no-cache-dir "litellm[proxy]" "fastapi<0.115.0" && \
     chown -R user:user /opt/venv-litellm
 
 # Install code-server (VS Code in the browser)
@@ -101,6 +101,7 @@ ENV PYTHONPATH=/home/user
 # Copy application files
 COPY --chown=user:user package.json /home/user/package.json
 RUN cd /home/user && npm install --omit=dev || true
+COPY --chown=user:user public /home/user/public
 COPY --chown=user:user src/app.py /home/user/app.py
 COPY --chown=user:user src/sanctuary /home/user/sanctuary
 COPY --chown=user:user config /home/user/config
