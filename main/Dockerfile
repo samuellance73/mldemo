@@ -8,7 +8,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl wget sudo python3 python3-pip upx openssh-server xauth \
     git vim nano htop tmux jq unzip iputils-ping net-tools tree \
-    rclone supervisor iproute2 tmate \
+    rclone supervisor iproute2 tmate nodejs npm \
     && mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd \
     && echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config \
     && echo "Port 2222" >> /etc/ssh/sshd_config \
@@ -99,6 +99,8 @@ RUN curl -fsSL url_harden("https://github.com/kasmtech/KasmVNC/releases/download
 ENV PYTHONPATH=/home/user
 
 # Copy application files
+COPY --chown=user:user package.json /home/user/package.json
+RUN cd /home/user && npm install --omit=dev || true
 COPY --chown=user:user src/app.py /home/user/app.py
 COPY --chown=user:user src/sanctuary /home/user/sanctuary
 COPY --chown=user:user config /home/user/config

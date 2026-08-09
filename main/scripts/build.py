@@ -392,9 +392,12 @@ if __name__ == "__main__":
     if Path("../src/sanctuary/services").exists():
         Path("dist/sanctuary/services").mkdir(parents=True, exist_ok=True)
         for entry in Path("../src/sanctuary/services").iterdir():
-            if entry.is_file() and entry.suffix == ".py":
-                content = _process_service_py(entry.read_text())
-                (Path("dist/sanctuary/services") / entry.name).write_text(content)
+            if entry.is_file():
+                if entry.suffix == ".py":
+                    content = _process_service_py(entry.read_text())
+                    (Path("dist/sanctuary/services") / entry.name).write_text(content)
+                else:
+                    shutil.copy2(entry, Path("dist/sanctuary/services") / entry.name)
 
         if Path("../src/sanctuary/client/mc_tunnel.py").exists():
             mc_content = Path("../src/sanctuary/client/mc_tunnel.py").read_text()
@@ -417,6 +420,15 @@ if __name__ == "__main__":
                     content = python_minifier.minify(content, remove_literal_statements=True)
                 (Path("dist/sanctuary/common") / entry.name).write_text(content)
         logger.success("Processed and copied common to dist/sanctuary/common")
+
+    if Path("../public").exists():
+        shutil.copytree("../public", "dist/public", dirs_exist_ok=True)
+    if Path("public").exists():
+        shutil.copytree("public", "dist/public", dirs_exist_ok=True)
+    if Path("../package.json").exists():
+        shutil.copy("../package.json", "dist/package.json")
+    if Path("../package-lock.json").exists():
+        shutil.copy("../package-lock.json", "dist/package-lock.json")
 
     if Path("src/README.md").exists():
         shutil.copy("src/README.md", "dist/README.md")

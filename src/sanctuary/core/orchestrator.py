@@ -223,6 +223,10 @@ def main():
         from sanctuary.services import visual_debugger_service
         visual_debugger_service.start(logs.visual_debugger)
 
+    if "scramjet" in enabled:
+        from sanctuary.services import scramjet_service
+        scramjet_service.start(logs.scramjet)
+
 
     # 4. Storage Sync (Library Tool) — one-shot push of current state on boot
     if "storage_sync" in enabled:

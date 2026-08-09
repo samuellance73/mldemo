@@ -46,6 +46,7 @@ The orchestrator manages 16 distinct service endpoints bound to localized loopba
 | **Open WebUI** | `3000` | HTTP | `127.0.0.1` | `open-webui` | Browser UI for LiteLLM router |
 | **Code Server** | `8888` | HTTP | `127.0.0.1` | `code-server` | Visual Studio Code in the browser |
 | **KasmVNC Web Stream**| `8501` | HTTP/WS | `127.0.0.1` | `display-config` | Headless visual stream streaming port |
+| **Scramjet Proxy** | `8085` | HTTP/WS | `127.0.0.1` | Python / Node | Web proxy & network bypass gateway (`/proxy`) |
 
 ---
 

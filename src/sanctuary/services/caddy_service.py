@@ -77,7 +77,7 @@ def start(caddy_log):
         "{FILEBROWSER_PORT}": str(PORTS["filebrowser"]),
         "{VISUAL_DEBUGGER_PORT}": str(PORTS["visual_debugger"]),
         "{PORTAL_PORT}": str(PORTS["portal"]),
-
+        "{SCRAMJET_PORT}": str(PORTS["scramjet"]),
     }
 
     for placeholder, value in substitutions.items():

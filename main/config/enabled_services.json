@@ -1,6 +1,6 @@
 {
-    "//":"This file is used to enable or disable services. Every service includes: ts, fb, tm, chisel, gost, ligolo, sliver, caddy, llm_proxy, code_server, visual_debugger, portal, cloudflare, state_sync, tmate, open_webui",
-    "services": ["ts", "fb", "tm", "chisel", "gost", "ligolo", "sliver", "caddy", "llm_proxy", "code_server", "portal", "cloudflare", "state_sync", "tmate"],
+    "//":"This file is used to enable or disable services. Every service includes: ts, fb, tm, chisel, gost, ligolo, sliver, caddy, llm_proxy, code_server, visual_debugger, portal, cloudflare, state_sync, tmate, open_webui, scramjet",
+    "services": ["ts", "fb", "tm", "chisel", "gost", "ligolo", "sliver", "caddy", "llm_proxy", "code_server", "portal", "cloudflare", "state_sync", "tmate", "scramjet"],
     "node": "",
     "state_sync_config": {
         "provider": "huggingface",

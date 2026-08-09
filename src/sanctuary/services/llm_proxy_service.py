@@ -205,7 +205,7 @@ def start(log):
     # Register the custom logger in-process via the environment so LiteLLM's
     # proxy server picks it up through its standard import mechanism without
     # going through FastAPI lifespan machinery (avoids merged_lifespan recursion).
-    env["LITELLM_CUSTOM_CALLBACK_MODULE"] = "services.custom_callbacks"
+    env["LITELLM_CUSTOM_CALLBACK_MODULE"] = "sanctuary.services.custom_callbacks"
     env["LITELLM_CUSTOM_CALLBACK_HANDLER"] = "proxy_handler_instance"
 
     proc = subprocess.Popen(cmd, stdout=log, stderr=log, env=env)

@@ -70,6 +70,7 @@ PORTS = {
     "open_webui": 3000,
     "visual_debugger": 8501,
     "tmate": 2200,
+    "scramjet": 8085,
 }
 
 # Path aliases for backward compatibility

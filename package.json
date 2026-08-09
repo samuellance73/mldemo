@@ -1,0 +1,8 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@mercuryworkshop/scramjet": "^1.1.0",
+    "@tomphttp/bare-server-node": "^2.0.6",
+    "express": "^5.2.1"
+  }
+}

@@ -61,6 +61,20 @@
         reverse_proxy {LOCALHOST}:{VISUAL_DEBUGGER_PORT}
     }
 
+    # Scramjet Proxy (retains prefix /proxy*, /bare*, /scramjet*, /sw.js)
+    handle /proxy* {
+        reverse_proxy {LOCALHOST}:{SCRAMJET_PORT}
+    }
+    handle /bare* {
+        reverse_proxy {LOCALHOST}:{SCRAMJET_PORT}
+    }
+    handle /scramjet* {
+        reverse_proxy {LOCALHOST}:{SCRAMJET_PORT}
+    }
+    handle /sw.js {
+        reverse_proxy {LOCALHOST}:{SCRAMJET_PORT}
+    }
+
     # Default: route all other public traffic to FastAPI + React (port {PORTAL_PORT})
     handle {
         reverse_proxy {LOCALHOST}:{PORTAL_PORT} {

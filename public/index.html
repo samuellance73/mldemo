@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scramjet Proxy Gateway | Sanctuary Mesh Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <script src="/scramjet/scramjet.all.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0c10;
+            --bg-card: rgba(18, 22, 32, 0.85);
+            --border-card: rgba(255, 255, 255, 0.1);
+            --accent-cyan: #00f2fe;
+            --accent-blue: #4facfe;
+            --text-primary: #f0f4f8;
+            --text-muted: #8a99ad;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-image:
+                radial-gradient(circle at 15% 15%, rgba(0, 242, 254, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(127, 0, 255, 0.08) 0%, transparent 40%);
+            overflow-x: hidden;
+            padding-bottom: 2rem;
+        }
+
+        .container {
+            width: 94%;
+            max-width: 1200px;
+            margin: 1.5rem auto;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 1.8rem;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: rgba(0, 242, 254, 0.1);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff88;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.4rem;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            font-weight: 300;
+        }
+
+        .search-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-card);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: rgba(10, 12, 16, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 14px;
+            padding: 6px 6px 6px 16px;
+        }
+
+        .search-box:focus-within {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.25);
+        }
+
+        .search-icon {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            margin-right: 12px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 1.05rem;
+            font-family: inherit;
+        }
+
+        input[type="text"]::placeholder {
+            color: #4a5568;
+        }
+
+        button.btn-proxy {
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-blue) 100%);
+            border: none;
+            color: #000;
+            font-weight: 700;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);
+        }
+
+        button.btn-proxy:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 242, 254, 0.5);
+        }
+
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
+            margin-top: 1.2rem;
+        }
+
+        .quick-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 10px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quick-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--accent-cyan);
+            transform: translateY(-2px);
+        }
+
+        .frame-wrapper {
+            margin-top: 1.5rem;
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border-card);
+            background: #111;
+            display: none;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: rgba(18, 22, 32, 0.95);
+            border-bottom: 1px solid var(--border-card);
+        }
+
+        .tb-btn {
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: var(--text-primary);
+            border-radius: 8px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .tb-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: var(--accent-cyan);
+        }
+
+        .tb-url-box {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 4px 10px;
+        }
+
+        .tb-lock {
+            margin-right: 6px;
+            font-size: 0.8rem;
+            color: #00ff88;
+        }
+
+        #tbUrlInput {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .frame-container {
+            width: 100%;
+            height: 75vh;
+            position: relative;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #fff;
+        }
+
+        .info-footer {
+            margin-top: 2rem;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="badge">
+                <div class="status-dot"></div>
+                Real WASM Scramjet Engine Active
+            </div>
+            <h1>Scramjet Web Proxy</h1>
+            <p class="subtitle">Official WebAssembly & Bare Protocol Proxy Engine</p>
+        </div>
+
+        <div class="search-card">
+            <form id="proxyForm" onsubmit="launchProxy(event)">
+                <div class="search-box">
+                    <span class="search-icon">🌐</span>
+                    <input type="text" id="targetUrl"
+                        placeholder="Enter URL or search query (e.g. wikipedia.org, google.com, youtube.com)..."
+                        required autofocus>
+                    <button type="submit" class="btn-proxy">Launch Proxy</button>
+                </div>
+            </form>
+
+            <div class="quick-links">
+                <div class="quick-card" onclick="quickLaunch('https://duckduckgo.com')">🦆 DuckDuckGo</div>
+                <div class="quick-card" onclick="quickLaunch('https://en.wikipedia.org')">📚 Wikipedia</div>
+                <div class="quick-card" onclick="quickLaunch('https://www.google.com')">🔍 Google</div>
+                <div class="quick-card" onclick="quickLaunch('https://www.youtube.com')">▶️ YouTube</div>
+                <div class="quick-card" onclick="quickLaunch('https://github.com')">🐙 GitHub</div>
+                <div class="quick-card" onclick="quickLaunch('https://news.ycombinator.com')">🧡 HackerNews</div>
+            </div>
+        </div>
+
+        <div class="frame-wrapper" id="frameWrapper">
+            <div class="toolbar">
+                <button class="tb-btn" onclick="iframeBack()">⬅️</button>
+                <button class="tb-btn" onclick="iframeForward()">➡️</button>
+                <button class="tb-btn" onclick="iframeReload()">🔄</button>
+                <button class="tb-btn" onclick="iframeHome()">🏠</button>
+                <div class="tb-url-box">
+                    <span class="tb-lock">🔒</span>
+                    <input type="text" id="tbUrlInput" onkeydown="if(event.key==='Enter') navigateFromToolbar()"
+                        placeholder="Proxy URL...">
+                </div>
+                <button class="tb-btn" onclick="openNewTab()">↗️</button>
+            </div>
+            <div class="frame-container">
+                <iframe id="proxyFrame" name="proxyFrame" src="about:blank"></iframe>
+            </div>
+        </div>
+
+        <div class="info-footer">
+            Sanctuary Mesh Protocol &bull; Engine: Official Scramjet WASM + Bare Protocol
+        </div>
+    </div>
+
+    <script>
+        let scramjetController = null;
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(() => {
+                console.log('[Scramjet] Real WASM ServiceWorker registered');
+            }).catch(err => console.warn('[Scramjet] SW error:', err));
+        }
+
+        if (typeof $scramjetLoadController === 'function') {
+            const { ScramjetController } = $scramjetLoadController();
+            scramjetController = new ScramjetController({
+                files: {
+                    wasm: '/scramjet/scramjet.wasm.wasm',
+                    all: '/scramjet/scramjet.all.js',
+                    sync: '/scramjet/scramjet.sync.js'
+                },
+                prefix: '/proxy/gateway/',
+                bare: '/bare/'
+            });
+            scramjetController.init();
+        }
+
+        function formatUrl(url) {
+            url = (url || '').trim();
+            if (!url) return '';
+            if (/^(f|ht)tps?:\/\//i.test(url)) return url;
+            if (url.includes('.') && !url.includes(' ')) return 'https://' + url;
+            return 'https://duckduckgo.com/?q=' + encodeURIComponent(url);
+        }
+
+        function launchProxy(e) {
+            if (e) e.preventDefault();
+            const input = document.getElementById('targetUrl');
+            if (!input) return;
+            const target = formatUrl(input.value);
+            if (!target) return;
+
+            const proxyUrl = scramjetController ? scramjetController.encodeUrl(target) : ('/proxy/gateway?url=' + encodeURIComponent(target));
+            const frameWrapper = document.getElementById('frameWrapper');
+            const iframe = document.getElementById('proxyFrame');
+
+            if (frameWrapper) frameWrapper.style.display = 'block';
+            if (iframe) iframe.src = proxyUrl;
+            document.getElementById('tbUrlInput').value = target;
+        }
+
+        function quickLaunch(url) {
+            document.getElementById('targetUrl').value = url;
+            launchProxy();
+        }
+
+        function iframeBack() { try { document.getElementById('proxyFrame').contentWindow.history.back(); } catch (e) { } }
+        function iframeForward() { try { document.getElementById('proxyFrame').contentWindow.history.forward(); } catch (e) { } }
+        function iframeReload() { try { document.getElementById('proxyFrame').contentWindow.location.reload(); } catch (e) { } }
+        function iframeHome() {
+            document.getElementById('frameWrapper').style.display = 'none';
+            document.getElementById('proxyFrame').src = 'about:blank';
+        }
+        function navigateFromToolbar() {
+            const target = formatUrl(document.getElementById('tbUrlInput').value);
+            if (target) launchProxy();
+        }
+        function openNewTab() {
+            const target = formatUrl(document.getElementById('tbUrlInput').value);
+            if (target) window.open(scramjetController ? scramjetController.encodeUrl(target) : ('/proxy/gateway?url=' + encodeURIComponent(target)), '_blank');
+        }
+    </script>
+</body>
+
+</html>
